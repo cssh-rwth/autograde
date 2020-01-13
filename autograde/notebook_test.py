@@ -8,11 +8,13 @@ import argparse
 import traceback
 from pathlib import Path
 from warnings import warn
+from datetime import datetime
 from distutils import dir_util
 from collections import OrderedDict
 from hashlib import blake2b, md5, sha256
 
 # Third party modules.
+from tabulate import tabulate
 from nbformat import read, NotebookNode
 from IPython.core.interactiveshell import InteractiveShell
 
@@ -21,6 +23,32 @@ from autograde.util import capture_output, cd, cd_tar
 
 # Globals and constants variables.
 NOTEBOOK_TEST = OrderedDict()
+
+REPORT_TEMPLATE = """
+======
+REPORT
+======
+**created {timestamp}**
+
+
+TEAM
+----
+
+{team}
+
+
+RESULTS
+-------
+
+{results}
+
+
+SUMMARY
+-------
+
+{summary}
+
+""".strip() + '\n\n'
 
 INJECT_BEFORE = """
 # ensure matplotlib works on a headless backend
@@ -263,6 +291,20 @@ class NotebookTest:
             # and store results as json also
             with open('test_results.json', mode='wt') as f:
                 json.dump(enriched_results, fp=f, indent=4)
+
+            # create a human readable report
+            with open('report.rst', mode='wt') as f:
+                def _results():
+                    ignore = {'stdout', 'stderr'}
+                    for i, r in results.items():
+                        yield {'nr': i, **{k: v for k, v in r.items() if k not in ignore}}
+
+                f.write(REPORT_TEMPLATE.format(
+                    timestamp=datetime.now().strftime("%m-%d-%Y, %H:%M:%S"),
+                    team=tabulate(group, headers='keys', tablefmt='grid'),
+                    results=tabulate(_results(), headers='keys', tablefmt='grid'),
+                    summary=tabulate(summary.items(), tablefmt='grid'),
+                ))
 
         return enriched_results
 
