@@ -41,3 +41,4 @@ The output is a compressed archive that is named something like :code:`results_X
 * :code:`notebook.ipynb`: an identical copy of the tested notebook
 * :code:`test_results.csv`: test results
 * :code:`test_restults.json`: test results, enriched with participant credentials and a summary
+* :code:`report.rst`: human readable report
