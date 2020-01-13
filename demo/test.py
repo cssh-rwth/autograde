@@ -19,14 +19,14 @@ def test_foo(foo):
 
 
 @nbt.register(target='bar', score=2.5, label='some label')
-def test_nar(bar):
+def test_bar(bar):
     print('bar', file=sys.stderr)
     for i in range(-5, 5):
         assert i ** 2 / 2 == bar(i)
 
 
 @nbt.register(target='fnord', score=1.5, label='another label')
-def test_nar(fnord):
+def test_fnord(fnord):
     assert fnord() == 42  # this one fails
 
 

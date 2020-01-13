@@ -269,14 +269,14 @@ class NotebookTest:
     def execute(self):
         parser = argparse.ArgumentParser(description='run tests on jupyter notebook')
 
-        parser.add_argument('notebook', type=str, help='the jupyter notebook to be tested')
+        parser.add_argument('notebook', type=str, help='the jupyter notebook to test')
         parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
         parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
 
         args = parser.parse_args()
 
         self.grade_notebook(
-            args.notebook,
+            Path(args.notebook).absolute(),
             target_dir=Path(args.target).absolute() if args.target else None,
             context=Path(args.context).absolute() if args.context else None
         )
