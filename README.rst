@@ -21,16 +21,16 @@ usage
 
 Before we run our first test, we build the respective container image, which is done by running :code:`python -m autograde build` which may take some time depending on your internet connection.
 
-*autograde* comes with some example files located in the :code:`data/` subdirectory that we will use for now to illustrate the workflow. Run:
+*autograde* comes with some example files located in the :code:`demo/` subdirectory that we will use for now to illustrate the workflow. Run:
 
 ::
 
-    python -m autograde exec data/test.py data/notebook.ipynb -t /tmp -c data/context
+    python -m autograde exec demo/test.py demo/notebook.ipynb -t /tmp -c demo/context
 
 What happened? Let's first have a look at the arguments of *autograde*:
 
-* :code:`data/test.py` contains the test cases we want to apply
-* :code:`data/notebookipynb` is the respective notebook we want to test
+* :code:`demo/test.py` contains the test cases we want to apply
+* :code:`demo/notebookipynb` is the respective notebook we want to test
 * The optional flag :code>`-t` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
 * The optional flag :code:`-c` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
 
