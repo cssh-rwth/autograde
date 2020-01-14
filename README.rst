@@ -25,14 +25,14 @@ Before we run our first test, we build the respective container image, which is 
 
 ::
 
-    python -m autograde exec demo/test.py demo/notebook.ipynb -t /tmp -c demo/context
+    python -m autograde exec demo/test.py demo/notebook.ipynb --target /tmp --context demo/context
 
 What happened? Let's first have a look at the arguments of *autograde*:
 
 * :code:`demo/test.py` contains the test cases we want to apply
 * :code:`demo/notebookipynb` is the respective notebook we want to test
-* The optional flag :code>`-t` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
-* The optional flag :code:`-c` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
+* The optional flag :code>`--target` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
+* The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
 
 The output is a compressed archive that is named something like :code:`results_XXXXXXXX.tar.xz` and which has the following contents:
 
