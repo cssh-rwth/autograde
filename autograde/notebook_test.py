@@ -274,8 +274,8 @@ class NotebookTest:
                 ),
                 team_members=group,
                 test_cases=list(map(str, self._cases)),
+                results=results,
                 summary=summary,
-                **results
             )
 
             # store copy of notebook
