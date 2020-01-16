@@ -15,6 +15,8 @@ Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ or `po
 
 Now, in order to install *autograde*, clone this repository and run :code:`pip install -e .` within it.
 
+Eventually build the respective docker image: :code:`python -m autograde build`
+
 
 usage
 -----
@@ -25,13 +27,13 @@ Before we run our first test, we build the respective container image, which is 
 
 ::
 
-    python -m autograde exec demo/test.py demo/notebook.ipynb --target /tmp --context demo/context
+    python -m autograde test demo/test.py demo/notebook.ipynb --target /tmp --context demo/context
 
 What happened? Let's first have a look at the arguments of *autograde*:
 
 * :code:`demo/test.py` contains the test cases we want to apply
-* :code:`demo/notebookipynb` is the respective notebook we want to test
-* The optional flag :code>`--target` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
+* :code:`demo/notebook.ipynb` is the respective notebook we want to test
+* The optional flag :code:`--target` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
 * The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
 
 The output is a compressed archive that is named something like :code:`results_XXXXXXXX.tar.xz` and which has the following contents:
