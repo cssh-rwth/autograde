@@ -1,6 +1,7 @@
 # Standard library modules.
 import os
 import sys
+import logging
 import tarfile
 from pathlib import Path
 from contextlib import contextmanager
@@ -11,6 +12,23 @@ from tempfile import TemporaryDirectory
 # Local modules
 
 # Globals and constants variables.
+
+
+_formatter = logging.Formatter(
+    '{asctime} [{levelname}] {processName}:\t{message}',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    style='{'
+)
+
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setFormatter(_formatter)
+
+logger = logging.getLogger('autograde')
+logger.addHandler(_stream_handler)
+
+
+def loglevel(x):
+    return max(10, 40 - x * 10)
 
 
 def project_root():

@@ -7,7 +7,6 @@ import json
 import argparse
 import traceback
 from pathlib import Path
-from warnings import warn
 from datetime import datetime
 from distutils import dir_util
 from collections import OrderedDict
@@ -19,7 +18,7 @@ from nbformat import read, NotebookNode
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
-from autograde.util import capture_output, cd, cd_tar
+from autograde.util import logger, loglevel, capture_output, cd, cd_tar
 
 # Globals and constants variables.
 NOTEBOOK_TEST = OrderedDict()
@@ -85,23 +84,27 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False):
     state = dict()
 
     try:
+        logger.debug('parse notebook')
+
         notebook = read(buffer, 4)
         shell = InteractiveShell.instance()
-        cells = (
+        cells = [
             ('injected by test', INJECT_BEFORE),
             *enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells), start=1)
-        )
+        ]
 
     except Exception as err:
+        logger.error(f'unable to parse notebook: {err}')
         return err, state
 
     # the log is supposed to be a valid, standalone python script
-    with capture_output(file):
-        print('#!/usr/bin/env python3')
+    print('#!/usr/bin/env python3', file=file)
 
     # actual code execution
-    for label, code in cells:
+    for i, (label, code) in enumerate(cells, start=1):
         with io.StringIO() as stdout, io.StringIO() as stderr:
+            logger.debug(f'[{i}/{len(cells)}] execute cell ({label})')
+
             try:
                 with capture_output(stdout, stderr):
                     # convert to valid python when origin is a notebook
@@ -141,6 +144,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False):
                 # TODO clear plt state + condition to plot only if plt state has changed
                 # exec(f'plt.savefig("cell_{label}.png");plt.close()', state)
 
+    logger.debug('execution completed')
     return error, state
 
 
@@ -217,6 +221,8 @@ class NotebookTest:
 
         results = OrderedDict()
         for i, case in enumerate(self._cases, start=1):
+            logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
+
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 # with capture_output(stdout, stderr):
                 with capture_output(stdout, stderr):
@@ -232,6 +238,7 @@ class NotebookTest:
                     stderr=stderr.getvalue()
                 )
 
+        logger.debug('testing completed')
         return results, self.summarize_results(results)
 
     def grade_notebook(self, nb_path, target_dir=None, context=None):
@@ -247,8 +254,10 @@ class NotebookTest:
             # prepare context and execute notebook
             with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
                 if context is not None:
+                    logger.debug(f'copy context files from: {context}')
                     dir_util.copy_tree(context, '.')
 
+                logger.debug('execute notebook')
                 error, state = exec_notebook(
                     io.StringIO(nb_data.decode('utf-8')),
                     file=c,
@@ -256,15 +265,16 @@ class NotebookTest:
                 )
 
             if error is not None:
-                warn(f'An error occurred when executing "{nb_path}", continue anyway: {error}')
+                logger.debug(f'An error occurred when executing "{nb_path}": {error}')
 
             # infer meta information
             group = state.get('team_members', {})
 
             if not group:
-                warn(f'Couldn\'t find valid information about team members in "{nb_path}"')
+                logger.warning(f'Couldn\'t find valid information about team members in "{nb_path}"')
 
             # execute tests
+            logger.debug('execute tests')
             results, summary = self.apply_tests(state)
             enriched_results = OrderedDict(
                 checksum=dict(
@@ -279,20 +289,24 @@ class NotebookTest:
             )
 
             # store copy of notebook
+            logger.debug('write copy of notebook')
             with open(f'notebook.ipynb', mode='wb') as f:
                 f.write(nb_data)
 
             # store results as csv file
+            logger.debug('write results to csv')
             with open('test_results.csv', 'w', newline='') as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=next(iter(results.values())))
                 csv_writer.writeheader()
                 csv_writer.writerows(results.values())
 
-            # and store results as json also
+            # store results as json
+            logger.debug('write results to json')
             with open('test_results.json', mode='wt') as f:
                 json.dump(enriched_results, fp=f, indent=4)
 
             # create a human readable report
+            logger.debug('write report')
             with open('report.rst', mode='wt') as f:
                 def _results():
                     ignore = {'stdout', 'stderr'}
@@ -314,8 +328,12 @@ class NotebookTest:
         parser.add_argument('notebook', type=str, help='the jupyter notebook to test')
         parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
         parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
+        parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
 
         args = parser.parse_args()
+
+        logger.setLevel(loglevel(args.verbose))
+        logger.debug(f'args: {args}')
 
         self.grade_notebook(
             Path(args.notebook).absolute(),
