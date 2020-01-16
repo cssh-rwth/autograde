@@ -282,6 +282,7 @@ class NotebookTest:
             logger.debug('execute tests')
             results, summary = self.apply_tests(state)
             enriched_results = OrderedDict(
+                orig_file=str(nb_path),
                 checksum=dict(
                     md5sum=md5(nb_data).hexdigest(),
                     sha256sum=sha256(nb_data).hexdigest(),

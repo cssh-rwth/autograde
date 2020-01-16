@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # Standard library modules.
 import os
+import csv
 import sys
+import json
+import tarfile
 import argparse
 import subprocess
 from pathlib import Path
@@ -62,6 +65,47 @@ def test(args):
     return reduce(max, map(run, notebooks))
 
 
+def summary(args):
+    root = Path(args.location or Path.cwd()).expanduser().absolute()
+
+    assert root.is_dir(), f'{root} is no regular directory'
+
+    results = []
+
+    for path in root.rglob('results_*.tar.xz'):
+        with tarfile.open(path, mode='r') as tar:
+            try:
+                r = json.load(tar.extractfile(tar.getmember('test_results.json')))
+                r['result_file'] = path.name
+
+                results.append(r)
+
+            except KeyError:
+                logger.warning(f'{path} does not contain "test_results.json", skip')
+                continue
+
+    header = ['student_id', 'last_name', 'first_name', 'sum', 'result_file']
+
+    def row_factory():
+        for r in results:
+            for member in r['team_members']:
+                yield (
+                    member['student_id'],
+                    member['last_name'],
+                    member['first_name'],
+                    r['summary']['score'],
+                    r['result_file']
+                )
+
+    logger.debug('write results to csv')
+    with open(root.joinpath('summary.csv'), 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file, dialect='excel')
+        csv_writer.writerow(header)
+        csv_writer.writerows(row_factory())
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description='run tests on jupyter notebook')
 
@@ -84,6 +128,10 @@ def main():
     exe_parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
     exe_parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
     exe_parser.set_defaults(func=test)
+
+    sum_parser = subparsers.add_parser('summary')
+    sum_parser.add_argument('location', type=str, help='location with result files to summarize')
+    sum_parser.set_defaults(func=summary)
 
     args = parser.parse_args()
 
