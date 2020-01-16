@@ -5,6 +5,7 @@ import csv
 import sys
 import json
 import argparse
+import warnings
 import traceback
 from pathlib import Path
 from datetime import datetime
@@ -86,8 +87,13 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
     try:
         logger.debug('parse notebook')
 
-        notebook = read(buffer, 4)
-        shell = InteractiveShell.instance()
+        # when executed within a docker container, some minor warnings occur that we filter here
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+
+            notebook = read(buffer, 4)
+            shell = InteractiveShell.instance()
+
         cells = [
             ('injected by test', INJECT_BEFORE),
             *enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells), start=1)
