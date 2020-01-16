@@ -1,6 +1,7 @@
 # Standard library modules.
 import os
 import sys
+import time
 import logging
 import tarfile
 from pathlib import Path
@@ -79,3 +80,26 @@ def cd_tar(name, mode='w'):
         finally:
             with tarfile.open(name, mode=mode) as tf:
                 tf.add(tempdir, arcname='')
+
+
+@contextmanager
+def timeout(timeout_):
+    start = time.time()
+
+    # trace callbacks
+    def _globaltrace(frame, event, arg):
+        return _localtrace if event == 'call' else None
+
+    def _localtrace(frame, event, arg):
+        if time.time() - start >= timeout_ and event == 'line':
+            raise TimeoutError(f'code execution took longer than {timeout_:.3f}s')
+
+    # activate tracing only in case timeout was actually set
+    if timeout_:
+        sys.settrace(_globaltrace)
+
+    try:
+        yield start
+
+    finally:
+        sys.settrace(None)

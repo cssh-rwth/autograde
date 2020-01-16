@@ -18,7 +18,7 @@ from nbformat import read, NotebookNode
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
-from autograde.util import logger, loglevel, capture_output, cd, cd_tar
+from autograde.util import logger, loglevel, capture_output, cd, cd_tar, timeout
 
 # Globals and constants variables.
 NOTEBOOK_TEST = OrderedDict()
@@ -79,7 +79,7 @@ def as_py_comment(s):
     return '\n'.join(f'# {l}' for l in s.strip().split('\n'))
 
 
-def exec_notebook(buffer, file=sys.stdout, ignore_errors=False):
+def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
     error = None
     state = dict()
 
@@ -112,7 +112,8 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False):
                         code = shell.input_transformer_manager.transform_cell(code.source)
 
                     # actual execution that extends state
-                    exec(code, state)
+                    with timeout(cell_timeout):
+                        exec(code, state)
 
             except Exception as err:
                 # extend log with some meaningful error message
@@ -149,25 +150,24 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False):
 
 
 class NotebookTestCase:
-    def __init__(self, test_function, target, score=1., label=None, timeout=None):
+    def __init__(self, test_function, target, score=1., label=None, timeout_=0):
         assert callable(test_function), '`func` has to be callable'
 
         self._test_func = test_function
         self._target = str(target)
         self._score = float(score)
         self._label = str(label) if label else ''
-        self._timeout = timeout
+        self._timeout = timeout_
 
     def __call__(self, state, *args, **kwargs):
         try:
             target = state.get(self.target)
             assert target is not None, f'Target "{self.target}" is not specified!'
 
-            self._test_func(target, *args, **kwargs)
-            return self.score, 'ok'
+            with timeout(self._timeout):
+                self._test_func(target, *args, **kwargs)
 
-        # except AssertionError as error:
-        #     return 0, error.args[0] if len(error.args) > 0 else ''
+            return self.score, 'ok'
 
         except Exception as err:
             msg_buffer = io.StringIO()
@@ -175,9 +175,9 @@ class NotebookTestCase:
             return 0, msg_buffer.getvalue()
 
     def __str__(self):
-        timeout = f'{self._timeout:.2f}s' if self._timeout is not None else 'None'
+        timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else 'None'
         return f'{self.__class__.__name__}(target={self.target}, label="{self.label}", ' \
-               f'score={self.score}, timeout={timeout})'
+               f'score={self.score}, timeout={timeout_})'
 
     target = property(fget=lambda self: self._target)
     score = property(fget=lambda self: self._score)
@@ -186,12 +186,10 @@ class NotebookTestCase:
 
 # TODO add before execution hook (pip install, download)
 class NotebookTest:
-    registry = []
-
-    def __init__(self):
+    def __init__(self, cell_timeout=0, test_timeout=0):
         self._cases = []
-
-        self.registry.append(self)
+        self._cell_timeout = cell_timeout
+        self._test_timeout = test_timeout
 
     def __str__(self):
         return f'{type(self).__name__}({len(self._cases)} cases)'
@@ -199,9 +197,9 @@ class NotebookTest:
     def __repr__(self):
         return f'{type(self).__name__}({self._cases})'
 
-    def register(self, target, score=1., label='', timeout=None):
+    def register(self, target, score=1., label='', timeout_=0):
         def decorator(func):
-            case = NotebookTestCase(func, target, score, label, timeout)
+            case = NotebookTestCase(func, target, score, label, max(self._test_timeout, timeout_))
             self._cases.append(case)
             return case
 
@@ -261,7 +259,8 @@ class NotebookTest:
                 error, state = exec_notebook(
                     io.StringIO(nb_data.decode('utf-8')),
                     file=c,
-                    ignore_errors=True
+                    ignore_errors=True,
+                    cell_timeout=self._cell_timeout
                 )
 
             if error is not None:
