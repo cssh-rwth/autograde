@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 
 
 _formatter = logging.Formatter(
-    '{asctime} [{levelname}] {processName}:\t{message}',
+    '{asctime} [{levelname}] {processName}:  {message}',
     datefmt='%Y-%m-%d %H:%M:%S',
     style='{'
 )

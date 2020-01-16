@@ -103,7 +103,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
     # actual code execution
     for i, (label, code) in enumerate(cells, start=1):
         with io.StringIO() as stdout, io.StringIO() as stderr:
-            logger.debug(f'[{i}/{len(cells)}] execute cell ({label})')
+            logger.debug(f'[{i}/{len(cells)}] execute cell ("{label}")')
 
             try:
                 with capture_output(stdout, stderr):
