@@ -68,7 +68,9 @@ except ImportError:
     print("'matplotlib' not found")
 
     from types import SimpleNamespace
-    plt = SimpleNamespace(savefig=lambda *args, **kwargs: None)
+    __dummy = lambda *args, **kwargs: None
+    
+    plt = SimpleNamespace(savefig=_dummy, cla=_dummy, clf=_dummy, close=_dummy, show=_dummy)
 
 FIG_PREV = None
 """.strip()
@@ -164,7 +166,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
 class NotebookTestCase:
     def __init__(self, test_function, target, score=1., label=None, timeout_=0):
-        assert callable(test_function), '`func` has to be callable'
+        assert callable(test_function), '`test_function` has to be callable'
 
         self._test_func = test_function
         self._target = str(target)
@@ -197,7 +199,6 @@ class NotebookTestCase:
     label = property(fget=lambda self: self._label)
 
 
-# TODO add before execution hook (pip install, download)
 class NotebookTest:
     def __init__(self, cell_timeout=0, test_timeout=0):
         self._cases = []
