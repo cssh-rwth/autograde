@@ -29,7 +29,7 @@ logger.addHandler(_stream_handler)
 
 
 def loglevel(x):
-    return max(10, 40 - x * 10)
+    return max(10, 40 - max(x, 0) * 10)
 
 
 def project_root():
@@ -38,19 +38,19 @@ def project_root():
 
 
 @contextmanager
-def capture_output(out_buffer=sys.stdout, err_buffer=sys.stderr):
-    orig_stdout = sys.stdout
-    orig_stderr = sys.stderr
+def capture_output(tmp_stdout=None, tmp_stderr=None):
+    stdout = sys.stdout
+    stderr = sys.stderr
 
-    sys.stdout = out_buffer
-    sys.stderr = err_buffer
+    sys.stdout = tmp_stdout or sys.stdout
+    sys.stderr = tmp_stderr or sys.stderr
 
     try:
-        yield orig_stdout, orig_stderr
+        yield stdout, stderr
 
     finally:
-        sys.stdout = orig_stdout
-        sys.stderr = orig_stderr
+        sys.stdout = stdout
+        sys.stderr = stderr
 
 
 @contextmanager
