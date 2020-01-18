@@ -8,9 +8,10 @@ import sys
 from autograde import NotebookTest
 
 # Globals and constants variables.
-nbt = NotebookTest()
+nbt = NotebookTest(cell_timeout=1.5, test_timeout=1)
 
 
+# this test will succeed
 @nbt.register(target='foo')
 def test_foo(foo):
     print('foo')
@@ -18,6 +19,7 @@ def test_foo(foo):
         assert i ** 2 == foo(i)
 
 
+# as well as this one
 @nbt.register(target='bar', score=2.5, label='some label')
 def test_bar(bar):
     print('bar', file=sys.stderr)
@@ -25,10 +27,25 @@ def test_bar(bar):
         assert i ** 2 / 2 == bar(i)
 
 
+# but this test fails
 @nbt.register(target='fnord', score=1.5, label='another label')
 def test_fnord(fnord):
-    assert fnord() == 42  # this one fails
+    assert fnord() == 42
 
 
+# this one will fail due to the global timeout
+@nbt.register(target='sleep', score=1, label='global timeout')
+def test_sleep_1(sleep):
+    sleep(2)
+
+
+# specifying timeout here will overwrite global settings
+@nbt.register(target='sleep', score=1, timeout_=.5, label='local timeout')
+def test_sleep_1(sleep):
+    sleep(2)
+
+
+# `execute` brings a simple comand line interface, e.g.:
+# `$ test.py notebook.ipynb -c context/ -t /tmp/ -vvv`
 if __name__ == '__main__':
     sys.exit(nbt.execute())
