@@ -73,6 +73,10 @@ except ImportError:
 FIG_PREV = None
 """.strip()
 
+INJECT_AFTER = """
+print('done')
+""".strip()
+
 
 def as_py_comment(s):
     if not s:
@@ -94,9 +98,12 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
             notebook = read(buffer, 4)
             shell = InteractiveShell.instance()
 
+        _code_cells = filter(lambda c: c.cell_type == 'code', notebook.cells)
+
         cells = [
             ('injected by test', INJECT_BEFORE),
-            *enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells), start=1)
+            *((f'c{i}', c) for i, c in enumerate(_code_cells, start=1)),
+            ('injected by test', INJECT_AFTER)
         ]
 
     except Exception as err:
@@ -182,8 +189,8 @@ class NotebookTestCase:
 
     def __str__(self):
         timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else 'None'
-        return f'{self.__class__.__name__}(target={self.target}, label="{self.label}", ' \
-               f'score={self.score}, timeout={timeout_})'
+        return f'{self.__class__.__name__}(target={self.target}, score={self.score}, ' \
+               f'timeout={timeout_}, label="{self.label}")'
 
     target = property(fget=lambda self: self._target)
     score = property(fget=lambda self: self._score)
@@ -205,7 +212,7 @@ class NotebookTest:
 
     def register(self, target, score=1., label='', timeout_=0):
         def decorator(func):
-            case = NotebookTestCase(func, target, score, label, max(self._test_timeout, timeout_))
+            case = NotebookTestCase(func, target, score, label, timeout_ or self._test_timeout)
             self._cases.append(case)
             return case
 

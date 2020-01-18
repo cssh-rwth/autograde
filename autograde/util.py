@@ -92,7 +92,7 @@ def timeout(timeout_):
 
     def _localtrace(frame, event, arg):
         if time.time() - start >= timeout_ and event == 'line':
-            raise TimeoutError(f'code execution took longer than {timeout_:.3f}s')
+            raise TimeoutError(f'code execution took longer than {timeout_:.3f}s to terminate')
 
     # activate tracing only in case timeout was actually set
     if timeout_:
