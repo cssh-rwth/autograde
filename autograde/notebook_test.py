@@ -166,21 +166,21 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
 class NotebookTestCase:
     def __init__(self, test_function, target, score=1., label=None, timeout_=0):
-        assert callable(test_function), '`test_function` has to be callable'
-
         self._test_func = test_function
-        self._target = str(target)
+        self._targets = (target,) if isinstance(target, str) else target
         self._score = float(score)
         self._label = str(label) if label else ''
         self._timeout = timeout_
 
     def __call__(self, state, *args, **kwargs):
         try:
-            target = state.get(self.target)
-            assert target is not None, f'Target "{self.target}" is not specified!'
+            targets = list(map(state.get, self._targets))
+
+            for target in targets:
+                assert target is not None, f'target "{target}" is not defined'
 
             with timeout(self._timeout):
-                self._test_func(target, *args, **kwargs)
+                self._test_func(*targets, *args, **kwargs)
 
             return self.score, 'ok'
 
@@ -191,10 +191,10 @@ class NotebookTestCase:
 
     def __str__(self):
         timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else 'None'
-        return f'{self.__class__.__name__}(target={self.target}, score={self.score}, ' \
+        return f'{self.__class__.__name__}(target={self.targets}, score={self.score}, ' \
                f'timeout={timeout_}, label="{self.label}")'
 
-    target = property(fget=lambda self: self._target)
+    targets = property(fget=lambda self: self._targets)
     score = property(fget=lambda self: self._score)
     label = property(fget=lambda self: self._label)
 
@@ -242,7 +242,7 @@ class NotebookTest:
 
                 results[i] = OrderedDict(
                     label=case.label,
-                    target=case.target,
+                    target=case.targets,
                     score=achieved,
                     score_max=case.score,
                     message=msg,
