@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # Standard library modules.
 import os
-import csv
 import sys
 import json
 import tarfile
@@ -11,6 +10,10 @@ from pathlib import Path
 from functools import reduce
 
 # Third party modules.
+import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 
 # Local modules
 from autograde.util import logger, loglevel, project_root, cd
@@ -70,8 +73,8 @@ def summary(args):
 
     assert root.is_dir(), f'{root} is no regular directory'
 
+    # extract results
     results = []
-
     for path in root.rglob('results_*.tar.xz'):
         with tarfile.open(path, mode='r') as tar:
             try:
@@ -84,7 +87,13 @@ def summary(args):
                 logger.warning(f'{path} does not contain "test_results.json", skip')
                 continue
 
-    header = ['student_id', 'last_name', 'first_name', 'sum', 'result_file']
+    # consistency check
+    max_scores = {r['summary']['score_max'] for r in results}
+    assert len(max_scores) == 1, 'found different max scores in results'
+    max_score = max_scores.pop()
+
+    # summary
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'result_file']
 
     def row_factory():
         for r in results:
@@ -94,14 +103,24 @@ def summary(args):
                     member['last_name'],
                     member['first_name'],
                     r['summary']['score'],
+                    max_score,
                     r['result_file']
                 )
 
-    logger.debug('write results to csv')
-    with open(root.joinpath('summary.csv'), 'w', newline='') as csv_file:
-        csv_writer = csv.writer(csv_file, dialect='excel')
-        csv_writer.writerow(header)
-        csv_writer.writerows(row_factory())
+    df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
+    df['multiple_submissions'] = df['student_id'].duplicated(keep=False)
+
+    # csv export
+    df.to_csv(root.joinpath('summary.csv'), index=False)
+
+    # plot score distributions
+    ax = df[~df['student_id'].duplicated(keep='first')]['score'].hist()
+    ax.set_xlabel('score')
+    ax.set_ylabel('count')
+    ax.set_title('score distribution (without duplicates)')
+
+    plt.tight_layout()
+    plt.savefig(root.joinpath('score_distribution.png'))
 
     return 0
 
