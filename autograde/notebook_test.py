@@ -19,7 +19,7 @@ from nbformat import read, NotebookNode
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
-from autograde.util import logger, loglevel, capture_output, cd, cd_tar, timeout
+from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_tar, timeout
 
 # Globals and constants variables.
 NOTEBOOK_TEST = OrderedDict()
@@ -176,8 +176,8 @@ class NotebookTestCase:
         try:
             targets = list(map(state.get, self._targets))
 
-            for target in targets:
-                assert target is not None, f'target "{target}" is not defined'
+            for name, target in zip(self._targets, targets):
+                assert target is not None, f'target "{name}" is not defined'
 
             with timeout(self._timeout):
                 self._test_func(*targets, *args, **kwargs)
@@ -262,77 +262,87 @@ class NotebookTest:
 
         nb_hash = blake2b(nb_data, digest_size=4).hexdigest()
 
-        with cd(target_dir), cd_tar(f'results_{nb_hash}.tar.xz', mode='w:xz'):
-            # prepare context and execute notebook
-            with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
-                if context is not None:
-                    logger.debug(f'copy context files from: {context}')
-                    dir_util.copy_tree(context, '.')
+        with cd(target_dir):
+            archive = Path(f'results_{nb_hash}.tar.xz')
 
-                logger.debug('execute notebook')
-                error, state = exec_notebook(
-                    io.StringIO(nb_data.decode('utf-8')),
-                    file=c,
-                    ignore_errors=True,
-                    cell_timeout=self._cell_timeout
+            with cd_tar(archive, mode='w:xz'):
+                # prepare context and execute notebook
+                with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
+                    if context is not None:
+                        logger.debug(f'copy context files from: {context}')
+                        dir_util.copy_tree(context, '.')
+
+                    logger.debug('execute notebook')
+                    error, state = exec_notebook(
+                        io.StringIO(nb_data.decode('utf-8')),
+                        file=c,
+                        ignore_errors=True,
+                        cell_timeout=self._cell_timeout
+                    )
+
+                if error is not None:
+                    logger.debug(f'An error occurred when executing "{nb_path}": {error}')
+
+                # infer meta information
+                group = state.get('team_members', {})
+
+                if not group:
+                    logger.warning(f'Couldn\'t find valid information about team members in "{nb_path}"')
+
+                # execute tests
+                logger.debug('execute tests')
+                results, summary = self.apply_tests(state)
+                enriched_results = OrderedDict(
+                    orig_file=str(nb_path),
+                    checksum=dict(
+                        md5sum=md5(nb_data).hexdigest(),
+                        sha256sum=sha256(nb_data).hexdigest(),
+                        blake2bsum=nb_hash
+                    ),
+                    team_members=group,
+                    test_cases=list(map(str, self._cases)),
+                    results=results,
+                    summary=summary,
                 )
 
-            if error is not None:
-                logger.debug(f'An error occurred when executing "{nb_path}": {error}')
+                # store copy of notebook
+                logger.debug('write copy of notebook')
+                with open(f'notebook.ipynb', mode='wb') as f:
+                    f.write(nb_data)
 
-            # infer meta information
-            group = state.get('team_members', {})
+                # store results as csv file
+                logger.debug('write results to csv')
+                with open('test_results.csv', 'w', newline='') as csv_file:
+                    csv_writer = csv.DictWriter(csv_file, fieldnames=next(iter(results.values())))
+                    csv_writer.writeheader()
+                    csv_writer.writerows(results.values())
 
-            if not group:
-                logger.warning(f'Couldn\'t find valid information about team members in "{nb_path}"')
+                # store results as json
+                logger.debug('write results to json')
+                with open('test_results.json', mode='wt') as f:
+                    json.dump(enriched_results, fp=f, indent=4)
 
-            # execute tests
-            logger.debug('execute tests')
-            results, summary = self.apply_tests(state)
-            enriched_results = OrderedDict(
-                orig_file=str(nb_path),
-                checksum=dict(
-                    md5sum=md5(nb_data).hexdigest(),
-                    sha256sum=sha256(nb_data).hexdigest(),
-                    blake2bsum=nb_hash
-                ),
-                team_members=group,
-                test_cases=list(map(str, self._cases)),
-                results=results,
-                summary=summary,
-            )
+                # create a human readable report
+                logger.debug('write report')
+                with open('report.rst', mode='wt') as f:
+                    def _results():
+                        ignore = {'stdout', 'stderr'}
+                        for i, r in results.items():
+                            yield {'nr': i, **{k: v for k, v in r.items() if k not in ignore}}
 
-            # store copy of notebook
-            logger.debug('write copy of notebook')
-            with open(f'notebook.ipynb', mode='wb') as f:
-                f.write(nb_data)
+                    f.write(REPORT_TEMPLATE.format(
+                        timestamp=datetime.now().strftime("%m-%d-%Y, %H:%M:%S"),
+                        team=tabulate(group, headers='keys', tablefmt='grid'),
+                        results=tabulate(_results(), headers='keys', tablefmt='grid'),
+                        summary=tabulate(summary.items(), tablefmt='grid'),
+                    ))
 
-            # store results as csv file
-            logger.debug('write results to csv')
-            with open('test_results.csv', 'w', newline='') as csv_file:
-                csv_writer = csv.DictWriter(csv_file, fieldnames=next(iter(results.values())))
-                csv_writer.writeheader()
-                csv_writer.writerows(results.values())
+                # create alternative, more readable name
+                names = ','.join(map(camel_case, sorted(m['last_name'] for m in group)))
+                archive_name_alt = f'results_[{names}]_{nb_hash}.tar.xz'
 
-            # store results as json
-            logger.debug('write results to json')
-            with open('test_results.json', mode='wt') as f:
-                json.dump(enriched_results, fp=f, indent=4)
+            archive.rename(archive_name_alt)
 
-            # create a human readable report
-            logger.debug('write report')
-            with open('report.rst', mode='wt') as f:
-                def _results():
-                    ignore = {'stdout', 'stderr'}
-                    for i, r in results.items():
-                        yield {'nr': i, **{k: v for k, v in r.items() if k not in ignore}}
-
-                f.write(REPORT_TEMPLATE.format(
-                    timestamp=datetime.now().strftime("%m-%d-%Y, %H:%M:%S"),
-                    team=tabulate(group, headers='keys', tablefmt='grid'),
-                    results=tabulate(_results(), headers='keys', tablefmt='grid'),
-                    summary=tabulate(summary.items(), tablefmt='grid'),
-                ))
 
         return enriched_results
 

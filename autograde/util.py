@@ -1,5 +1,6 @@
 # Standard library modules.
 import os
+import re
 import sys
 import time
 import logging
@@ -13,6 +14,7 @@ from tempfile import TemporaryDirectory
 # Local modules
 
 # Globals and constants variables.
+ALPHA_NUMERIC = re.compile(r'[^\w]')
 
 
 _formatter = logging.Formatter(
@@ -35,6 +37,14 @@ def loglevel(x):
 def project_root():
     import autograde
     return Path(autograde.__file__).parent.parent
+
+
+def snake_case(s, delimiter='_'):
+    return delimiter.join(map(str.lower, ALPHA_NUMERIC.split(s)))
+
+
+def camel_case(s, delimiter=''):
+    return delimiter.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in ALPHA_NUMERIC.split(s))
 
 
 @contextmanager
