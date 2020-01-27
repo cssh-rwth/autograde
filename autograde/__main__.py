@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# ensure matplotlib uses the right backend (this has to be done before import of pyplot!)
+import matplotlib as mpl
+mpl.use('Agg')
+
 # Standard library modules.
 import os
 import sys
@@ -15,8 +19,6 @@ from difflib import SequenceMatcher
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
