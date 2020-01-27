@@ -161,7 +161,7 @@ def summary(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='run tests on jupyter notebook')
+    parser = argparse.ArgumentParser(description='run tests on jupyter notebook', prog='autograde')
 
     parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
     parser.add_argument('-e', '--backend', type=str, default='docker', choices=['docker', 'podman'],

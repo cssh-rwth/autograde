@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Standard library modules.
-import os
+import re
+from pathlib import Path
 
 # Third party modules.
 from setuptools import setup, find_packages
@@ -8,10 +9,13 @@ from setuptools import setup, find_packages
 # Local modules.
 
 # Globals and constants variables.
-BASEDIR = os.path.abspath(os.path.dirname(__file__))
+BASEDIR = Path(__file__).parent
 
-with open(os.path.join(BASEDIR, 'README.rst'), 'r') as fp:
-    LONG_DESCRIPTION = fp.read()
+with open(BASEDIR.joinpath('autograde', '__init__.py'), 'r') as f:
+    VERSION = re.search(r"__version__ = '(.*?)'", f.read()).group(1)
+
+with open(BASEDIR.joinpath('README.rst'), 'r') as f:
+    LONG_DESCRIPTION = f.read()
 
 PACKAGES = find_packages()
 
@@ -22,7 +26,7 @@ ENTRY_POINTS = {}
 
 setup(
     name='autograde',
-    version='0',
+    version=VERSION,
     url='https://git.rwth-aachen.de/cssh/autograde',
     description='util',
     author='Lukas Ochse',
