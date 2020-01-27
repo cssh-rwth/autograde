@@ -10,7 +10,8 @@ from tempfile import TemporaryDirectory
 # Third party modules.
 
 # Local modules
-from autograde.util import loglevel, project_root, capture_output, cd, cd_tar, timeout
+from autograde.util import loglevel, project_root, snake_case, camel_case, capture_output, cd, \
+    cd_tar, timeout
 
 # Globals and constants variables.
 
@@ -26,6 +27,16 @@ class TestUtil(TestCase):
 
     def test_project_root(self):
         self.assertEqual(project_root(), Path(__file__).parent.parent)
+
+    def test_snake_case(self):
+        self.assertEqual('foo_bar', snake_case('fOO+BaR'))
+        self.assertEqual('fnord_foo42_bar', snake_case('FnORD&FOo42=bar'))
+        self.assertEqual('hein_blöd', snake_case(' hein blöd'))
+
+    def test_camel_case(self):
+        self.assertEqual('FooBar', camel_case('fOO+BaR'))
+        self.assertEqual('FnordFoo42Bar', camel_case('FnORD&FOo42=bar'))
+        self.assertEqual('HeinBlöd', camel_case(' hein blöd'))
 
     def test_capture_output(self):
         stdout = sys.stdout

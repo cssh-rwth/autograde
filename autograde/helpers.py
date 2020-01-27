@@ -21,8 +21,8 @@ def assert_is(x, exp, msg=None):
     assert x is exp, msg or _msg(x, exp)
 
 
-def assert_isclose(x, exp, msg=None):
-    assert math.isclose(x, exp), msg or _msg(x, exp)
+def assert_isclose(x, exp, msg=None, **kwargs):
+    assert math.isclose(x, exp, **kwargs), msg or _msg(x, exp)
 
 
 @contextmanager

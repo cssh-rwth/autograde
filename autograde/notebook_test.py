@@ -87,7 +87,6 @@ def as_py_comment(s):
 
 
 def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
-    error = None
     state = dict()
 
     try:
@@ -108,9 +107,9 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
             ('injected by test', INJECT_AFTER)
         ]
 
-    except Exception as err:
-        logger.error(f'unable to parse notebook: {err}')
-        return err, state
+    except Exception as error:
+        logger.error(f'unable to parse notebook: {error}')
+        raise ValueError(error)
 
     # the log is supposed to be a valid, standalone python script
     print('#!/usr/bin/env python3', file=file)
@@ -130,13 +129,12 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
                     with timeout(cell_timeout):
                         exec(code, state)
 
-            except Exception as err:
+            except Exception as error:
                 # extend log with some meaningful error message
-                traceback.print_exception(type(err), err, err.__traceback__, file=stderr)
+                traceback.print_exception(type(error), error, error.__traceback__, file=stderr)
 
                 if not ignore_errors:
-                    error = err
-                    break
+                    raise error
 
             finally:
                 # log code and output
@@ -161,7 +159,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
                 # exec(f'plt.savefig("cell_{label}.png");plt.close()', state)
 
     logger.debug('execution completed')
-    return error, state
+    return state
 
 
 class NotebookTestCase:
@@ -272,16 +270,17 @@ class NotebookTest:
                         logger.debug(f'copy context files from: {context}')
                         dir_util.copy_tree(context, '.')
 
-                    logger.debug('execute notebook')
-                    error, state = exec_notebook(
-                        io.StringIO(nb_data.decode('utf-8')),
-                        file=c,
-                        ignore_errors=True,
-                        cell_timeout=self._cell_timeout
-                    )
+                    try:
+                        logger.debug('execute notebook')
+                        state = exec_notebook(
+                            io.StringIO(nb_data.decode('utf-8')),
+                            file=c,
+                            ignore_errors=True,
+                            cell_timeout=self._cell_timeout
+                        )
 
-                if error is not None:
-                    logger.debug(f'An error occurred when executing "{nb_path}": {error}')
+                    except ValueError:
+                        state = {}
 
                 # infer meta information
                 group = state.get('team_members', {})
@@ -342,7 +341,6 @@ class NotebookTest:
                 archive_name_alt = f'results_[{names}]_{nb_hash}.tar.xz'
 
             archive.rename(archive_name_alt)
-
 
         return enriched_results
 

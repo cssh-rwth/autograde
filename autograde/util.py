@@ -39,12 +39,12 @@ def project_root():
     return Path(autograde.__file__).parent.parent
 
 
-def snake_case(s, delimiter='_'):
-    return delimiter.join(map(str.lower, ALPHA_NUMERIC.split(s)))
+def snake_case(s):
+    return '_'.join(map(str.lower, ALPHA_NUMERIC.split(s.strip())))
 
 
-def camel_case(s, delimiter=''):
-    return delimiter.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in ALPHA_NUMERIC.split(s))
+def camel_case(s):
+    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in ALPHA_NUMERIC.split(s.strip()))
 
 
 @contextmanager
