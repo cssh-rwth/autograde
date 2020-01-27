@@ -8,12 +8,17 @@ import argparse
 import subprocess
 from pathlib import Path
 from functools import reduce
+from itertools import combinations
+from difflib import SequenceMatcher
 
 # Third party modules.
+import numpy as np
 import pandas as pd
+from scipy.stats import norm
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Local modules
 from autograde.util import logger, loglevel, project_root, cd
@@ -75,16 +80,18 @@ def summary(args):
 
     # extract results
     results = []
+    code = {}
     for path in root.rglob('results_*.tar.xz'):
         with tarfile.open(path, mode='r') as tar:
             try:
                 r = json.load(tar.extractfile(tar.getmember('test_results.json')))
-                r['result_file'] = path.name
-
                 results.append(r)
 
-            except KeyError:
-                logger.warning(f'{path} does not contain "test_results.json", skip')
+                c = tar.extractfile(tar.getmember('code.py')).read().decode('utf-8')
+                code[r['checksum']['blake2bsum']] = c
+
+            except KeyError as error:
+                logger.warning(f'{path} does not contain {error}, skip')
                 continue
 
     # consistency check
@@ -93,7 +100,7 @@ def summary(args):
     max_score = max_scores.pop()
 
     # summary
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'result_file']
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'checksum']
 
     def row_factory():
         for r in results:
@@ -104,7 +111,7 @@ def summary(args):
                     member['first_name'],
                     r['summary']['score'],
                     max_score,
-                    r['result_file']
+                    r['checksum']['blake2bsum']
                 )
 
     df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
@@ -114,13 +121,32 @@ def summary(args):
     df.to_csv(root.joinpath('summary.csv'), index=False)
 
     # plot score distributions
-    ax = df[~df['student_id'].duplicated(keep='first')]['score'].hist()
+    plt.clf()
+    ax = sns.distplot(df[~df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm, bins=int(max_score))
+    ax.set_xlim(0, max_score)
     ax.set_xlabel('score')
-    ax.set_ylabel('count')
-    ax.set_title('score distribution (without duplicates)')
+    ax.set_ylabel('share')
+    ax.set_title('score distribution without duplicates (take lower score)')
 
     plt.tight_layout()
-    plt.savefig(root.joinpath('score_distribution.png'))
+    plt.savefig(root.joinpath('score_distribution.pdf'))
+
+    # basic fraud detection
+    hashes = sorted(code)
+    diffs = pd.DataFrame(np.NaN, index=hashes, columns=hashes)
+
+    for h in hashes:
+        diffs.loc[h][h] = 1.
+
+    for (ha, ca), (hb, cb) in combinations(code.items(), 2):
+        diffs.loc[ha][hb] = diffs.loc[hb][ha] = SequenceMatcher(a=ca, b=cb).ratio()
+
+    plt.clf()
+    ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
+    ax.set_title('similarity of notebook code')
+
+    plt.tight_layout()
+    plt.savefig(root.joinpath('similarities.pdf'))
 
     return 0
 

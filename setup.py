@@ -15,7 +15,7 @@ with open(os.path.join(BASEDIR, 'README.rst'), 'r') as fp:
 
 PACKAGES = find_packages()
 
-INSTALL_REQUIRES = ['ipykernel', 'jupyter', 'matplotlib', 'pandas', 'tabulate']
+INSTALL_REQUIRES = ['ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'pandas', 'tabulate']
 EXTRAS_REQUIRE = {'develop': ['nose', 'sphinx']}
 
 ENTRY_POINTS = {}
