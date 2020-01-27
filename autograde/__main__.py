@@ -80,10 +80,13 @@ def summary(args):
 
     assert root.is_dir(), f'{root} is no regular directory'
 
+    logger.info(f'summarize results in: {root}')
+
     # extract results
     results = []
     code = {}
     for path in root.rglob('results_*.tar.xz'):
+        logger.debug(f'read {path}')
         with tarfile.open(path, mode='r') as tar:
             try:
                 r = json.load(tar.extractfile(tar.getmember('test_results.json')))
@@ -120,9 +123,11 @@ def summary(args):
     df['multiple_submissions'] = df['student_id'].duplicated(keep=False)
 
     # csv export
+    logger.debug('save summary')
     df.to_csv(root.joinpath('summary.csv'), index=False)
 
     # plot score distributions
+    logger.debug('plot score distributions')
     plt.clf()
     ax = sns.distplot(df[~df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm, bins=int(max_score))
     ax.set_xlim(0, max_score)
@@ -134,6 +139,7 @@ def summary(args):
     plt.savefig(root.joinpath('score_distribution.pdf'))
 
     # basic fraud detection
+    logger.debug('apply fraud detection')
     hashes = sorted(code)
     diffs = pd.DataFrame(np.NaN, index=hashes, columns=hashes)
 
@@ -150,6 +156,7 @@ def summary(args):
     plt.tight_layout()
     plt.savefig(root.joinpath('similarities.pdf'))
 
+    logger.debug('done')
     return 0
 
 
