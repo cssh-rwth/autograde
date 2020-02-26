@@ -163,12 +163,12 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
 
 class NotebookTestCase:
-    def __init__(self, test_function, target, score=1., label=None, timeout_=0):
+    def __init__(self, test_function, target, score=1., label=None, timeout=0):
         self._test_func = test_function
         self._targets = (target,) if isinstance(target, str) else target
         self._score = float(score)
         self._label = str(label) if label else ''
-        self._timeout = timeout_
+        self._timeout = timeout
 
     def __call__(self, state, *args, **kwargs):
         try:
@@ -195,6 +195,7 @@ class NotebookTestCase:
     targets = property(fget=lambda self: self._targets)
     score = property(fget=lambda self: self._score)
     label = property(fget=lambda self: self._label)
+    timout = property(fget=lambda self: self._timeout)
 
 
 class NotebookTest:
@@ -202,6 +203,9 @@ class NotebookTest:
         self._cases = []
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
+
+    def __len__(self):
+        return len(self._cases)
 
     def __str__(self):
         return f'{type(self).__name__}({len(self._cases)} cases)'

@@ -8,7 +8,7 @@ import sys
 from autograde import NotebookTest
 
 # Globals and constants variables.
-nbt = NotebookTest(cell_timeout=1.5, test_timeout=1)
+nbt = NotebookTest(cell_timeout=.15, test_timeout=.1)
 
 
 # this test will succeed
@@ -27,6 +27,12 @@ def test_bar(bar):
         assert i ** 2 / 2 == bar(i)
 
 
+# multiple targets? no problem!
+@nbt.register(target=('foo', 'bar'))
+def test_foo_bar(foo, bar):
+    assert foo(0) == bar(0)
+
+
 # but this test fails
 @nbt.register(target='fnord', score=1.5, label='another label')
 def test_fnord(fnord):
@@ -36,13 +42,13 @@ def test_fnord(fnord):
 # this one will fail due to the global timeout
 @nbt.register(target='sleep', score=1, label='global timeout')
 def test_sleep_1(sleep):
-    sleep(2)
+    sleep(.2)
 
 
 # specifying timeout here will overwrite global settings
-@nbt.register(target='sleep', score=1, timeout_=.5, label='local timeout')
-def test_sleep_1(sleep):
-    sleep(2)
+@nbt.register(target='sleep', score=1, timeout_=.06, label='local timeout')
+def test_sleep_2(sleep):
+    sleep(.08)
 
 
 # `execute` brings a simple comand line interface, e.g.:
