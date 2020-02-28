@@ -26,7 +26,7 @@ ENTRY_POINTS = {}
 
 setup(
     name='autograde',
-    author='Lukas Ochse',
+    author='0b11001111',
     maintainer='Chair for Computational Social Sciences and Humanities at RWTH Aachen University',
     maintainer_email='admin@cssh.rwth-aachen.de',
     description='automatic grading of jupyter notebooks',
