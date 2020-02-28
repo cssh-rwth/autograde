@@ -11,9 +11,9 @@ AUTO GRADE
 setup
 -----
 
-Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is installed on your system. We recommend the latter one.
+Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is installed on your system.
 
-Now, in order to install *autograde*, clone this repository and run :code:`pip install -e .` within it (if your're developing *autograde*, run :code:`pip install -e .[development]` instead).
+Now, in order to install *autograde*, run :code:`pip install autograde`. Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (if your're developing *autograde*, run :code:`pip install -e .[develop]` instead).
 
 Eventually build the respective container image: :code:`python -m autograde build`
 
@@ -32,12 +32,12 @@ apply tests
 
 What happened? Let's first have a look at the arguments of *autograde*:
 
-* :code:`demo/test.py` contains the test cases we want to apply
-* :code:`demo/notebook.ipynb` is the respective notebook to be tested (here you may also specify a directory to be recursively searched for notebooks)
+* :code:`demo/test.py` contains the a script with test cases we want apply
+* :code:`demo/notebook.ipynb` is the a notebook to be tested (here you may also specify a directory to be recursively searched for notebooks)
 * The optional flag :code:`--target` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
 * The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
 
-The output is a compressed archive that is named something like :code:`results_XXXXXXXX.tar.xz` and which has the following contents:
+The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.tar.xz` and which has the following contents:
 
 * :code:`artifacts.tar.xz`: all files that where created by or visible to the tested notebook
 * :code:`code.py`: code extracted from the notebook including :code:`stdout`/:code:`stderr` as comments
