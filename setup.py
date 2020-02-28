@@ -32,7 +32,7 @@ setup(
     description='automatic grading of jupyter notebooks',
     long_description=LONG_DESCRIPTION,
     license="MIT",
-    url='https://git.rwth-aachen.de/cssh/autograde',
+    url='https://github.com/cssh-rwth/autograde',
     keywords=['jupyter', 'teaching', 'unit test'],
     classifiers=[
         'Natural Language :: English',
