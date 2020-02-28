@@ -1,9 +1,9 @@
 
 .. _auto-grade:
 
-==========
-AUTO GRADE
-==========
+=========
+AUTOGRADE
+=========
 
 *autograde* is a tool that lets you run test cases on *Jupyter notebooks* in an isolated environment and creates both, human and machine readable reports.
 
