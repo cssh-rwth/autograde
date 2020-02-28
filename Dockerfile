@@ -1,7 +1,7 @@
 FROM continuumio/anaconda3:latest
 
 # install requirements
-RUN apt-get --assume-yes update
+RUN apt-get --assume-yes update && apt-get --assume-yes upgrade
 
 # set up required directories
 WORKDIR /autograde
