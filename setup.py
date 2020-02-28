@@ -26,12 +26,14 @@ ENTRY_POINTS = {}
 
 setup(
     name='autograde',
-    version=VERSION,
-    url='https://git.rwth-aachen.de/cssh/autograde',
-    description='util',
     author='Lukas Ochse',
-    author_email='lukas.ochse@rwth-aachen.de',
-    license="GPL v3",
+    maintainer='Chair for Computational Social Sciences and Humanities at RWTH Aachen University',
+    maintainer_email='admin@cssh.rwth-aachen.de',
+    description='automatic grading of jupyter notebooks',
+    long_description=LONG_DESCRIPTION,
+    license="MIT",
+    url='https://git.rwth-aachen.de/cssh/autograde',
+    keywords=['jupyter', 'teaching', 'unit test'],
     classifiers=[
         'Natural Language :: English',
         'Programming Language :: Python',
@@ -42,5 +44,6 @@ setup(
     extras_require=EXTRAS_REQUIRE,
     entry_points=ENTRY_POINTS,
     test_suite='nose.collector',
+    version=VERSION,
 )
 
