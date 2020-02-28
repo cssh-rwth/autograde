@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 # Third party modules.
 
 # Local modules
+import autograde
 from autograde.util import project_root, cd
 from autograde.notebook_test import as_py_comment, exec_notebook, NotebookTestCase, NotebookTest
 
@@ -181,6 +182,8 @@ class TestNotebookTest(TestCase):
                 ])
 
                 results = json.load(tar.extractfile(tar.getmember('test_results.json')))
+
+        self.assertEqual(results['autograde_version'], autograde.__version__)
 
         self.assertEqual(results['checksum']['md5sum'], md5_sum)
 

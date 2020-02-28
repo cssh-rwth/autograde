@@ -106,3 +106,4 @@ playground*.py
 *.csv
 *notes*.md
 *tasks*.md
+tmp/

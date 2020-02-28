@@ -19,6 +19,7 @@ from nbformat import read, NotebookNode
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
+import autograde
 from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_tar, timeout
 
 # Globals and constants variables.
@@ -28,7 +29,7 @@ REPORT_TEMPLATE = """
 ======
 REPORT
 ======
-**created {timestamp}**
+**created {timestamp} with *autograde {version}* (https://github.com/cssh-rwth/autograde)**
 
 
 TEAM
@@ -296,6 +297,7 @@ class NotebookTest:
                 logger.debug('execute tests')
                 results, summary = self.apply_tests(state)
                 enriched_results = OrderedDict(
+                    autograde_version=autograde.__version__,
                     orig_file=str(nb_path),
                     checksum=dict(
                         md5sum=md5(nb_data).hexdigest(),
@@ -334,6 +336,7 @@ class NotebookTest:
                             yield {'nr': i, **{k: v for k, v in r.items() if k not in ignore}}
 
                     f.write(REPORT_TEMPLATE.format(
+                        version=autograde.__version__,
                         timestamp=datetime.now().strftime("%m-%d-%Y, %H:%M:%S"),
                         team=tabulate(group, headers='keys', tablefmt='grid'),
                         results=tabulate(_results(), headers='keys', tablefmt='grid'),
