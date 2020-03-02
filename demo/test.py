@@ -8,7 +8,7 @@ import sys
 from autograde import NotebookTest
 
 # Globals and constants variables.
-nbt = NotebookTest(cell_timeout=.15, test_timeout=.1)
+nbt = NotebookTest(cell_timeout=1., test_timeout=.1)
 
 
 # this test will succeed
