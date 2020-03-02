@@ -20,65 +20,10 @@ from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
 import autograde
+from autograde.templates import INJECT_BEFORE, INJECT_AFTER, REPORT_TEMPLATE
 from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_tar, timeout
 
 # Globals and constants variables.
-NOTEBOOK_TEST = OrderedDict()
-
-REPORT_TEMPLATE = """
-======
-REPORT
-======
-**created {timestamp} with *autograde {version}* (https://github.com/cssh-rwth/autograde)**
-
-
-TEAM
-----
-
-{team}
-
-
-RESULTS
--------
-
-{results}
-
-
-SUMMARY
--------
-
-{summary}
-
-""".strip() + '\n\n'
-
-INJECT_BEFORE = """
-# ensure matplotlib works on a headless backend
-
-def dummy_show(*args, **kwargs):
-    print('`pyplot.show` does not display plots in test mode')
-
-try:
-    import matplotlib as mpl
-    mpl.use('Agg')
-    print("use 'Agg' backend")
-
-    import matplotlib.pyplot as plt
-    plt.show = dummy_show
-
-except ImportError:
-    print("'matplotlib' not found")
-
-    from types import SimpleNamespace
-    __dummy = lambda *args, **kwargs: None
-    
-    plt = SimpleNamespace(savefig=_dummy, cla=_dummy, clf=_dummy, close=_dummy, show=_dummy)
-
-FIG_PREV = None
-""".strip()
-
-INJECT_AFTER = """
-print('done')
-""".strip()
 
 
 def as_py_comment(s):

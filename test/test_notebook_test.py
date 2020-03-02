@@ -49,6 +49,8 @@ class TestFunctions(TestCase):
                 state = exec_notebook(nb_buffer, file=stdout, ignore_errors=True)
                 stdout = stdout.getvalue()
 
+        self.assertIn('__IB_FLAG__', state)
+        self.assertIn('__IA_FLAG__', state)
         self.assertEqual(state.get('SOME_CONSTANT'), 42)
         self.assertIn('this goes to stdout', stdout)
 

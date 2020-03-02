@@ -5,7 +5,7 @@
 AUTOGRADE
 =========
 
-*autograde* is a tool that lets you run test cases on *Jupyter notebooks* in an isolated environment and creates both, human and machine readable reports.
+*autograde* is a tool that lets you run tests on *Jupyter notebooks* in an isolated environment and creates both, human and machine readable reports.
 
 
 setup
