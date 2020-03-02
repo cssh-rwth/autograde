@@ -43,6 +43,7 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
+    python_requires='>=3.7',
     entry_points=ENTRY_POINTS,
     test_suite='nose.collector',
     version=VERSION,
