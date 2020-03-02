@@ -13,7 +13,7 @@ setup
 
 Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is installed on your system.
 
-Now, in order to install *autograde*, run :code:`pip install autograde`. Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (if your're developing *autograde*, run :code:`pip install -e .[develop]` instead).
+Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`. Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (if your're developing *autograde*, run :code:`pip install -e .[develop]` instead).
 
 Eventually build the respective container image: :code:`python -m autograde build`
 

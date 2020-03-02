@@ -20,12 +20,12 @@ with open(BASEDIR.joinpath('README.rst'), 'r') as f:
 PACKAGES = find_packages()
 
 INSTALL_REQUIRES = ['ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'pandas', 'tabulate']
-EXTRAS_REQUIRE = {'develop': ['nose']}
+EXTRAS_REQUIRE = {'develop': ['nose', 'twine', 'bdist_wheel']}
 
 ENTRY_POINTS = {}
 
 setup(
-    name='autograde',
+    name='jupyter-autograde',
     author='0b11001111',
     maintainer='Chair for Computational Social Sciences and Humanities at RWTH Aachen University',
     maintainer_email='admin@cssh.rwth-aachen.de',
