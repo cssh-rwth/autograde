@@ -1,0 +1,4 @@
+include demo/*
+include demo/context/*
+include Dockerfile
+include dummy.py
