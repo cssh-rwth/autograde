@@ -17,8 +17,8 @@ Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
 
 Eventually build the respective container image: :code:`python -m autograde build`
 
-.. NOTE:
-    When installing *autograde* via *PyPI* *docker* support is not yet implemented. If you want to use docker, clone the directory and install the package from source.
+.. NOTE::
+    When installing *autograde* via *PyPI*, *docker* support is not yet implemented. If you want to use docker, clone the directory and install the package from source.
 
 
 usage
