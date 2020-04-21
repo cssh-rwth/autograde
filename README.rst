@@ -2,7 +2,7 @@
 .. _auto-grade:
 
 =========
-AUTOGRADE
+autograde
 =========
 
 .. image:: https://github.com/cssh-rwth/autograde/workflows/test%20autograde/badge.svg
@@ -15,14 +15,15 @@ AUTOGRADE
 setup
 -----
 
-Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is installed on your system.
+Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ (or `podman <https://podman.io/>`_) is available on your system.
 
-Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`. Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (if your're developing *autograde*, run :code:`pip install -e .[develop]` instead).
+Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
+Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (or :code:`pip install -e .[develop]` if you're a developer).
 
 Eventually build the respective container image: :code:`python -m autograde build`
 
 .. NOTE::
-    When installing *autograde* via *PyPI*, *docker* support is not yet implemented. If you want to use docker, clone the directory and install the package from source.
+    When installing *autograde* via *PyPI*, *containers* are not yet suported. If you want to use containers, clone this repository and install the package from source.
 
 
 usage
