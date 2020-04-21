@@ -5,6 +5,8 @@
 AUTOGRADE
 =========
 
+.. image:: https://github.com/cssh-rwth/autograde/workflows/test%20autograde/badge.svg   :alt: test
+
 *autograde* is a tool that lets you run tests on *Jupyter notebooks* in an isolated environment and creates both, human and machine readable reports.
 
 
