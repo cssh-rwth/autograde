@@ -216,10 +216,18 @@ class NotebookTest:
             with cd_tar(archive, mode='w:xz'):
                 # prepare context and execute notebook
                 with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
+                    # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')
                         dir_util.copy_tree(context, '.')
 
+                    # build index of all files known before execution
+                    index = set()
+                    for p in os.listdir('.'):
+                        with open(p, mode='rb') as f:
+                            index.add(md5(f.read()).hexdigest())
+
+                    # actual notebook execution
                     try:
                         logger.debug('execute notebook')
                         state = exec_notebook(
@@ -231,6 +239,12 @@ class NotebookTest:
 
                     except ValueError:
                         state = {}
+
+                    # remove files that haven't changed
+                    for p in os.listdir('.'):
+                        with open(p, mode='rb') as f:
+                            if md5(f.read()).hexdigest() in index:
+                                os.remove(p)
 
                 # infer meta information
                 group = state.get('team_members', {})

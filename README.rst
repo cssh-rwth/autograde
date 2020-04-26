@@ -47,7 +47,7 @@ What happened? Let's first have a look at the arguments of *autograde*:
 
 The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.tar.xz` and which has the following contents:
 
-* :code:`artifacts.tar.xz`: all files that where created by or visible to the tested notebook
+* :code:`artifacts.tar.xz`: all files that where created or modified by the tested notebook
 * :code:`code.py`: code extracted from the notebook including :code:`stdout`/:code:`stderr` as comments
 * :code:`notebook.ipynb`: an identical copy of the tested notebook
 * :code:`test_results.csv`: test results

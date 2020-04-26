@@ -183,6 +183,13 @@ class TestNotebookTest(TestCase):
                     'test_results.json'
                 ])
 
+                with tar.extractfile('artifacts.tar.xz') as f:
+                    with tarfile.open(fileobj=io.BytesIO(f.read()), mode='r:xz') as itar:
+                        self.assertListEqual(sorted(itar.getnames())[1:], [
+                            'bar.txt',
+                            'fnord.txt'
+                        ])
+
                 results = json.load(tar.extractfile(tar.getmember('test_results.json')))
 
         self.assertEqual(results['autograde_version'], autograde.__version__)
