@@ -49,7 +49,6 @@ def test(args):
 
     if path_nbk.is_file():
         notebooks = [path_nbk]
-
     else:
         notebooks = list(filter(
             lambda p: '.ipynb_checkpoints' not in p.parts,
@@ -57,15 +56,29 @@ def test(args):
         ))
 
     def run(path_nb_):
-        cmd = [
-            args.backend, 'run',
-            '-v', f'{path_tst}:/autograde/test.py',
-            '-v', f'{path_nb_}:/autograde/notebook.ipynb',
-            '-v', f'{path_tgt}:/autograde/target',
-            *(('-v', f'{path_cxt}:/autograde/context:ro') if path_cxt else ()),
-            '-u', str(os.geteuid()),
-            CONTAINER_TAG
-        ]
+        if args.backend == 'docker':
+            cmd = [
+                args.backend, 'run',
+                '-v', f'{path_tst}:/autograde/test.py',
+                '-v', f'{path_nb_}:/autograde/notebook.ipynb',
+                '-v', f'{path_tgt}:/autograde/target',
+                *(('-v', f'{path_cxt}:/autograde/context:ro') if path_cxt else ()),
+                '-u', str(os.geteuid()),
+                CONTAINER_TAG,
+                *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
+            ]
+        elif args.backend == 'podman':
+            cmd = [
+                args.backend, 'run',
+                '-v', f'{path_tst}:/autograde/test.py:Z',
+                '-v', f'{path_nb_}:/autograde/notebook.ipynb:Z',
+                '-v', f'{path_tgt}:/autograde/target:Z',
+                *(('-v', f'{path_cxt}:/autograde/context:Z') if path_cxt else ()),
+                CONTAINER_TAG,
+                *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
+            ]
+        else:
+            raise ValueError(f'unknown backend: {args.backend}')
 
         logger.info(f'test: {path_nb_}')
         logger.debug(' '.join(cmd))
