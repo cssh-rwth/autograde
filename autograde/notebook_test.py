@@ -178,13 +178,12 @@ class NotebookTest:
 
     def apply_tests(self, state):
         state = state.copy()
-
         results = OrderedDict()
+
         for i, case in enumerate(self._cases, start=1):
             logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
-                # with capture_output(stdout, stderr):
                 with capture_output(stdout, stderr):
                     achieved, msg = case(state)
 
