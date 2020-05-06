@@ -19,12 +19,14 @@ def test_foo(foo):
         assert i ** 2 == foo(i)
 
 
-# as well as this one
+# as well as this one (note the optional return message)
 @nbt.register(target='bar', score=2.5, label='some label')
 def test_bar(bar):
     print('bar', file=sys.stderr)
     for i in range(-5, 5):
         assert i ** 2 / 2 == bar(i)
+
+    return 'well done'
 
 
 # multiple targets? no problem!

@@ -118,15 +118,17 @@ class NotebookTestCase:
 
     def __call__(self, state, *args, **kwargs):
         try:
-            targets = list(map(state.get, self._targets))
+            # extract targets
+            try:
+                targets = [state[t] for t in self._targets]
+            except KeyError as err:
+                raise NameError(err)
 
-            for name, target in zip(self._targets, targets):
-                assert target is not None, f'target "{name}" is not defined'
-
+            # apply actual test
             with timeout(self._timeout):
-                self._test_func(*targets, *args, **kwargs)
+                msg = self._test_func(*targets, *args, **kwargs)
 
-            return self.score, 'ok'
+            return self.score, str(msg) if msg else 'ok'
 
         except Exception as err:
             msg_buffer = io.StringIO()
@@ -134,7 +136,7 @@ class NotebookTestCase:
             return 0, msg_buffer.getvalue()
 
     def __str__(self):
-        timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else 'None'
+        timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else '∞'
         return f'{self.__class__.__name__}(target={self.targets}, score={self.score}, ' \
                f'timeout={timeout_}, label="{self.label}")'
 

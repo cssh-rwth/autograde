@@ -63,6 +63,13 @@ class TestNotebookTestCase(TestCase):
         tc = NotebookTestCase(test, target='foo')
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42)))
 
+    def test_msg(self):
+        def test(foo):
+            return foo
+
+        tc = NotebookTestCase(test, target='foo')
+        self.assertTupleEqual((1.0, '42'), tc(dict(foo=42)))
+
     def test_unknown_target(self):
         def test():
             pass
