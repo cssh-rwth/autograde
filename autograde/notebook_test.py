@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from distutils import dir_util
 from collections import OrderedDict
-from hashlib import blake2b, md5, sha256
+from hashlib import md5, sha256
 
 # Third party modules.
 from tabulate import tabulate
@@ -209,10 +209,12 @@ class NotebookTest:
         with open(nb_path, mode='rb') as f:
             nb_data = f.read()
 
-        nb_hash = blake2b(nb_data, digest_size=4).hexdigest()
+        nb_hash_md5 = md5(nb_data).hexdigest()
+        nb_hash_sha256 = sha256(nb_data).hexdigest()
+        nb_hash_sha256_short = nb_hash_sha256[:8]
 
         with cd(target_dir):
-            archive = Path(f'results_{nb_hash}.tar.xz')
+            archive = Path(f'results_{nb_hash_sha256_short}.tar.xz')
 
             with cd_tar(archive, mode='w:xz'):
                 # prepare context and execute notebook
@@ -260,9 +262,8 @@ class NotebookTest:
                     autograde_version=autograde.__version__,
                     orig_file=str(nb_path),
                     checksum=dict(
-                        md5sum=md5(nb_data).hexdigest(),
-                        sha256sum=sha256(nb_data).hexdigest(),
-                        blake2bsum=nb_hash
+                        md5sum=nb_hash_md5,
+                        sha256sum=nb_hash_sha256
                     ),
                     team_members=group,
                     test_cases=list(map(str, self._cases)),
@@ -305,7 +306,7 @@ class NotebookTest:
 
                 # create alternative, more readable name
                 names = ','.join(map(camel_case, sorted(m['last_name'] for m in group)))
-                archive_name_alt = f'results_[{names}]_{nb_hash}.tar.xz'
+                archive_name_alt = f'results_[{names}]_{nb_hash_sha256_short}.tar.xz'
 
             archive.rename(archive_name_alt)
 
