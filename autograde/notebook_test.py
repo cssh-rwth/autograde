@@ -49,7 +49,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
         cells = [
             ('injected by test', INJECT_BEFORE),
-            *((f'c{i}', c) for i, c in enumerate(_code_cells, start=1)),
+            *((f'nb cell {i}', c) for i, c in enumerate(_code_cells, start=1)),
             ('injected by test', INJECT_AFTER)
         ]
 
@@ -311,7 +311,7 @@ class NotebookTest:
 
         return enriched_results
 
-    def execute(self):
+    def execute(self, args=None):
         parser = argparse.ArgumentParser(description='run tests on jupyter notebook')
 
         parser.add_argument('notebook', type=str, help='the jupyter notebook to test')
@@ -319,15 +319,15 @@ class NotebookTest:
         parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
         parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
 
-        args = parser.parse_args()
+        args = parser.parse_args(args)
 
         logger.setLevel(loglevel(args.verbose))
         logger.debug(f'args: {args}')
 
-        self.grade_notebook(
+        results = self.grade_notebook(
             Path(args.notebook).absolute(),
             target_dir=Path(args.target).absolute() if args.target else None,
             context=Path(args.context).absolute() if args.context else None
         )
 
-        return 0
+        return len(self._cases) - results['summary'].get('passed', 0)

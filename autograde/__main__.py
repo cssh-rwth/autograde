@@ -85,7 +85,7 @@ def test(args):
 
         return subprocess.run(cmd).returncode
 
-    return reduce(max, map(run, notebooks))
+    return sum(map(run, notebooks))
 
 
 def summary(args):

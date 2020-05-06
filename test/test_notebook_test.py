@@ -166,6 +166,7 @@ class TestNotebookTest(TestCase):
     def test_grade_notebook(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
         t_path = PROJECT_ROOT.joinpath('demo', 'test.py')
+        c_path = PROJECT_ROOT.joinpath('demo', 'context')
 
         with open(nb_path, mode='rb') as f:
             md5_sum = md5(f.read()).hexdigest()
@@ -176,7 +177,7 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            nbtest.nbt.grade_notebook(nb_path, context=PROJECT_ROOT.joinpath('demo', 'context'))
+            nbtest.nbt.grade_notebook(nb_path, context=c_path)
 
             rpath, *_ = Path(path).glob('results_*.tar.xz')
 
@@ -210,3 +211,16 @@ class TestNotebookTest(TestCase):
 
         for key in ['orig_file', 'team_members', 'test_cases', 'results']:
             self.assertIn(key, results)
+
+    def test_execute(self):
+        nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
+        t_path = PROJECT_ROOT.joinpath('demo', 'test.py')
+        c_path = PROJECT_ROOT.joinpath('demo', 'context')
+
+        # load test as module
+        spec = import_util.spec_from_file_location('nbtest', t_path)
+        nbtest = import_util.module_from_spec(spec)
+        spec.loader.exec_module(nbtest)
+
+        with TemporaryDirectory() as path, cd(path):
+            self.assertEqual(nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))), 3)
