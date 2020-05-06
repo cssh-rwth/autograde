@@ -216,6 +216,10 @@ class NotebookTest:
         with cd(target_dir):
             archive = Path(f'results_{nb_hash_sha256_short}.tar.xz')
 
+            if archive.exists():
+                logger.debug(f'remove existing {archive}')
+                archive.unlink()
+
             with cd_tar(archive, mode='w:xz'):
                 # prepare context and execute notebook
                 with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
@@ -306,7 +310,11 @@ class NotebookTest:
 
                 # create alternative, more readable name
                 names = ','.join(map(camel_case, sorted(m['last_name'] for m in group)))
-                archive_name_alt = f'results_[{names}]_{nb_hash_sha256_short}.tar.xz'
+                archive_name_alt = Path(f'results_[{names}]_{nb_hash_sha256_short}.tar.xz')
+
+            if archive_name_alt.exists():
+                logger.debug(f'remove existing {archive_name_alt}')
+                archive_name_alt.unlink()
 
             archive.rename(archive_name_alt)
 
