@@ -31,6 +31,17 @@ def as_py_comment(s):
         return ''
     return '\n'.join(f'# {l}' for l in s.strip().split('\n'))
 
+from unittest import mock
+
+def import_mock(name, *args):
+    raise ImportError
+
+def disallow_imports(func):
+    def decorator(*args, **kwargs):
+        with mock.patch('builtins.__import__', side_effect=import_mock):
+            return func(*args, **kwargs)
+
+    return decorator
 
 def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
     state = dict()
@@ -73,7 +84,16 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
                     # actual execution that extends state
                     with timeout(cell_timeout):
-                        exec(code, state)
+                        if not Path("../cells").is_dir():
+                            os.mkdir(Path("../cells").absolute())
+                        p = Path(f"../cells/cell_{i}.py")
+
+                        # keeping information on source code intact see:
+                        # https://stackoverflow.com/questions/436198/what-is-an-alternative-to-execfile-in-python-3
+                        with open(p.absolute(), 'w') as code_file:
+                            code_file.write(code)
+                        code_comp = compile(code, p.absolute(), 'exec')
+                        exec(code_comp, state)
 
             except Exception as error:
                 # extend log with some meaningful error message
@@ -109,12 +129,13 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
 
 
 class NotebookTestCase:
-    def __init__(self, test_function, target, score=1., label=None, timeout=0):
+    def __init__(self, test_function, target, score=1., label=None, timeout=0, isolation=False):
         self._test_func = test_function
         self._targets = (target,) if isinstance(target, str) else target
         self._score = float(score)
         self._label = str(label) if label else ''
         self._timeout = timeout
+        self._isolation = isolation
 
     def __call__(self, state, *args, **kwargs):
         try:
@@ -123,6 +144,19 @@ class NotebookTestCase:
                 targets = [state[t] for t in self._targets]
             except KeyError as err:
                 raise NameError(err)
+
+            if self._isolation:
+                isolated_state = {}
+                exec("import inspect", state)
+                for target in self._targets:
+                    exec(f"{target}_code = inspect.getsource({target})", state)
+                    try:
+                        code = state[f"{target}_code"]
+                    except KeyError as err:
+                        raise NameError(err)
+                    exec(code, isolated_state)
+
+                targets = [disallow_imports(isolated_state[t]) for t in self._targets]
 
             # apply actual test
             with timeout(self._timeout):
@@ -161,9 +195,9 @@ class NotebookTest:
     def __repr__(self):
         return f'{type(self).__name__}({self._cases})'
 
-    def register(self, target, score=1., label='', timeout_=0):
+    def register(self, target, score=1., label='', timeout_=0, isolation=False):
         def decorator(func):
-            case = NotebookTestCase(func, target, score, label, timeout_ or self._test_timeout)
+            case = NotebookTestCase(func, target, score, label, timeout_ or self._test_timeout, isolation=isolation)
             self._cases.append(case)
             return case
 
@@ -249,9 +283,14 @@ class NotebookTest:
 
                     # remove files that haven't changed
                     for p in os.listdir('.'):
+                        # Find files to delete
+                        files_to_remove = []
                         with open(p, mode='rb') as f:
                             if md5(f.read()).hexdigest() in index:
-                                os.remove(p)
+                                files_to_remove.append(p)
+                        # Delete files when they are no longer opened
+                        for p in files_to_remove:
+                            os.remove(p)
 
                 # infer meta information
                 group = state.get('team_members', {})
