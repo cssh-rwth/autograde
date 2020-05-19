@@ -75,7 +75,6 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
 
     # prepare import filter
     if_regex, if_blacklist = variables.get('IMPORT_FILTER', (None, None))
-    if_regex = re.compile(if_regex) if if_regex is not None else if_regex
 
     # the log is supposed to be a valid, standalone python script
     print('#!/usr/bin/env python3', file=file)
@@ -93,7 +92,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
 
                     # actual execution that extends state
                     with ExitStack() as es:
-                        if if_regex and i > 1:
+                        if if_regex is not None and i > 1:
                             es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
                         es.enter_context(timeout(timeout_))
 
@@ -188,6 +187,16 @@ class NotebookTest:
         return f'{type(self).__name__}({self._cases})'
 
     def register(self, target, score=1., label='', timeout_=0):
+        """
+        Decorator for registering a new test case for given target.
+
+        :param target: can be anything from the notebooks scope, be it a variable, function, class
+            or module
+        :param score: the weight for the test case, default is 1.0
+        :param label: an optional label for easier identification of the test case
+        :param timeout_: how many seconds to wait before aborting the test
+        :return: decorator wrapping the original function
+        """
         def decorator(func):
             case = NotebookTestCase(func, target, score, label, timeout_ or self._test_timeout)
             self._cases.append(case)
@@ -196,10 +205,23 @@ class NotebookTest:
         return decorator
 
     def set_import_filter(self, regex, blacklist=False):
-        self._variables['IMPORT_FILTER'] = regex, bool(blacklist)
+        """
+        Set an import filter for the current notebook test. It will be activated for all cells
+        executed (except the one injected before notebook) as well as all test cases. By default,
+        the import filter checks whether the given regex pattern is found in the import name and
+        raises an error if not. This behaviour can be negated via `blacklist` flag.
+
+        :param regex: regular expression, e.g. `r"networkx|requests"`
+        :param blacklist: whether the regex is used for white- or blacklisting, default is false
+        :return:
+        """
+        self._variables['IMPORT_FILTER'] = (
+            re.compile(regex) if isinstance(regex, str) else regex,
+            bool(blacklist)
+        )
 
     @staticmethod
-    def summarize_results(results):
+    def _summarize_results(results):
         return OrderedDict(
             tests=len(results),
             passed=sum(r['score'] == r['score_max'] for r in results.values()),
@@ -207,20 +229,19 @@ class NotebookTest:
             score_max=sum(r['score_max'] for r in results.values())
         )
 
-    def apply_tests(self, state):
+    def _apply_tests(self, state):
         state = state.copy()
         results = OrderedDict()
 
         # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
-        if_regex = re.compile(if_regex) if if_regex is not None else if_regex
 
         for i, case in enumerate(self._cases, start=1):
             logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 with ExitStack() as es:
-                    if if_regex:
+                    if if_regex is not None:
                         es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
                     es.enter_context(capture_output(stdout, stderr))
 
@@ -237,9 +258,9 @@ class NotebookTest:
                 )
 
         logger.debug('testing completed')
-        return results, self.summarize_results(results)
+        return results, self._summarize_results(results)
 
-    def grade_notebook(self, nb_path, target_dir=None, context=None):
+    def _grade_notebook(self, nb_path, target_dir=None, context=None):
         target_dir = target_dir or os.getcwd()
 
         # prepare notebook
@@ -299,7 +320,7 @@ class NotebookTest:
 
                 # execute tests
                 logger.debug('execute tests')
-                results, summary = self.apply_tests(state)
+                results, summary = self._apply_tests(state)
                 enriched_results = OrderedDict(
                     autograde_version=autograde.__version__,
                     orig_file=str(nb_path),
@@ -359,6 +380,12 @@ class NotebookTest:
         return enriched_results
 
     def execute(self, args=None):
+        """
+        Commandline interface for notebook test. Call with `--help` flag to get further information.
+
+        :param args: optional arguments, uses `sys.argv` by default
+        :return: number of failed tests
+        """
         parser = argparse.ArgumentParser(description='run tests on jupyter notebook')
 
         parser.add_argument('notebook', type=str, help='the jupyter notebook to test')
@@ -371,7 +398,7 @@ class NotebookTest:
         logger.setLevel(loglevel(args.verbose))
         logger.debug(f'args: {args}')
 
-        results = self.grade_notebook(
+        results = self._grade_notebook(
             Path(args.notebook).absolute(),
             target_dir=Path(args.target).absolute() if args.target else None,
             context=Path(args.context).absolute() if args.context else None

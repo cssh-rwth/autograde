@@ -1,6 +1,7 @@
 # Standard library modules.
 import io
 import os
+import re
 import json
 import time
 import tarfile
@@ -163,7 +164,18 @@ class TestNotebookTest(TestCase):
 
         self.assertTupleEqual((2.0, 'ok'), test(dict(foo=42)))
 
-    def test_grade_notebook(self):
+    def test_set_import_filter(self):
+        nbt = NotebookTest()
+        regex = r'networkx|requests'
+
+        self.assertNotIn('IMPORT_FILTER', nbt._variables)
+
+        nbt.set_import_filter(regex, blacklist=True)
+
+        self.assertIn('IMPORT_FILTER', nbt._variables)
+        self.assertEqual((re.compile(regex), True), nbt._variables['IMPORT_FILTER'])
+
+    def test__grade_notebook(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
         t_path = PROJECT_ROOT.joinpath('demo', 'test.py')
         c_path = PROJECT_ROOT.joinpath('demo', 'context')
@@ -177,7 +189,7 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            nbtest.nbt.grade_notebook(nb_path, context=c_path)
+            nbtest.nbt._grade_notebook(nb_path, context=c_path)
 
             rpath, *_ = Path(path).glob('results_*.tar.xz')
 
