@@ -56,7 +56,7 @@ def import_hook(callback):
 
 @contextmanager
 def import_filter(regex, flags=0, blacklist=False):
-    pattern = re.compile(regex, flags)
+    pattern = re.compile(regex, flags) if isinstance(regex, str) else regex
     _import = builtins.__import__
 
     def callback(target, *args):

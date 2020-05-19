@@ -1,4 +1,5 @@
 # Standard library modules.
+import re
 import builtins
 from unittest import TestCase
 from collections import defaultdict
@@ -83,8 +84,8 @@ class TestHelpers(TestCase):
                 __import__('typing')
 
         with self.assertRaises(ImportError):
-            with import_filter(r'type.*', blacklist=True):
+            with import_filter(re.compile(r'type.*'), blacklist=True):
                 __import__('types')
 
-        with import_filter(r'type.*', blacklist=True):
+        with import_filter(re.compile(r'type.*'), blacklist=True):
             __import__('typing')
