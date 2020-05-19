@@ -1,6 +1,7 @@
 # Standard library modules.
 import io
 import os
+import re
 import csv
 import sys
 import json
@@ -8,10 +9,12 @@ import argparse
 import warnings
 import traceback
 from pathlib import Path
+from copy import deepcopy
 from datetime import datetime
 from distutils import dir_util
-from collections import OrderedDict
 from hashlib import md5, sha256
+from contextlib import ExitStack
+from collections import OrderedDict
 
 # Third party modules.
 from tabulate import tabulate
@@ -20,6 +23,7 @@ from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
 import autograde
+from autograde.helpers import import_filter
 from autograde.templates import INJECT_BEFORE, INJECT_AFTER, REPORT_TEMPLATE
 from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_tar, timeout
 
@@ -32,8 +36,20 @@ def as_py_comment(s):
     return '\n'.join(f'# {l}' for l in s.strip().split('\n'))
 
 
-def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
+def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, variables=None):
+    """
+    Extract source code from jupyter notebook and execute it.
+
+    :param buffer: file like with notebook data
+    :param file: where to send stdout
+    :param ignore_errors: whether or not errors will be forwarded or ignored
+    :param cell_timeout: timeout for cell execution 0=∞
+    :param variables: variables to be inserted into initial state
+    :return: the state mutated by executed code
+    """
     state = dict()
+    variables = variables or {}
+    state.update(deepcopy(variables))
 
     try:
         logger.debug('parse notebook')
@@ -48,20 +64,24 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
         _code_cells = filter(lambda c: c.cell_type == 'code', notebook.cells)
 
         cells = [
-            ('injected by test', INJECT_BEFORE),
-            *((f'nb cell {i}', c) for i, c in enumerate(_code_cells, start=1)),
-            ('injected by test', INJECT_AFTER)
+            ('injected from template', INJECT_BEFORE, 0),
+            *((f'nb cell {i}', c, cell_timeout) for i, c in enumerate(_code_cells, start=1)),
+            ('injected from template', INJECT_AFTER, 0)
         ]
 
     except Exception as error:
         logger.error(f'unable to parse notebook: {error}')
         raise ValueError(error)
 
+    # prepare import filter
+    if_regex, if_blacklist = variables.get('IMPORT_FILTER', (None, None))
+    if_regex = re.compile(if_regex) if if_regex is not None else if_regex
+
     # the log is supposed to be a valid, standalone python script
     print('#!/usr/bin/env python3', file=file)
 
     # actual code execution
-    for i, (label, code) in enumerate(cells, start=1):
+    for i, (label, code, timeout_) in enumerate(cells, start=1):
         with io.StringIO() as stdout, io.StringIO() as stderr:
             logger.debug(f'[{i}/{len(cells)}] execute cell ("{label}")')
 
@@ -72,7 +92,11 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
                         code = shell.input_transformer_manager.transform_cell(code.source)
 
                     # actual execution that extends state
-                    with timeout(cell_timeout):
+                    with ExitStack() as es:
+                        if if_regex and i > 1:
+                            es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
+                        es.enter_context(timeout(timeout_))
+
                         exec(code, state)
 
             except Exception as error:
@@ -102,6 +126,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0):
                     print('\n')
 
                 # TODO clear plt state + condition to plot only if plt state has changed
+                #   inject intermediate cells
                 # exec(f'plt.savefig("cell_{label}.png");plt.close()', state)
 
     logger.debug('execution completed')
@@ -151,6 +176,7 @@ class NotebookTest:
         self._cases = []
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
+        self._variables = OrderedDict()
 
     def __len__(self):
         return len(self._cases)
@@ -169,6 +195,9 @@ class NotebookTest:
 
         return decorator
 
+    def set_import_filter(self, regex, blacklist=False):
+        self._variables['IMPORT_FILTER'] = regex, bool(blacklist)
+
     @staticmethod
     def summarize_results(results):
         return OrderedDict(
@@ -182,11 +211,19 @@ class NotebookTest:
         state = state.copy()
         results = OrderedDict()
 
+        # prepare import filter
+        if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
+        if_regex = re.compile(if_regex) if if_regex is not None else if_regex
+
         for i, case in enumerate(self._cases, start=1):
             logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
-                with capture_output(stdout, stderr):
+                with ExitStack() as es:
+                    if if_regex:
+                        es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
+                    es.enter_context(capture_output(stdout, stderr))
+
                     achieved, msg = case(state)
 
                 results[i] = OrderedDict(
@@ -241,7 +278,8 @@ class NotebookTest:
                             io.StringIO(nb_data.decode('utf-8')),
                             file=c,
                             ignore_errors=True,
-                            cell_timeout=self._cell_timeout
+                            cell_timeout=self._cell_timeout,
+                            variables=self._variables
                         )
 
                     except ValueError:

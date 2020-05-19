@@ -6,9 +6,12 @@ import sys
 
 # Local modules
 from autograde import NotebookTest
+from autograde.helpers import assert_raises
 
 # Globals and constants variables.
 nbt = NotebookTest(cell_timeout=1., test_timeout=.1)
+
+nbt.set_import_filter(r'networkx|requests', blacklist=True)
 
 
 # this test will succeed
@@ -39,6 +42,13 @@ def test_foo_bar(foo, bar):
 @nbt.register(target='fnord', score=1.5, label='another label')
 def test_fnord(fnord):
     assert fnord() == 42
+
+
+# see if the import restrictions defined above work
+@nbt.register(target='illegal_import', score=.5, timeout_=1., label='test import filter')
+def test_illegal_import(illegal_import):
+    with assert_raises(ImportError):
+        illegal_import()
 
 
 # this one will fail due to the global timeout

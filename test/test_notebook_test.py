@@ -204,10 +204,10 @@ class TestNotebookTest(TestCase):
 
         self.assertEqual(results['checksum']['md5sum'], md5_sum)
 
-        self.assertEqual(results['summary']['tests'], 6)
-        self.assertEqual(results['summary']['passed'], 3)
-        self.assertEqual(results['summary']['score'], 4.5)
-        self.assertEqual(results['summary']['score_max'], 8.0)
+        self.assertEqual(7., results['summary']['tests'])
+        self.assertEqual(4., results['summary']['passed'])
+        self.assertEqual(5., results['summary']['score'])
+        self.assertEqual(8.5, results['summary']['score_max'])
 
         for key in ['orig_file', 'team_members', 'test_cases', 'results']:
             self.assertIn(key, results)
