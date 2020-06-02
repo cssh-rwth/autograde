@@ -207,6 +207,10 @@ class TestNotebookTest(TestCase):
                     with tarfile.open(fileobj=io.BytesIO(f.read()), mode='r:xz') as itar:
                         self.assertListEqual(sorted(itar.getnames())[1:], [
                             'bar.txt',
+                            'figures',
+                            'figures/fig_code_cell_2_1.png',
+                            'figures/fig_code_cell_7_1.png',
+                            'figures/fig_code_cell_7_2.png',
                             'fnord.txt'
                         ])
 

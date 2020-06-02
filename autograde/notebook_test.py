@@ -25,7 +25,8 @@ from IPython.core.interactiveshell import InteractiveShell
 import autograde
 from autograde.helpers import import_filter
 from autograde.templates import INJECT_BEFORE, INJECT_AFTER, REPORT_TEMPLATE
-from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_tar, timeout
+from autograde.util import logger, loglevel, camel_case, snake_case, capture_output, cd, cd_tar, \
+    timeout
 
 # Globals and constants variables.
 
@@ -61,13 +62,25 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
             notebook = read(buffer, 4)
             shell = InteractiveShell.instance()
 
-        _code_cells = filter(lambda c: c.cell_type == 'code', notebook.cells)
+        # extract comment cells
+        md_cells = [c.source for c in filter(lambda c: c.cell_type == 'markdown', notebook.cells)]
 
-        cells = [
-            ('injected from template', INJECT_BEFORE, 0),
-            *((f'nb cell {i}', c, cell_timeout) for i, c in enumerate(_code_cells, start=1)),
-            ('injected from template', INJECT_AFTER, 0)
-        ]
+        # prepare code cells for execution
+        def _code_cells():
+            yield 'injected: setup', INJECT_BEFORE, 0
+
+            for i, cell in enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells)):
+                # render code
+                source = shell.input_transformer_manager.transform_cell(cell.source)
+                yield (
+                    f'code cell {i}',
+                    f'{source.strip()}\n\n# injected by test\ndump_figure()',
+                    cell_timeout
+                )
+
+            yield 'injected: teardown', INJECT_AFTER, 0
+
+        code_cells = list(_code_cells())
 
     except Exception as error:
         logger.error(f'unable to parse notebook: {error}')
@@ -80,16 +93,14 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
     print('#!/usr/bin/env python3', file=file)
 
     # actual code execution
-    for i, (label, code, timeout_) in enumerate(cells, start=1):
+    for i, (label, code, timeout_) in enumerate(code_cells, start=1):
+        state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
+
         with io.StringIO() as stdout, io.StringIO() as stderr:
-            logger.debug(f'[{i}/{len(cells)}] execute cell ("{label}")')
+            logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
 
             try:
                 with capture_output(stdout, stderr):
-                    # convert to valid python when origin is a notebook
-                    if isinstance(code, NotebookNode):
-                        code = shell.input_transformer_manager.transform_cell(code.source)
-
                     # actual execution that extends state
                     with ExitStack() as es:
                         if if_regex is not None and i > 1:
@@ -108,8 +119,8 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
             finally:
                 # log code and output
                 with capture_output(file):
-                    label = f' CODE CELL {label} '
-                    print(f'# {label:-^78}')
+                    _label = f' CODE CELL {label} '
+                    print(f'# {_label:-^78}')
                     print(str(code).strip())
 
                     stdout_s = stdout.getvalue()
@@ -124,9 +135,8 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
 
                     print('\n')
 
-                # TODO clear plt state + condition to plot only if plt state has changed
-                #   inject intermediate cells
-                # exec(f'plt.savefig("cell_{label}.png");plt.close()', state)
+    # add markdown comments to state
+    state['__COMMENTS__'] = md_cells
 
     logger.debug('execution completed')
     return state
