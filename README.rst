@@ -9,13 +9,15 @@ autograde
    :alt: autograde test
    :target: https://github.com/cssh-rwth/autograde/actions
 
-*autograde* is a tool that lets you run tests on *Jupyter notebooks* in an isolated environment and creates both, human and machine readable reports.
+*autograde* is a tool that lets you run unit tests on *Jupyter notebooks* and creates both, human and machine readable reports.
+Optionally, containers are used for isolated test execution.
 
 
 setup
 -----
 
-Before installing *autograde*, ensure `docker <https://www.docker.com/>`_ (or `podman <https://podman.io/>`_) is available on your system.
+Before installing *autograde* and in case you want to use it with a container backend, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is available on your system.
+We recommend podman as it runs rootless.
 
 Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
 Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (or :code:`pip install -e .[develop]` if you're a developer).
@@ -47,7 +49,7 @@ What happened? Let's first have a look at the arguments of *autograde*:
 
 The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.tar.xz` and which has the following contents:
 
-* :code:`artifacts.tar.xz`: all files that where created or modified by the tested notebook
+* :code:`artifacts.tar.xz`: all files that where created or modified by the tested notebook as well as rendered matplotlib plots
 * :code:`code.py`: code extracted from the notebook including :code:`stdout`/:code:`stderr` as comments
 * :code:`notebook.ipynb`: an identical copy of the tested notebook
 * :code:`test_results.csv`: test results
