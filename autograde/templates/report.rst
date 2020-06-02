@@ -1,7 +1,7 @@
 ======
 REPORT
 ======
-**created {timestamp} with *autograde {version}* (https://github.com/cssh-rwth/autograde)**
+**created {timestamp} with *autograde {version}* `github.com/cssh-rwth/autograde <https://github.com/cssh-rwth/autograde>`_ **
 
 
 TEAM
@@ -10,8 +10,8 @@ TEAM
 {team}
 
 
-RESULTS
--------
+TEST RESULTS
+------------
 
 {results}
 

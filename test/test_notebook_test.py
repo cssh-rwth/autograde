@@ -3,6 +3,7 @@ import io
 import os
 import re
 import json
+import math
 import time
 import tarfile
 from hashlib import md5
@@ -65,11 +66,10 @@ class TestNotebookTestCase(TestCase):
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42)))
 
     def test_msg(self):
-        def test(foo):
-            return foo
-
-        tc = NotebookTestCase(test, target='foo')
-        self.assertTupleEqual((1.0, '42'), tc(dict(foo=42)))
+        tc = NotebookTestCase(lambda x: x, target='foo')
+        self.assertTupleEqual((4.0, 'ok'), tc(dict(foo=4)))
+        self.assertTupleEqual((4.2, 'ok'), tc(dict(foo=4.2)))
+        self.assertTupleEqual((1.0, '42'), tc(dict(foo='42')))
 
     def test_unknown_target(self):
         def test():
@@ -220,10 +220,10 @@ class TestNotebookTest(TestCase):
 
         self.assertEqual(results['checksum']['md5sum'], md5_sum)
 
-        self.assertEqual(7., results['summary']['tests'])
-        self.assertEqual(4., results['summary']['passed'])
-        self.assertEqual(5., results['summary']['score'])
-        self.assertEqual(8.5, results['summary']['score_max'])
+        self.assertEqual(10, results['summary']['tests'])
+        self.assertEqual(4, results['summary']['passed'])
+        self.assertTrue(math.isnan(results['summary']['score']))
+        self.assertEqual(16, results['summary']['score_max'])
 
         for key in ['orig_file', 'team_members', 'test_cases', 'results']:
             self.assertIn(key, results)
@@ -239,4 +239,4 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            self.assertEqual(nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))), 3)
+            self.assertEqual(4, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))

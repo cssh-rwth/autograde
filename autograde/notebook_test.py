@@ -5,6 +5,7 @@ import re
 import csv
 import sys
 import json
+import math
 import argparse
 import warnings
 import traceback
@@ -160,9 +161,14 @@ class NotebookTestCase:
 
             # apply actual test
             with timeout(self._timeout):
-                msg = self._test_func(*targets, *args, **kwargs)
+                result = self._test_func(*targets, *args, **kwargs)
 
-            return self.score, str(msg) if msg else 'ok'
+            # interpret results
+            msg = result if isinstance(result, str) else 'ok'
+            score = result if isinstance(result, (int, float)) else self.score
+            score, msg = result if isinstance(result, tuple) else (score, msg)
+
+            return float(score), str(msg)
 
         except Exception as err:
             msg_buffer = io.StringIO()
@@ -214,6 +220,33 @@ class NotebookTest:
 
         return decorator
 
+    def register_textual(self, target, score=1., label=''):
+        """
+        Registers a special test case that looks for markdown comments in the notebook by a given
+        regular expression. If no such comment is found, the test fails. In all other cases,
+        the comment texts are included into the report. NOTE: a "passed" test is scored with NaN
+        (not a number) as its output is intended for further, manual inspection.
+
+        :param target: (compiled) regular expression that is searched for in markdown comments
+        :param score: the weight for the test case, default is 1.0
+        :param label: an optional label for easier identification of the test case
+        """
+        pattern = re.compile(target) if isinstance(target, str) else target
+
+        def search_comment(comments):
+            comments = list(filter(pattern.search, comments))
+
+            assert len(comments) > 0, 'no matching comments found'
+
+            msg = ''
+            for i, comment in enumerate(comments, start=1):
+                msg += f'[MATCH {i}]\n'
+                msg += f'{comment.strip()}\n\n'
+
+            return math.nan, msg
+
+        self.register('__COMMENTS__', score, label)(search_comment)
+
     def set_import_filter(self, regex, blacklist=False):
         """
         Set an import filter for the current notebook test. It will be activated for all cells
@@ -234,12 +267,13 @@ class NotebookTest:
     def _summarize_results(results):
         return OrderedDict(
             tests=len(results),
-            passed=sum(r['score'] == r['score_max'] for r in results.values()),
+            failed=sum(math.isclose(r['score'], 0) for r in results.values()),
+            passed=sum(math.isclose(r['score'], r['score_max']) for r in results.values()),
             score=sum(r['score'] for r in results.values()),
             score_max=sum(r['score_max'] for r in results.values())
         )
 
-    def _apply_tests(self, state):
+    def _apply_cases(self, state):
         state = state.copy()
         results = OrderedDict()
 
@@ -332,7 +366,7 @@ class NotebookTest:
 
                 # execute tests
                 logger.debug('execute tests')
-                results, summary = self._apply_tests(state)
+                results, summary = self._apply_cases(state)
                 enriched_results = OrderedDict(
                     autograde_version=autograde.__version__,
                     orig_file=str(nb_path),
@@ -373,7 +407,7 @@ class NotebookTest:
 
                     f.write(REPORT_TEMPLATE.format(
                         version=autograde.__version__,
-                        timestamp=datetime.now().strftime("%m-%d-%Y, %H:%M:%S"),
+                        timestamp=datetime.now().isoformat(),
                         team=tabulate(group, headers='keys', tablefmt='grid'),
                         results=tabulate(_results(), headers='keys', tablefmt='grid'),
                         summary=tabulate(summary.items(), tablefmt='grid'),
@@ -416,4 +450,4 @@ class NotebookTest:
             context=Path(args.context).absolute() if args.context else None
         )
 
-        return len(self._cases) - results['summary'].get('passed', 0)
+        return results['summary'].get('failed', 0)
