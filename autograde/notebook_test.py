@@ -288,9 +288,10 @@ class NotebookTest:
 
                     # build index of all files known before execution
                     index = set()
-                    for p in os.listdir('.'):
-                        with open(p, mode='rb') as f:
-                            index.add(md5(f.read()).hexdigest())
+                    for p in Path('.').glob('**/*'):
+                        if p.is_file():
+                            with p.open(mode='rb') as f:
+                                index.add(md5(f.read()).hexdigest())
 
                     # actual notebook execution
                     try:
@@ -307,10 +308,11 @@ class NotebookTest:
                         state = {}
 
                     # remove files that haven't changed
-                    for p in os.listdir('.'):
-                        with open(p, mode='rb') as f:
-                            if md5(f.read()).hexdigest() in index:
-                                os.remove(p)
+                    for p in Path('.').glob('**/*'):
+                        if p.is_file():
+                            with p.open(mode='rb') as f:
+                                if md5(f.read()).hexdigest() in index:
+                                    p.unlink()
 
                 # infer meta information
                 group = state.get('team_members', {})
