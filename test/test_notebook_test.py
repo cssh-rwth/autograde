@@ -208,9 +208,9 @@ class TestNotebookTest(TestCase):
                         self.assertListEqual(sorted(itar.getnames())[1:], [
                             'bar.txt',
                             'figures',
-                            'figures/fig_code_cell_2_1.png',
-                            'figures/fig_code_cell_7_1.png',
-                            'figures/fig_code_cell_7_2.png',
+                            'figures/fig_code_cell_3_1.png',
+                            'figures/fig_code_cell_8_1.png',
+                            'figures/fig_code_cell_8_2.png',
                             'fnord.txt'
                         ])
 

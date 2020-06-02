@@ -73,7 +73,7 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
                 # render code
                 source = shell.input_transformer_manager.transform_cell(cell.source)
                 yield (
-                    f'code cell {i}',
+                    f'code cell {i+1}',
                     f'{source.strip()}\n\n# injected by test\ndump_figure()',
                     cell_timeout
                 )
