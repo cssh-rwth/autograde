@@ -107,3 +107,5 @@ playground*.py
 *notes*.md
 *tasks*.md
 tmp/
+~*
+*~
