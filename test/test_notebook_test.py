@@ -6,9 +6,9 @@ import json
 import math
 import time
 import tarfile
-from hashlib import md5
 from pathlib import Path
 from unittest import TestCase
+from hashlib import md5, sha256
 import importlib.util as import_util
 from tempfile import TemporaryDirectory
 
@@ -182,6 +182,8 @@ class TestNotebookTest(TestCase):
 
         with open(nb_path, mode='rb') as f:
             md5_sum = md5(f.read()).hexdigest()
+            f.seek(0)
+            sha256_sum = sha256(f.read()).hexdigest()
 
         # load test as module
         spec = import_util.spec_from_file_location('nbtest', t_path)
@@ -212,6 +214,9 @@ class TestNotebookTest(TestCase):
         self.assertEqual(results['autograde_version'], autograde.__version__)
 
         self.assertEqual(results['checksum']['md5sum'], md5_sum)
+        self.assertEqual(results['checksum']['sha256sum'], sha256_sum)
+
+        self.assertListEqual(results['excluded_artifacts'], ['foo.txt'])
 
         self.assertEqual(10, results['summary']['tests'])
         self.assertEqual(4, results['summary']['passed'])

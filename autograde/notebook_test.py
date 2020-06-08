@@ -5,6 +5,7 @@ import re
 import sys
 import json
 import math
+import pytz
 import shutil
 import argparse
 import warnings
@@ -350,10 +351,12 @@ class NotebookTest:
                         state = {}
 
                     # remove files that haven't changed
+                    excluded_artifacts = []
                     for p in Path('.').glob('**/*'):
                         if p.is_file():
                             with p.open(mode='rb') as f:
                                 if md5(f.read()).hexdigest() in index:
+                                    excluded_artifacts.append(str(p))
                                     p.unlink()
 
                 # infer meta information
@@ -367,6 +370,7 @@ class NotebookTest:
                 results, summary = self._apply_cases(state)
                 enriched_results = OrderedDict(
                     autograde_version=autograde.__version__,
+                    timestamp=datetime.now(pytz.utc).isoformat(),
                     orig_file=str(nb_path),
                     checksum=dict(
                         md5sum=nb_hash_md5,
@@ -374,6 +378,7 @@ class NotebookTest:
                     ),
                     team_members=group,
                     test_cases=list(map(str, self._cases)),
+                    excluded_artifacts=excluded_artifacts,
                     results=results,
                     summary=summary,
                 )
