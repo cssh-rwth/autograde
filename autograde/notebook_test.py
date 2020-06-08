@@ -18,15 +18,14 @@ from collections import OrderedDict
 
 # Third party modules.
 from tabulate import tabulate
-from nbformat import read, NotebookNode
+from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
 import autograde
 from autograde.helpers import import_filter
 from autograde.templates import INJECT_BEFORE, INJECT_AFTER, REPORT_TEMPLATE
-from autograde.util import logger, loglevel, camel_case, snake_case, capture_output, cd, cd_tar, \
-    timeout
+from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_dir, cd_tar, timeout
 
 # Globals and constants variables.
 
@@ -323,7 +322,7 @@ class NotebookTest:
 
             with cd_tar(archive, mode='w:xz'):
                 # prepare context and execute notebook
-                with open('code.py', mode='wt') as c, cd_tar('artifacts.tar.xz', mode='w:xz'):
+                with open('code.py', mode='wt') as c, cd_dir('artifacts'):
                     # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')

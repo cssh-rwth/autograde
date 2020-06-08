@@ -195,23 +195,18 @@ class TestNotebookTest(TestCase):
 
             with tarfile.open(rpath, mode='r') as tar:
                 self.assertListEqual(sorted(tar.getnames())[1:], [
-                    'artifacts.tar.xz',
+                    'artifacts',
+                    'artifacts/bar.txt',
+                    'artifacts/figures',
+                    'artifacts/figures/fig_code_cell_3_1.png',
+                    'artifacts/figures/fig_code_cell_8_1.png',
+                    'artifacts/figures/fig_code_cell_8_2.png',
+                    'artifacts/fnord.txt',
                     'code.py',
                     'notebook.ipynb',
                     'report.rst',
                     'test_results.json'
                 ])
-
-                with tar.extractfile('artifacts.tar.xz') as f:
-                    with tarfile.open(fileobj=io.BytesIO(f.read()), mode='r:xz') as itar:
-                        self.assertListEqual(sorted(itar.getnames())[1:], [
-                            'bar.txt',
-                            'figures',
-                            'figures/fig_code_cell_3_1.png',
-                            'figures/fig_code_cell_8_1.png',
-                            'figures/fig_code_cell_8_2.png',
-                            'fnord.txt'
-                        ])
 
                 results = json.load(tar.extractfile(tar.getmember('test_results.json')))
 
