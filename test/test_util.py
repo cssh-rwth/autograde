@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 # Local modules
 from autograde.util import loglevel, project_root, snake_case, camel_case, capture_output, cd, \
-    cd_dir, cd_tar, timeout
+    cd_dir, cd_tar, cd_tar_edit, timeout
 
 # Globals and constants variables.
 
@@ -112,6 +112,20 @@ class TestUtil(TestCase):
             with tarfile.open('test.tar.xz', mode='r') as tar:
                 with tar.extractfile(tar.getmember('test.txt')) as f:
                     self.assertEqual('foobar', f.read().decode('utf-8'))
+
+    def test_cd_tar_edit(self):
+        with TemporaryDirectory() as dir, cd(dir):
+            with cd_tar('test.tar.xz', mode='w'), open('foo', mode='wt') as f:
+                f.write('FOO')
+
+            with cd_tar_edit('test.tar.xz'):
+                self.assertListEqual(['foo'], sorted(map(str, Path('.').glob('**/*'))))
+
+                with open('bar', mode='wb') as f:
+                    f.write(b'FOO')
+
+            with cd_tar_edit('test.tar.xz'):
+                self.assertListEqual(['bar', 'foo'], sorted(map(str, Path('.').glob('**/*'))))
 
     def test_timeout(self):
         self.assertIsNone(sys.gettrace())

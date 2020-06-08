@@ -110,6 +110,20 @@ def cd_tar(path, mode='w'):
 
 
 @contextmanager
+def cd_tar_edit(path, mode='a'):
+    assert mode.startswith('a') and '|' not in mode
+
+    with TemporaryDirectory() as tempdir:
+        try:
+            with tarfile.open(path, mode='r'+mode[1:]) as tar, cd(tempdir):
+                tar.extractall('.')
+                yield tempdir
+
+        finally:
+            with tarfile.open(path, mode='w'+mode[1:]) as tar:
+                tar.add(tempdir, arcname='')
+
+@contextmanager
 def timeout(timeout_):
     start = time.time()
 
