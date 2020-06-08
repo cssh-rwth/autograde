@@ -199,7 +199,6 @@ class TestNotebookTest(TestCase):
                     'code.py',
                     'notebook.ipynb',
                     'report.rst',
-                    'test_results.csv',
                     'test_results.json'
                 ])
 

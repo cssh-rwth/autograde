@@ -2,7 +2,6 @@
 import io
 import os
 import re
-import csv
 import sys
 import json
 import math
@@ -384,13 +383,6 @@ class NotebookTest:
                 logger.debug('write copy of notebook')
                 with open(f'notebook.ipynb', mode='wb') as f:
                     f.write(nb_data)
-
-                # store results as csv file
-                logger.debug('write results to csv')
-                with open('test_results.csv', 'w', newline='') as csv_file:
-                    csv_writer = csv.DictWriter(csv_file, fieldnames=next(iter(results.values())))
-                    csv_writer.writeheader()
-                    csv_writer.writerows(results.values())
 
                 # store results as json
                 logger.debug('write results to json')
