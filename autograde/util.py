@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import time
+import shutil
 import logging
 import tarfile
 from pathlib import Path
@@ -64,22 +65,38 @@ def capture_output(tmp_stdout=None, tmp_stderr=None):
 
 
 @contextmanager
-def cd(tmp_cwd, mkdir=False):
+def cd(path, mkdir=False):
     if mkdir:
-        os.makedirs(tmp_cwd, exist_ok=True)
+        os.makedirs(path, exist_ok=True)
 
     cwd = os.getcwd()
-    os.chdir(tmp_cwd)
+    os.chdir(path)
 
     try:
-        yield tmp_cwd
+        yield cwd
 
     finally:
         os.chdir(cwd)
 
 
 @contextmanager
-def cd_tar(name, mode='w'):
+def cd_dir(path, mkdir=False):
+    path = Path(path)
+
+    if mkdir:
+        path.mkdir(exist_ok=True)
+
+    with TemporaryDirectory() as tempdir:
+        try:
+            with cd(tempdir):
+                yield tempdir
+
+        finally:
+            shutil.move(tempdir, path)
+
+
+@contextmanager
+def cd_tar(path, mode='w'):
     assert mode.startswith('w') and '|' not in mode
 
     with TemporaryDirectory() as tempdir:
@@ -88,7 +105,7 @@ def cd_tar(name, mode='w'):
                 yield tempdir
 
         finally:
-            with tarfile.open(name, mode=mode) as tf:
+            with tarfile.open(path, mode=mode) as tf:
                 tf.add(tempdir, arcname='')
 
 

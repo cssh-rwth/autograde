@@ -5,13 +5,13 @@ import re
 import sys
 import json
 import math
+import shutil
 import argparse
 import warnings
 import traceback
 from pathlib import Path
 from copy import deepcopy
 from datetime import datetime
-from distutils import dir_util
 from hashlib import md5, sha256
 from contextlib import ExitStack
 from collections import OrderedDict
@@ -327,7 +327,7 @@ class NotebookTest:
                     # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')
-                        dir_util.copy_tree(context, '.')
+                        shutil.copytree(context, '.', dirs_exist_ok=True)
 
                     # build index of all files known before execution
                     index = set()

@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 # Local modules
 from autograde.util import loglevel, project_root, snake_case, camel_case, capture_output, cd, \
-    cd_tar, timeout
+    cd_dir, cd_tar, timeout
 
 # Globals and constants variables.
 
@@ -91,6 +91,16 @@ class TestUtil(TestCase):
             self.assertEqual(Path('.'), cwd.parent)
 
         self.assertEqual(Path('.'), cwd)
+
+    def test_cd_dir(self):
+        with TemporaryDirectory() as dir, cd(dir):
+            target = Path('fnord')
+            with cd_dir(target), open('foo', mode='wt') as f1, open('bar', mode='wb') as f2:
+                f1.write('FOO')
+                f2.write(b'FOO')
+
+            self.assertTrue(target.exists())
+            self.assertListEqual(['fnord/bar', 'fnord/foo'], sorted(map(str, target.glob('**/*'))))
 
     def test_cd_tar(self):
         with TemporaryDirectory() as dir, cd(dir):
