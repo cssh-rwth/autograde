@@ -204,11 +204,10 @@ class TestNotebookTest(TestCase):
                     'artifacts/fnord.txt',
                     'code.py',
                     'notebook.ipynb',
-                    'report.rst',
-                    'test_results.json'
+                    'results.json'
                 ])
 
-                results = json.load(tar.extractfile(tar.getmember('test_results.json')))
+                results = json.load(tar.extractfile(tar.getmember('results.json')))
 
         self.assertEqual(results['autograde_version'], autograde.__version__)
 

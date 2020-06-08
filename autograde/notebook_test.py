@@ -385,26 +385,10 @@ class NotebookTest:
 
                 # store results as json
                 logger.debug('write results to json')
-                with open('test_results.json', mode='wt') as f:
+                with open('results.json', mode='wt') as f:
                     json.dump(enriched_results, fp=f, indent=4)
 
-                # create a human readable report
-                logger.debug('write report')
-                with open('report.rst', mode='wt') as f:
-                    def _results():
-                        ignore = {'stdout', 'stderr'}
-                        for i, r in results.items():
-                            yield {'nr': i, **{k: v for k, v in r.items() if k not in ignore}}
-
-                    f.write(REPORT_TEMPLATE.format(
-                        version=autograde.__version__,
-                        timestamp=datetime.now().isoformat(),
-                        team=tabulate(group, headers='keys', tablefmt='grid'),
-                        results=tabulate(_results(), headers='keys', tablefmt='grid'),
-                        summary=tabulate(summary.items(), tablefmt='grid'),
-                    ))
-
-                # create alternative, more readable name
+                # infer new, more readable name
                 names = ','.join(map(camel_case, sorted(m['last_name'] for m in group)))
                 archive_name_alt = Path(f'results_[{names}]_{nb_hash_sha256_short}.tar.xz')
 
