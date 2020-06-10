@@ -7,8 +7,8 @@ from collections import defaultdict
 # Third party modules.
 
 # Local modules
-from autograde.helpers import assert_equal, assert_is, assert_isclose, assert_raises, import_hook, \
-    import_filter
+from autograde.helpers import assert_equal, assert_iter_eqal, assert_is, assert_isclose, \
+    assert_raises, import_hook, import_filter
 
 # Globals and constants variables.
 
@@ -19,6 +19,16 @@ class TestHelpers(TestCase):
 
         with self.assertRaises(AssertionError):
             assert_equal(13, 37)
+
+    def test_assert_iter_equal(self):
+        assert_iter_eqal((1, 2, 3), (1, 2, 3))
+        assert_iter_eqal((1, 2, 3), [1, 2, 3])
+        assert_iter_eqal((1, 2, 3), (1, 4, 3), comp=lambda _, __: True)
+
+        with self.assertRaises(AssertionError):
+            assert_iter_eqal((1, 2, 3), (1, 2, 3, 4))
+            assert_iter_eqal((1, 2, 3), (1, 4, 3))
+            assert_iter_eqal((1, 2, 3), (1, 2, 3), comp=lambda _, __: False)
 
     def test_assert_is(self):
         obj = object()

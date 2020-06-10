@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Standard library modules.
 import io
 import os
@@ -12,20 +14,22 @@ import warnings
 import traceback
 from pathlib import Path
 from copy import deepcopy
+from typing import Dict, List
 from datetime import datetime
 from hashlib import md5, sha256
 from contextlib import ExitStack
 from collections import OrderedDict
+from dataclasses import dataclass, field
+from dataclasses_json import dataclass_json
 
 # Third party modules.
-from tabulate import tabulate
 from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
 import autograde
 from autograde.helpers import import_filter
-from autograde.templates import INJECT_BEFORE, INJECT_AFTER, REPORT_TEMPLATE
+from autograde.templates import INJECT_BEFORE, INJECT_AFTER
 from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_dir, cd_tar, timeout
 
 # Globals and constants variables.
@@ -140,6 +144,60 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
 
     logger.debug('execution completed')
     return state
+
+
+@dataclass_json
+@dataclass
+class TeamMember:
+    first_name: str
+    last_name: str
+    student_id: str
+
+
+@dataclass_json
+@dataclass
+class Result:
+    id: int
+    label: str
+    target: List[str]
+    score: float
+    score_max: float
+    message: str
+    stdout: str
+    stderr: str
+
+
+@dataclass_json
+@dataclass
+class Results:
+    notebook: str
+    checksum: Dict[str, str]
+    team_members: List[TeamMember]
+    artifacts: List[str]
+    excluded_artifacts: List[str]
+    results: List[Result]
+    version: str = field(default_factory=lambda: autograde.__version__)
+    timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).isoformat())
+
+    def summary(self) -> ResultSummary:
+        return ResultSummary(self)
+
+
+@dataclass_json
+@dataclass(init=False)
+class ResultSummary:
+    tests: int
+    failed: int
+    passed: int
+    score: float
+    score_max: float
+
+    def __init__(self, results: Results):
+        self.tests = len(results.results)
+        self.failed = sum(math.isclose(r.score, 0) for r in results.results)
+        self.passed = sum(math.isclose(r.score, r.score_max) for r in results.results)
+        self.score = sum(r.score for r in results.results)
+        self.score_max = sum(r.score_max for r in results.results)
 
 
 class NotebookTestCase:
@@ -262,19 +320,9 @@ class NotebookTest:
             bool(blacklist)
         )
 
-    @staticmethod
-    def _summarize_results(results):
-        return OrderedDict(
-            tests=len(results),
-            failed=sum(math.isclose(r['score'], 0) for r in results.values()),
-            passed=sum(math.isclose(r['score'], r['score_max']) for r in results.values()),
-            score=sum(r['score'] for r in results.values()),
-            score_max=sum(r['score_max'] for r in results.values())
-        )
-
-    def _apply_cases(self, state):
+    def _apply_cases(self, state: Dict) -> List[Result]:
         state = state.copy()
-        results = OrderedDict()
+        results = []
 
         # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
@@ -290,7 +338,8 @@ class NotebookTest:
 
                     achieved, msg = case(state)
 
-                results[i] = OrderedDict(
+                results.append(Result(
+                    id=i,
                     label=case.label,
                     target=case.targets,
                     score=achieved,
@@ -298,10 +347,10 @@ class NotebookTest:
                     message=msg,
                     stdout=stdout.getvalue(),
                     stderr=stderr.getvalue()
-                )
+                ))
 
         logger.debug('testing completed')
-        return results, self._summarize_results(results)
+        return results
 
     def _grade_notebook(self, nb_path, target_dir=None, context=None):
         target_dir = target_dir or os.getcwd()
@@ -322,6 +371,11 @@ class NotebookTest:
                 archive.unlink()
 
             with cd_tar(archive, mode='w:xz'):
+                # store copy of notebook
+                logger.debug('dump copy of original notebook')
+                with open(f'notebook.ipynb', mode='wb') as f:
+                    f.write(nb_data)
+
                 # prepare context and execute notebook
                 with open('code.py', mode='wt') as c, cd_dir('artifacts'):
                     # prepare execution context in file system
@@ -331,9 +385,9 @@ class NotebookTest:
 
                     # build index of all files known before execution
                     index = set()
-                    for p in Path('.').glob('**/*'):
-                        if p.is_file():
-                            with p.open(mode='rb') as f:
+                    for path in Path('.').glob('**/*'):
+                        if path.is_file():
+                            with path.open(mode='rb') as f:
                                 index.add(md5(f.read()).hexdigest())
 
                     # actual notebook execution
@@ -351,59 +405,53 @@ class NotebookTest:
                         state = {}
 
                     # remove files that haven't changed
-                    excluded_artifacts = []
-                    for p in Path('.').glob('**/*'):
-                        if p.is_file():
-                            with p.open(mode='rb') as f:
+                    artifacts = []
+                    artifacts_excluded = []
+                    for path in Path('.').glob('**/*'):
+                        if path.is_file():
+                            with path.open(mode='rb') as f:
                                 if md5(f.read()).hexdigest() in index:
-                                    excluded_artifacts.append(str(p))
-                                    p.unlink()
+                                    artifacts_excluded.append(str(path))
+                                    path.unlink()
+                                else:
+                                    artifacts.append(str(path))
 
                 # infer meta information
-                group = state.get('team_members', {})
+                group = list(map(lambda m: TeamMember(**m), state.get('team_members', [])))
 
                 if not group:
                     logger.warning(f'Couldn\'t find valid information about team members in "{nb_path}"')
 
                 # execute tests
                 logger.debug('execute tests')
-                results, summary = self._apply_cases(state)
-                enriched_results = OrderedDict(
-                    autograde_version=autograde.__version__,
-                    timestamp=datetime.now(pytz.utc).isoformat(),
-                    orig_file=str(nb_path),
+                results = Results(
+                    notebook=str(nb_path),
                     checksum=dict(
                         md5sum=nb_hash_md5,
                         sha256sum=nb_hash_sha256
                     ),
                     team_members=group,
-                    test_cases=list(map(str, self._cases)),
-                    excluded_artifacts=excluded_artifacts,
-                    results=results,
-                    summary=summary,
+                    artifacts=sorted(artifacts),
+                    excluded_artifacts=sorted(artifacts_excluded),
+                    results=self._apply_cases(state)
                 )
 
-                # store copy of notebook
-                logger.debug('write copy of notebook')
-                with open(f'notebook.ipynb', mode='wb') as f:
-                    f.write(nb_data)
-
                 # store results as json
-                logger.debug('write results to json')
+                logger.debug('dump results as json')
                 with open('results.json', mode='wt') as f:
-                    json.dump(enriched_results, fp=f, indent=4)
+                    json.dump(results.to_dict(), fp=f, indent=4)
 
                 # infer new, more readable name
-                names = ','.join(map(camel_case, sorted(m['last_name'] for m in group)))
-                archive_name_alt = Path(f'results_[{names}]_{nb_hash_sha256_short}.tar.xz')
+                names = ','.join(map(camel_case, sorted(m.last_name for m in group)))
+                archive_name_new = Path(f'results_[{names}]_{nb_hash_sha256_short}.tar.xz')
 
-            if archive_name_alt.exists():
-                logger.debug(f'remove existing {archive_name_alt}')
-                archive_name_alt.unlink()
+            if archive_name_new.exists():
+                logger.debug(f'remove existing {archive_name_new}')
+                archive_name_new.unlink()
 
-            archive.rename(archive_name_alt)
+            archive.rename(archive_name_new)
 
-        return enriched_results
+        return results
 
     def execute(self, args=None):
         """
@@ -430,4 +478,4 @@ class NotebookTest:
             context=Path(args.context).absolute() if args.context else None
         )
 
-        return results['summary'].get('failed', 0)
+        return results.summary().failed

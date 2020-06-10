@@ -2,13 +2,14 @@
 import io
 import os
 import re
-import json
 import math
 import time
 import tarfile
 from pathlib import Path
+from functools import partial
 from unittest import TestCase
 from hashlib import md5, sha256
+from dataclasses import astuple
 import importlib.util as import_util
 from tempfile import TemporaryDirectory
 
@@ -18,10 +19,19 @@ from tempfile import TemporaryDirectory
 # Local modules
 import autograde
 from autograde.util import project_root, cd
-from autograde.notebook_test import as_py_comment, exec_notebook, NotebookTestCase, NotebookTest
+from autograde.helpers import assert_iter_eqal
+from autograde.notebook_test import as_py_comment, exec_notebook, Result, Results, NotebookTestCase,\
+    NotebookTest
 
 # Globals and constants variables.
 PROJECT_ROOT = project_root()
+
+
+def float_equal(a, b):
+    return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
+
+
+assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)
 
 
 class TestFunctions(TestCase):
@@ -55,6 +65,21 @@ class TestFunctions(TestCase):
         self.assertIn('__IA_FLAG__', state)
         self.assertEqual(state.get('SOME_CONSTANT'), 42)
         self.assertIn('this goes to stdout', stdout)
+
+
+class TestResults(TestCase):
+    def test_summary(self):
+        results = Results('', {}, [], [], [], [])
+        assert_floats_equal((0, 0, 0, 0, 0), astuple(results.summary()))
+
+        results = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        assert_floats_equal((1, 1, 0, 0., 1.), astuple(results.summary()))
+
+        results = Results('', {}, [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        assert_floats_equal((1, 0, 1, 1., 1.), astuple(results.summary()))
+
+        results = Results('', {}, [], [], [], [Result(3, '', [], math.nan, 1., '', '', '')])
+        assert_floats_equal((1, 0, 0, math.nan, 1.), astuple(results.summary()))
 
 
 class TestNotebookTestCase(TestCase):
@@ -209,22 +234,16 @@ class TestNotebookTest(TestCase):
                     'results.json'
                 ])
 
-                results = json.load(tar.extractfile(tar.getmember('results.json')))
+                results = Results.from_json(tar.extractfile(tar.getmember('results.json')).read())
 
-        self.assertEqual(results['autograde_version'], autograde.__version__)
+        self.assertEqual(results.version, autograde.__version__)
 
-        self.assertEqual(results['checksum']['md5sum'], md5_sum)
-        self.assertEqual(results['checksum']['sha256sum'], sha256_sum)
+        self.assertEqual(results.checksum['md5sum'], md5_sum)
+        self.assertEqual(results.checksum['sha256sum'], sha256_sum)
 
-        self.assertListEqual(results['excluded_artifacts'], ['foo.txt'])
+        self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
-        self.assertEqual(10, results['summary']['tests'])
-        self.assertEqual(4, results['summary']['passed'])
-        self.assertTrue(math.isnan(results['summary']['score']))
-        self.assertEqual(16, results['summary']['score_max'])
-
-        for key in ['orig_file', 'team_members', 'test_cases', 'results']:
-            self.assertIn(key, results)
+        assert_floats_equal(astuple(results.summary()), (10, 4, 4, math.nan, 16))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
