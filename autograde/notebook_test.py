@@ -14,9 +14,9 @@ import warnings
 import traceback
 from pathlib import Path
 from copy import deepcopy
+from hashlib import sha256
 from typing import Dict, List
 from datetime import datetime
-from hashlib import md5, sha256
 from contextlib import ExitStack
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -179,8 +179,9 @@ class Result:
 @dataclass_json
 @dataclass
 class Results:
+    title: str
     notebook: str
-    checksum: Dict[str, str]
+    checksum: str
     team_members: List[TeamMember]
     artifacts: List[str]
     excluded_artifacts: List[str]
@@ -269,7 +270,8 @@ class NotebookTestCase:
 
 
 class NotebookTest:
-    def __init__(self, cell_timeout=0, test_timeout=0):
+    def __init__(self, title, cell_timeout=0, test_timeout=0):
+        self._title = title
         self._cases = []
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
@@ -384,12 +386,11 @@ class NotebookTest:
         with open(nb_path, mode='rb') as f:
             nb_data = f.read()
 
-        nb_hash_md5 = md5(nb_data).hexdigest()
-        nb_hash_sha256 = sha256(nb_data).hexdigest()
-        nb_hash_sha256_short = nb_hash_sha256[:8]
+        nb_hash = sha256(nb_data).hexdigest()
+        nb_hash_short = nb_hash[:8]
 
         with cd(target_dir):
-            archive = Path(f'results_{nb_hash_sha256_short}.tar.xz')
+            archive = Path(f'results_{nb_hash_short}.tar.xz')
 
             if archive.exists():
                 logger.debug(f'remove existing {archive}')
@@ -413,7 +414,7 @@ class NotebookTest:
                     for path in Path('.').glob('**/*'):
                         if path.is_file():
                             with path.open(mode='rb') as f:
-                                index.add(md5(f.read()).hexdigest())
+                                index.add(sha256(f.read()).hexdigest())
 
                     # actual notebook execution
                     try:
@@ -435,7 +436,7 @@ class NotebookTest:
                     for path in Path('.').glob('**/*'):
                         if path.is_file():
                             with path.open(mode='rb') as f:
-                                if md5(f.read()).hexdigest() in index:
+                                if sha256(f.read()).hexdigest() in index:
                                     artifacts_excluded.append(str(path))
                                     path.unlink()
                                 else:
@@ -450,11 +451,9 @@ class NotebookTest:
                 # execute tests
                 logger.debug('execute tests')
                 results = Results(
+                    title=self._title,
                     notebook=str(nb_path),
-                    checksum=dict(
-                        md5sum=nb_hash_md5,
-                        sha256sum=nb_hash_sha256
-                    ),
+                    checksum=nb_hash,
                     team_members=group,
                     artifacts=sorted(artifacts),
                     excluded_artifacts=sorted(artifacts_excluded),
@@ -468,7 +467,7 @@ class NotebookTest:
 
                 # infer new, more readable name
                 names = ','.join(map(camel_case, sorted(m.last_name for m in group)))
-                archive_name_new = Path(f'results_[{names}]_{nb_hash_sha256_short}.tar.xz')
+                archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.tar.xz')
 
             if archive_name_new.exists():
                 logger.debug(f'remove existing {archive_name_new}')

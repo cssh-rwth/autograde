@@ -6,9 +6,9 @@ import math
 import time
 import tarfile
 from pathlib import Path
+from hashlib import sha256
 from functools import partial
 from unittest import TestCase
-from hashlib import md5, sha256
 from dataclasses import astuple
 import importlib.util as import_util
 from tempfile import TemporaryDirectory
@@ -89,54 +89,54 @@ class TestResult(TestCase):
 
 class TestResults(TestCase):
     def test_patch(self):
-        results_a = Results('', {}, [], [], [], [])
-        results_b = Results('', {}, [], [], [], [])
+        results_a = Results('', '', '', [], [], [], [])
+        results_b = Results('', '', '', [], [], [], [])
         assert_floats_equal((0, 0, 0, 0, 0., 0.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [])
-        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [])
+        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
         assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [Result(1, '', [], 1., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 1., 1., '', '', '')])
         assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', 'foo')])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', 'foo')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
-        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', {}, [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
         with self.assertRaises(ValueError):
-            results_a = Results('', dict(md5sum='0'*32), [], [], [], [])
-            results_b = Results('', dict(md5sum='1'*32), [], [], [], [])
+            results_a = Results('', '', '0'*64, [], [], [], [])
+            results_b = Results('', '', '1'*64, [], [], [], [])
             results_a.patch(results_b)
 
     def test_summary(self):
-        results = Results('', {}, [], [], [], [])
+        results = Results('', '', '', [], [], [], [])
         assert_floats_equal((0, 0, 0, 0, 0, 0), astuple(results.summary()))
 
-        results = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results.summary()))
 
-        results = Results('', {}, [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
         assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results.summary()))
 
-        results = Results('', {}, [], [], [], [Result(3, '', [], math.nan, 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result(3, '', [], math.nan, 1., '', '', '')])
         assert_floats_equal((1, 0, 0, 1, math.nan, 1.), astuple(results.summary()))
 
 
@@ -214,7 +214,7 @@ class TestNotebookTestCase(TestCase):
 
 class TestNotebookTest(TestCase):
     def test_register(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
 
         def test(foo):
             self.assertEqual(42, foo)
@@ -232,7 +232,7 @@ class TestNotebookTest(TestCase):
         self.assertTupleEqual((2.0, 'ok'), case(dict(foo=42)))
 
     def test_register_decorator(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
         self.assertEqual(0, len(nbt))
 
         @nbt.register(target='foo', score=2, label='bar', timeout_=1)
@@ -248,7 +248,7 @@ class TestNotebookTest(TestCase):
         self.assertTupleEqual((2.0, 'ok'), test(dict(foo=42)))
 
     def test_set_import_filter(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
         regex = r'networkx|requests'
 
         self.assertNotIn('IMPORT_FILTER', nbt._variables)
@@ -264,8 +264,6 @@ class TestNotebookTest(TestCase):
         c_path = PROJECT_ROOT.joinpath('demo', 'context')
 
         with open(nb_path, mode='rb') as f:
-            md5_sum = md5(f.read()).hexdigest()
-            f.seek(0)
             sha256_sum = sha256(f.read()).hexdigest()
 
         # load test as module
@@ -296,8 +294,7 @@ class TestNotebookTest(TestCase):
 
         self.assertEqual(results.version, autograde.__version__)
 
-        self.assertEqual(results.checksum['md5sum'], md5_sum)
-        self.assertEqual(results.checksum['sha256sum'], sha256_sum)
+        self.assertEqual(results.checksum, sha256_sum)
 
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
