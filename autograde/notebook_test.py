@@ -192,6 +192,9 @@ class Results:
         patched = deepcopy(self)
         results = {r.id: r for r in self.results}
 
+        if not patched.checksum == patch.checksum:
+            raise ValueError(f'patch must not have a different origin aka checksum!')
+
         for result in patch.results:
             if result != results.get(result.id) and not result.pending():
                 results[result.id] = result

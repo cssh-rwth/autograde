@@ -121,6 +121,11 @@ class TestResults(TestCase):
         results_b = Results('', {}, [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
 
+        with self.assertRaises(ValueError):
+            results_a = Results('', dict(md5sum='0'*32), [], [], [], [])
+            results_b = Results('', dict(md5sum='1'*32), [], [], [], [])
+            results_a.patch(results_b)
+
     def test_summary(self):
         results = Results('', {}, [], [], [], [])
         assert_floats_equal((0, 0, 0, 0, 0, 0), astuple(results.summary()))
