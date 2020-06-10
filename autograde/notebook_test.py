@@ -166,6 +166,15 @@ class Result:
     stdout: str
     stderr: str
 
+    def passed(self) -> bool:
+        return math.isclose(self.score, self.score_max)
+
+    def failed(self) -> bool:
+        return (not math.isnan(self.score)) and (not math.isclose(self.score, self.score_max))
+
+    def pending(self) -> bool:
+        return math.isnan(self.score)
+
 
 @dataclass_json
 @dataclass
@@ -179,6 +188,17 @@ class Results:
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).isoformat())
 
+    def patch(self, patch: Results) -> Results:
+        patched = deepcopy(self)
+        results = {r.id: r for r in self.results}
+
+        for result in patch.results:
+            if result != results.get(result.id) and not result.pending():
+                results[result.id] = result
+
+        patched.results = sorted(results.values(), key=lambda r: r.id)
+        return patched
+
     def summary(self) -> ResultSummary:
         return ResultSummary(self)
 
@@ -189,13 +209,15 @@ class ResultSummary:
     tests: int
     failed: int
     passed: int
+    pending: int
     score: float
     score_max: float
 
     def __init__(self, results: Results):
         self.tests = len(results.results)
-        self.failed = sum(math.isclose(r.score, 0) for r in results.results)
-        self.passed = sum(math.isclose(r.score, r.score_max) for r in results.results)
+        self.failed = sum(r.failed() for r in results.results)
+        self.passed = sum(r.passed() for r in results.results)
+        self.pending = sum(r.pending() for r in results.results)
         self.score = sum(r.score for r in results.results)
         self.score_max = sum(r.score_max for r in results.results)
 

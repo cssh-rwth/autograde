@@ -67,19 +67,72 @@ class TestFunctions(TestCase):
         self.assertIn('this goes to stdout', stdout)
 
 
+class TestResult(TestCase):
+    def test_passed(self):
+        for r in [Result(1, '', [], 0., 0., '', '', ''), Result(1, '', [], 1., 1., '', '', '')]:
+            self.assertTrue(r.passed())
+            self.assertFalse(r.failed())
+            self.assertFalse(r.pending())
+
+    def test_failed(self):
+        for r in [Result(1, '', [], 0., 1., '', '', ''), Result(1, '', [], .5, 1., '', '', '')]:
+            self.assertFalse(r.passed())
+            self.assertTrue(r.failed())
+            self.assertFalse(r.pending())
+
+    def test_pending(self):
+        for r in [Result(1, '', [], math.nan, 0., '', '', ''), Result(1, '', [], math.nan, 1., '', '', '')]:
+            self.assertFalse(r.passed())
+            self.assertFalse(r.failed())
+            self.assertTrue(r.pending())
+
+
 class TestResults(TestCase):
+    def test_patch(self):
+        results_a = Results('', {}, [], [], [], [])
+        results_b = Results('', {}, [], [], [], [])
+        assert_floats_equal((0, 0, 0, 0, 0., 0.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [])
+        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [Result(1, '', [], 1., 1., '', '', '')])
+        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', 'foo')])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+
+        results_a = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', {}, [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+
     def test_summary(self):
         results = Results('', {}, [], [], [], [])
-        assert_floats_equal((0, 0, 0, 0, 0), astuple(results.summary()))
+        assert_floats_equal((0, 0, 0, 0, 0, 0), astuple(results.summary()))
 
         results = Results('', {}, [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        assert_floats_equal((1, 1, 0, 0., 1.), astuple(results.summary()))
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results.summary()))
 
         results = Results('', {}, [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
-        assert_floats_equal((1, 0, 1, 1., 1.), astuple(results.summary()))
+        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results.summary()))
 
         results = Results('', {}, [], [], [], [Result(3, '', [], math.nan, 1., '', '', '')])
-        assert_floats_equal((1, 0, 0, math.nan, 1.), astuple(results.summary()))
+        assert_floats_equal((1, 0, 0, 1, math.nan, 1.), astuple(results.summary()))
 
 
 class TestNotebookTestCase(TestCase):
@@ -243,7 +296,7 @@ class TestNotebookTest(TestCase):
 
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
-        assert_floats_equal(astuple(results.summary()), (10, 4, 4, math.nan, 16))
+        assert_floats_equal(astuple(results.summary()), (10, 4, 4, 2, math.nan, 16))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
