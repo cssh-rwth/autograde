@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 # Local modules
 from autograde.util import loglevel, project_root, snake_case, camel_case, capture_output, cd, \
-    cd_dir, cd_tar, cd_tar_edit, timeout
+    cd_dir, mount_tar, timeout
 
 # Globals and constants variables.
 
@@ -102,30 +102,42 @@ class TestUtil(TestCase):
             self.assertTrue(target.exists())
             self.assertListEqual(['fnord/bar', 'fnord/foo'], sorted(map(str, target.glob('**/*'))))
 
-    def test_cd_tar(self):
+    def test_tar_mount(self):
+        path = Path('fnord.tar')
+
         with TemporaryDirectory() as dir, cd(dir):
-            with cd_tar('test.tar.xz', mode='w'), open('test.txt', mode='wt') as f:
-                f.write('foobar')
+            # reading non existing archive fails
+            with self.assertRaises(FileNotFoundError):
+                with mount_tar(path):
+                    pass
 
-            self.assertTrue(Path('test.tar.xz').exists())
+            self.assertFalse(path.exists())
 
-            with tarfile.open('test.tar.xz', mode='r') as tar:
-                with tar.extractfile(tar.getmember('test.txt')) as f:
-                    self.assertEqual('foobar', f.read().decode('utf-8'))
+            # write empty archive
+            with mount_tar(path, mode='w'):
+                pass
 
-    def test_cd_tar_edit(self):
-        with TemporaryDirectory() as dir, cd(dir):
-            with cd_tar('test.tar.xz', mode='w'), open('foo', mode='wt') as f:
-                f.write('FOO')
+            self.assertTrue(path.exists())
 
-            with cd_tar_edit('test.tar.xz'):
-                self.assertListEqual(['foo'], sorted(map(str, Path('.').glob('**/*'))))
+            # append some contents
+            with mount_tar(path, mode='a') as tar, cd(tar):
+                with open('foo', mode='wt') as f:
+                    f.write('FOO')
 
+            # see if changes persisted
+            with mount_tar(path) as tar, cd(tar):
+                self.assertTrue(Path('foo').exists())
+                self.assertFalse(Path('bar').exists())
+
+            # overwrite archive
+            with mount_tar(path, mode='w') as tar, cd(tar):
                 with open('bar', mode='wb') as f:
-                    f.write(b'FOO')
+                    f.write(b'BAR')
 
-            with cd_tar_edit('test.tar.xz'):
-                self.assertListEqual(['bar', 'foo'], sorted(map(str, Path('.').glob('**/*'))))
+            # see if changes persisted
+            with mount_tar(path) as tar, cd(tar):
+                self.assertFalse(Path('foo').exists())
+                self.assertTrue(Path('bar').exists())
 
     def test_timeout(self):
         self.assertIsNone(sys.gettrace())

@@ -96,32 +96,24 @@ def cd_dir(path, mkdir=False):
 
 
 @contextmanager
-def cd_tar(path, mode='w'):
-    assert mode.startswith('w') and '|' not in mode
+def mount_tar(path, mode='r'):
+    prefix = mode[0]
+    assert prefix in ['r', 'w', 'a'], f'unknown prefix {prefix}'
+    assert '|' not in mode, 'streaming is not supported'
 
     with TemporaryDirectory() as tempdir:
         try:
-            with cd(tempdir):
-                yield tempdir
+            if prefix in ['r', 'a']:
+                with tarfile.open(path, mode='r'+mode[1:]) as tar:
+                    tar.extractall(tempdir)
+
+            yield tempdir
 
         finally:
-            with tarfile.open(path, mode=mode) as tf:
-                tf.add(tempdir, arcname='')
+            if prefix in ['w', 'a']:
+                with tarfile.open(path, mode='w'+mode[1:]) as tar:
+                    tar.add(tempdir, arcname='')
 
-
-@contextmanager
-def cd_tar_edit(path, mode='a'):
-    assert mode.startswith('a') and '|' not in mode
-
-    with TemporaryDirectory() as tempdir:
-        try:
-            with tarfile.open(path, mode='r'+mode[1:]) as tar, cd(tempdir):
-                tar.extractall('.')
-                yield tempdir
-
-        finally:
-            with tarfile.open(path, mode='w'+mode[1:]) as tar:
-                tar.add(tempdir, arcname='')
 
 @contextmanager
 def timeout(timeout_):

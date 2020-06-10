@@ -30,7 +30,7 @@ from IPython.core.interactiveshell import InteractiveShell
 import autograde
 from autograde.helpers import import_filter
 from autograde.templates import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_dir, cd_tar, timeout
+from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_dir, mount_tar, timeout
 
 # Globals and constants variables.
 
@@ -392,7 +392,7 @@ class NotebookTest:
                 logger.debug(f'remove existing {archive}')
                 archive.unlink()
 
-            with cd_tar(archive, mode='w:xz'):
+            with mount_tar(archive, mode='w:xz') as tar, cd(tar):
                 # store copy of notebook
                 logger.debug('dump copy of original notebook')
                 with open(f'notebook.ipynb', mode='wb') as f:
