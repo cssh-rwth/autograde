@@ -91,35 +91,60 @@ class TestResults(TestCase):
     def test_patch(self):
         results_a = Results('', '', '', [], [], [], [])
         results_b = Results('', '', '', [], [], [], [])
-        assert_floats_equal((0, 0, 0, 0, 0., 0.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((0, 0, 0, 0, 0., 0.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [])
         results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [])
-        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
-        assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [2])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [Result(1, '', [], 1., 1., '', '', '')])
-        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', 'foo')])
-        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
-        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results_a.patch(results_b).summary()))
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
+
+        results_a = Results('a', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('b', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        results_c = Results('c', '', '', [], [], [], [Result(3, '', [], 2., 4., '', '', ''),
+                                                      Result(4, '', [], 4., 8., '', '', '')])
+        patch_result = results_a.patch(results_b).patch(results_c)
+        assert_floats_equal((4, 3, 1, 0, 7., 14.), astuple(patch_result.summary()))
+        self.assertListEqual([('b', results_b.timestamp, [2]),
+                              ('c', results_c.timestamp, [3, 4])], patch_result.applied_patches)
 
         with self.assertRaises(ValueError):
             results_a = Results('', '', '0'*64, [], [], [], [])

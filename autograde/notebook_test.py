@@ -15,10 +15,10 @@ import traceback
 from pathlib import Path
 from copy import deepcopy
 from hashlib import sha256
-from typing import Dict, List
 from datetime import datetime
 from contextlib import ExitStack
 from collections import OrderedDict
+from typing import Dict, List, Tuple
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 
@@ -178,7 +178,7 @@ class Result:
 
 @dataclass_json
 @dataclass
-class Results:
+class   Results:
     title: str
     notebook: str
     checksum: str
@@ -186,21 +186,33 @@ class Results:
     artifacts: List[str]
     excluded_artifacts: List[str]
     results: List[Result]
+    applied_patches: List[Tuple[str, str, List[int]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).isoformat())
 
     def patch(self, patch: Results) -> Results:
+        """
+        Create a copy of self and patch results of given results object into it. NOTE that pending
+        results are ignored.
+
+        :param patch: results to be patched into self
+        :return: patched copy
+        """
         patched = deepcopy(self)
         results = {r.id: r for r in self.results}
 
         if not patched.checksum == patch.checksum:
             raise ValueError(f'patch must not have a different origin aka checksum!')
 
+        change_list = []
         for result in patch.results:
             if result != results.get(result.id) and not result.pending():
                 results[result.id] = result
+                change_list.append(result.id)
 
         patched.results = sorted(results.values(), key=lambda r: r.id)
+        patched.applied_patches.append((patch.title, patch.timestamp, change_list))
+
         return patched
 
     def summary(self) -> ResultSummary:
