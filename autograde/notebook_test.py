@@ -30,7 +30,7 @@ from IPython.core.interactiveshell import InteractiveShell
 import autograde
 from autograde.helpers import import_filter
 from autograde.templates import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, loglevel, camel_case, capture_output, cd, cd_dir, mount_tar, timeout
+from autograde.util import logger, loglevel, camel_case, capture_output, cd, mount_tar, timeout
 
 # Globals and constants variables.
 
@@ -415,7 +415,7 @@ class NotebookTest:
                     f.write(nb_data)
 
                 # prepare context and execute notebook
-                with open('code.py', mode='wt') as c, cd_dir('artifacts'):
+                with open('code.py', mode='wt') as c, cd('artifacts', mkdir=True):
                     # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')

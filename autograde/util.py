@@ -80,22 +80,6 @@ def cd(path, mkdir=False):
 
 
 @contextmanager
-def cd_dir(path, mkdir=False):
-    path = Path(path)
-
-    if mkdir:
-        path.mkdir(exist_ok=True)
-
-    with TemporaryDirectory() as tempdir:
-        try:
-            with cd(tempdir):
-                yield tempdir
-
-        finally:
-            shutil.move(tempdir, path)
-
-
-@contextmanager
 def mount_tar(path, mode='r'):
     prefix = mode[0]
     assert prefix in ['r', 'w', 'a'], f'unknown prefix {prefix}'
