@@ -20,7 +20,8 @@ with open(BASEDIR.joinpath('README.rst'), 'r') as f:
 PACKAGES = find_packages()
 
 INSTALL_REQUIRES = [
-    'dataclasses-json', 'ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'pandas', 'jinja2'
+    'dataclasses-json', 'ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'scipy', 'pandas',
+    'jinja2'
 ]
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
 

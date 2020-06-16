@@ -7,7 +7,6 @@ import re
 import sys
 import json
 import math
-import pytz
 import base64
 import shutil
 import argparse
@@ -16,7 +15,6 @@ import traceback
 from pathlib import Path
 from copy import deepcopy
 from hashlib import sha256
-from datetime import datetime
 from contextlib import ExitStack
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -30,8 +28,9 @@ from IPython.core.interactiveshell import InteractiveShell
 # Local modules
 import autograde
 from autograde.helpers import import_filter
-from autograde.templates import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, loglevel, camel_case, capture_output, cd, mount_tar, timeout
+from autograde.static import INJECT_BEFORE, INJECT_AFTER
+from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, capture_output, cd, \
+    mount_tar, timeout
 
 # Globals and constants variables.
 T_TARGET = Union[str, Iterable[str]]
@@ -202,7 +201,7 @@ class Results:
     results: List[Result]
     applied_patches: List[Tuple[str, str, List[int]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
-    timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).replace(microsecond=0).isoformat())
+    timestamp: str = field(default_factory=timestamp_utc_iso)
 
     def patch(self, patch: Results) -> Results:
         """

@@ -4,32 +4,90 @@ import matplotlib as mpl
 mpl.use('Agg')
 
 # Standard library modules.
+import io
 import os
 import sys
 import json
-import tarfile
+import base64
 import argparse
 import subprocess
+from typing import List
 from pathlib import Path
-from functools import reduce
 from itertools import combinations
 from difflib import SequenceMatcher
 
 # Third party modules.
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from scipy.stats import norm
 import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy.linalg import LinAlgError
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 # Local modules
-from autograde.util import logger, loglevel, project_root, cd
+import autograde
+from autograde.util import logger, timestamp_utc_iso, loglevel, project_root, cd, mount_tar
+from autograde.static import CSS
+from autograde.notebook_test import Results
 
 # Globals and constants variables.
 CONTAINER_TAG = 'autograde'
+JINJA_ENV = Environment(
+    loader=PackageLoader('autograde', 'templates'),
+    autoescape=select_autoescape(['html', 'xml']),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
+
+
+def list_results(path='.', prefix='results') -> List[Path]:
+    path = Path(path).expanduser().absolute()
+
+    if path.is_file():
+        return [path]
+
+    return list(path.rglob(f'{prefix}_*.tar.xz'))
+
+
+def inject_patch(results, path='.', prefix='results') -> Path:
+    path = Path(path)
+    patch_count = len(list(path.glob(f'{prefix}_patch*.json')))
+    path = path.joinpath(f'{prefix}_patch_{patch_count+1}.json')
+
+    with path.open(mode='wt') as f:
+        json.dump(results.to_dict(), f, indent=4)
+
+    return path
+
+
+def load_patched(path='.', prefix='results') -> Results:
+    path = Path(path)
+
+    with path.joinpath(f'{prefix}.json').open(mode='rt') as f:
+        results = Results.from_json(f.read())
+
+    for patch_path in sorted(path.glob(f'{prefix}_patch*.json')):
+        with patch_path.open(mode='rt') as f:
+            results = results.patch(Results.from_json(f.read()))
+
+    return results
+
+
+def render(template, **kwargs):
+    return JINJA_ENV.get_template(template).render(
+        autograde=autograde,
+        css=CSS,
+        timestamp=timestamp_utc_iso(),
+        **kwargs)
 
 
 def build(args):
+    """Build autograde container image for specified backend"""
+    if args.backend is None:
+        logger.warning('no backend specified')
+        return 1
+
     cmd = [args.backend, 'build', '-t', CONTAINER_TAG, '.']
 
     with cd(project_root()):
@@ -37,6 +95,7 @@ def build(args):
 
 
 def test(args):
+    """Run autograde test script on jupyter notebook(s)"""
     path_tst = Path(args.test).expanduser().absolute()
     path_nbk = Path(args.notebook).expanduser().absolute()
     path_tgt = Path(args.target or Path.cwd()).expanduser().absolute()
@@ -56,7 +115,15 @@ def test(args):
         ))
 
     def run(path_nb_):
-        if args.backend == 'docker':
+        if args.backend is None:
+            cmd = [
+                'python', str(path_tst),
+                str(path_nb_),
+                '-t', str(path_tgt),
+                *(('-c', str(path_cxt)) if path_cxt else ()),
+                *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
+            ]
+        elif args.backend == 'docker':
             cmd = [
                 args.backend, 'run',
                 '-v', f'{path_tst}:/autograde/test.py',
@@ -88,68 +155,112 @@ def test(args):
     return sum(map(run, notebooks))
 
 
+def patch(args):
+    """Patch result archive(s) with results from a different run"""
+    # load & index all patches
+    patches = dict()
+    for path in list_results(args.patch):
+        with mount_tar(path) as tar:
+            patch = load_patched(tar)
+            patches[patch.checksum] = patch
+
+    # inject patches
+    for path in list_results(args.result):
+        with mount_tar(path, mode='a') as tar, cd(tar):
+            result = load_patched()
+            if result.checksum in patches:
+                inject_patch(patches[result.checksum])
+            else:
+                logger.warn(f'no patch for {path} found')
+
+    return 0
+
+
+def report(args):
+    """Inject a human readable report (standalone HTML) into result archive(s)"""
+    for path in list_results(args.result):
+        logger.info(f'render report for {path}')
+        with mount_tar(path, mode='a') as tar, cd(tar):
+            results = load_patched()
+            with open('report.html', mode='wt') as f:
+                f.write(render('report.html', title='report', results=results, summary=results.summary()))
+
+    return 0
+
+
 def summary(args):
-    root = Path(args.location or Path.cwd()).expanduser().absolute()
+    """Generate humand & machine readable summary of results"""
+    root = Path(args.result or Path.cwd()).expanduser().absolute()
 
     assert root.is_dir(), f'{root} is no regular directory'
 
     logger.info(f'summarize results in: {root}')
 
     # extract results
-    results = []
-    code = {}
-    for path in root.rglob('results_*.tar.xz'):
+    results = list()
+    code = dict()
+    paths = dict()
+    for path in list_results(root):
         logger.debug(f'read {path}')
-        with tarfile.open(path, mode='r') as tar:
-            try:
-                r = json.load(tar.extractfile(tar.getmember('test_results.json')))
-                results.append(r)
 
-                c = tar.extractfile(tar.getmember('code.py')).read().decode('utf-8')
-                code[r['checksum']['blake2bsum']] = c
+        with mount_tar(path) as tar, cd(tar):
+            r = load_patched()
+            results.append(r)
 
-            except KeyError as error:
-                logger.warning(f'{path} does not contain {error}, skip')
-                continue
+            paths[r.checksum] = path
+
+            with open('code.py', mode='rt') as f:
+                code[r.checksum] = f.read()
 
     # consistency check
-    max_scores = {r['summary']['score_max'] for r in results}
+    max_scores = {r.summary().score_max for r in results}
     assert len(max_scores) == 1, 'found different max scores in results'
     max_score = max_scores.pop()
 
     # summary
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'checksum']
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'checksum', 'path']
 
     def row_factory():
         for r in results:
-            for member in r['team_members']:
+            for member in r.team_members:
                 yield (
-                    member['student_id'],
-                    member['last_name'],
-                    member['first_name'],
-                    r['summary']['score'],
+                    member.student_id,
+                    member.last_name,
+                    member.first_name,
+                    r.summary().score,
                     max_score,
-                    r['checksum']['blake2bsum']
+                    r.checksum,
+                    paths[r.checksum].relative_to(root)
                 )
 
-    df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
+    df = pd.DataFrame(row_factory(), columns=header).sort_values(by='last_name')
     df['multiple_submissions'] = df['student_id'].duplicated(keep=False)
 
     # csv export
     logger.debug('save summary')
-    df.to_csv(root.joinpath('summary.csv'), index=False)
+    df.drop(columns=['path']).to_csv(root.joinpath('summary.csv'), index=False)
 
+    # plotting
+    plots = dict()
     # plot score distributions
     logger.debug('plot score distributions')
     plt.clf()
-    ax = sns.distplot(df[~df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm, bins=int(max_score))
+    ax = plt.gca()
+    try:
+        sns.distplot(
+            df[~df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm,
+            bins=int(max_score), ax=ax
+        )
+    except LinAlgError:
+        logger.warning('unable to plot score distribution')
     ax.set_xlim(0, max_score)
     ax.set_xlabel('score')
     ax.set_ylabel('share')
-    ax.set_title('score distribution without duplicates (take lower score)')
+    ax.set_title('score distribution without duplicates (takes lower score)')
 
-    plt.tight_layout()
-    plt.savefig(root.joinpath('score_distribution.pdf'))
+    with io.BytesIO() as buffer:
+        plt.savefig(buffer, format='svg', transparent=False)
+        plots['score_distribution'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     # basic fraud detection
     logger.debug('apply fraud detection')
@@ -166,41 +277,72 @@ def summary(args):
     ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
     ax.set_title('similarity of notebook code')
 
-    plt.tight_layout()
-    plt.savefig(root.joinpath('similarities.pdf'))
+    with io.BytesIO() as buffer:
+        plt.savefig(buffer, format='svg', transparent=False)
+        plots['similarities'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    logger.info('render summary.html')
+    with open(root.joinpath('summary.html'), mode='wt') as f:
+        f.write(render('summary.html', title='summary', summary=df, plots=plots))
 
     logger.debug('done')
     return 0
 
 
-def main():
-    parser = argparse.ArgumentParser(description='run tests on jupyter notebook', prog='autograde')
+def version(_):
+    """Display version of autograde"""
+    print(f'autograde {autograde.__version__}')
+    return 0
 
+
+def main(args=None):
+    parser = argparse.ArgumentParser(
+        description=f'utility for grading jupyter notebooks',
+        epilog=f'autograde on github: https://github.com/cssh-rwth/autograde',
+        prog='autograde',
+    )
+
+    # global flags
     parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
-    parser.add_argument('-e', '--backend', type=str, default='docker', choices=['docker', 'podman'],
-                        metavar='', help='backend to use')
+    parser.add_argument('-e', '--backend', type=str, default=None, choices=['docker', 'podman'],
+                        metavar='', help='container backend to use')
 
     subparsers = parser.add_subparsers(help='sub command help')
 
-    bld_parser = subparsers.add_parser('build')
+    # build sub command
+    bld_parser = subparsers.add_parser('build', help=build.__doc__)
     bld_parser.add_argument('-q', '--quiet', action='store_true', help='mute output')
     bld_parser.set_defaults(func=build)
 
-    exe_parser = subparsers.add_parser('test')
-    exe_parser.add_argument('test', type=str, help='autograde test script')
-    exe_parser.add_argument(
-        'notebook', type=str,
-        help='the jupyter notebook to be tested or a directory to be searched for notebooks'
-    )
-    exe_parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
-    exe_parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
-    exe_parser.set_defaults(func=test)
+    # test sub command
+    tst_parser = subparsers.add_parser('test', help=test.__doc__)
+    tst_parser.add_argument('test', type=str, help='autograde test script')
+    tst_parser.add_argument('notebook', type=str, help='the jupyter notebook(s) to be tested')
+    tst_parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
+    tst_parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
+    tst_parser.set_defaults(func=test)
 
-    sum_parser = subparsers.add_parser('summary')
-    sum_parser.add_argument('location', type=str, help='location with result files to summarize')
+    # patch sub command
+    ptc_parser = subparsers.add_parser('patch', help=patch.__doc__)
+    ptc_parser.add_argument('result', type=str, help='result archive(s) to be patched')
+    ptc_parser.add_argument('patch', type=str, help='result archive(s) for patching')
+    ptc_parser.set_defaults(func=patch)
+
+    # report sub command
+    rpt_parser = subparsers.add_parser('report', help=report.__doc__)
+    rpt_parser.add_argument('result', type=str, help='result archive(s) for creating the report')
+    rpt_parser.set_defaults(func=report)
+
+    # summary sub command
+    sum_parser = subparsers.add_parser('summary', help=summary.__doc__)
+    sum_parser.add_argument('result', type=str, help='result archives to summarize')
     sum_parser.set_defaults(func=summary)
 
-    args = parser.parse_args()
+    # version sub command
+    vrs_parser = subparsers.add_parser('version', help=version.__doc__)
+    vrs_parser.set_defaults(func=version)
+
+    args = parser.parse_args(args)
 
     logger.setLevel(loglevel(args.verbose))
     logger.debug(f'args: {args}')

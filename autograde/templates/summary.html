@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+        <section>
+            <table style="table-layout: auto; width: 100%">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Last Name</th>
+                        <th>First Name</th>
+                        <th>Score</th>
+                        <th>Max Score</th>
+                        <th>Checksum</th>
+                        <th>File</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, r in summary.iterrows() %}
+                    <tr>
+                        <td class="{% if r['multiple_submissions'] %}ag-warning{% else %}ag-success{% endif %}" ><code>{{ r['student_id'] }}</code></td>
+                        <td>{{ r['last_name'] }}</td>
+                        <td>{{ r['first_name'] }}</td>
+                        <td>{{ r['score'] }}</td>
+                        <td>{{ r['max_score'] }}</td>
+                        <td>{{ hash(r['checksum']) }}</td>
+                        <td><a href="{{ r['path'] }}">{{ r['path'] }}</a></td>
+                    </tr>
+                    {% endfor%}
+                <tbody>
+            </table>
+        </section>
+        <section style="justify-content: center">
+            <section>
+                <article>
+                    <h2>Score Distribution</h2>
+                    <img src="data:image/svg+xml;base64,{{ plots.score_distribution }}" alt="score distribution" />
+                </article>
+            </section>
+            <section>
+                <article>
+                    <h2>Code Similarities</h2>
+                    <img src="data:image/svg+xml;base64,{{ plots.similarities }}" alt="similarities" />
+                </article>
+            </section>
+        </section>
+{% endblock %}

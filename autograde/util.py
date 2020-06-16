@@ -2,10 +2,11 @@
 import os
 import re
 import sys
+import pytz
 import time
-import shutil
 import logging
 import tarfile
+import datetime
 from pathlib import Path
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
@@ -29,6 +30,10 @@ _stream_handler.setFormatter(_formatter)
 
 logger = logging.getLogger('autograde')
 logger.addHandler(_stream_handler)
+
+
+def timestamp_utc_iso():
+    return datetime.datetime.now(pytz.utc).replace(microsecond=0).isoformat()
 
 
 def loglevel(x):
