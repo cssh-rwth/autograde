@@ -13,15 +13,14 @@ from dataclasses import astuple
 import importlib.util as import_util
 from tempfile import TemporaryDirectory
 
-
 # Third party modules.
 
 # Local modules
 import autograde
 from autograde.util import project_root, cd
 from autograde.helpers import assert_iter_eqal
-from autograde.notebook_test import as_py_comment, exec_notebook, Result, Results, NotebookTestCase,\
-    NotebookTest
+from autograde.notebook_test import as_py_comment, ArtifactLoader, exec_notebook, Result, Results, \
+    NotebookTestCase, NotebookTest
 
 # Globals and constants variables.
 PROJECT_ROOT = project_root()
@@ -32,6 +31,34 @@ def float_equal(a, b):
 
 
 assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)
+
+
+class TestArtifactLoader(TestCase):
+    def test_default(self):
+        with TemporaryDirectory() as temp, cd(temp):
+            os.mkdir('artifacts')
+
+            with Path('artifacts').joinpath('foo').open(mode='wb') as f:
+                f.write(b'FOO')
+
+            loader = ArtifactLoader()
+
+            self.assertEqual(b'FOO', loader['foo'])
+            with self.assertRaises(FileNotFoundError):
+                _ = loader['bar']
+
+    def test_custom_root(self):
+        with TemporaryDirectory() as temp, cd(temp):
+            os.mkdir('root')
+
+            with Path('root').joinpath('foo').open(mode='wb') as f:
+                f.write(b'FOO')
+
+            loader = ArtifactLoader('root')
+
+            self.assertEqual(b'FOO', loader['foo'])
+            with self.assertRaises(FileNotFoundError):
+                _ = loader['bar']
 
 
 class TestFunctions(TestCase):
@@ -69,19 +96,19 @@ class TestFunctions(TestCase):
 
 class TestResult(TestCase):
     def test_passed(self):
-        for r in [Result(1, '', [], 0., 0., '', '', ''), Result(1, '', [], 1., 1., '', '', '')]:
+        for r in [Result('1', '', [], 0., 0., '', '', ''), Result('1', '', [], 1., 1., '', '', '')]:
             self.assertTrue(r.passed())
             self.assertFalse(r.failed())
             self.assertFalse(r.pending())
 
     def test_failed(self):
-        for r in [Result(1, '', [], 0., 1., '', '', ''), Result(1, '', [], .5, 1., '', '', '')]:
+        for r in [Result('1', '', [], 0., 1., '', '', ''), Result('1', '', [], .5, 1., '', '', '')]:
             self.assertFalse(r.passed())
             self.assertTrue(r.failed())
             self.assertFalse(r.pending())
 
     def test_pending(self):
-        for r in [Result(1, '', [], math.nan, 0., '', '', ''), Result(1, '', [], math.nan, 1., '', '', '')]:
+        for r in [Result('1', '', [], math.nan, 0., '', '', ''), Result('1', '', [], math.nan, 1., '', '', '')]:
             self.assertFalse(r.passed())
             self.assertFalse(r.failed())
             self.assertTrue(r.pending())
@@ -96,55 +123,55 @@ class TestResults(TestCase):
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
         results_a = Results('', '', '', [], [], [], [])
-        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
-        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
         results_b = Results('', '', '', [], [], [], [])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('2', '', [], 1., 1., '', '', '')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(patch_result.summary()))
-        self.assertListEqual([('', results_b.timestamp, [2])], patch_result.applied_patches)
+        self.assertListEqual([('', results_b.timestamp, ['2'])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 1., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 1., 1., '', '', '')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(patch_result.summary()))
-        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', 'foo')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', 'foo')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
-        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
-        results_b = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], math.nan, 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
-        self.assertListEqual([('', results_b.timestamp, [1])], patch_result.applied_patches)
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('', '', '', [], [], [], [Result(1, '', [], math.nan, 1., '', '', '')])
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], math.nan, 1., '', '', '')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
-        results_a = Results('a', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
-        results_b = Results('b', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
-        results_c = Results('c', '', '', [], [], [], [Result(3, '', [], 2., 4., '', '', ''),
-                                                      Result(4, '', [], 4., 8., '', '', '')])
+        results_a = Results('a', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
+        results_b = Results('b', '', '', [], [], [], [Result('2', '', [], 1., 1., '', '', '')])
+        results_c = Results('c', '', '', [], [], [], [Result('3', '', [], 2., 4., '', '', ''),
+                                                      Result('4', '', [], 4., 8., '', '', '')])
         patch_result = results_a.patch(results_b).patch(results_c)
         assert_floats_equal((4, 3, 1, 0, 7., 14.), astuple(patch_result.summary()))
-        self.assertListEqual([('b', results_b.timestamp, [2]),
-                              ('c', results_c.timestamp, [3, 4])], patch_result.applied_patches)
+        self.assertListEqual([('b', results_b.timestamp, ['2']),
+                              ('c', results_c.timestamp, ['3', '4'])], patch_result.applied_patches)
 
         with self.assertRaises(ValueError):
             results_a = Results('', '', '0'*64, [], [], [], [])
@@ -155,13 +182,13 @@ class TestResults(TestCase):
         results = Results('', '', '', [], [], [], [])
         assert_floats_equal((0, 0, 0, 0, 0, 0), astuple(results.summary()))
 
-        results = Results('', '', '', [], [], [], [Result(1, '', [], 0., 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., '', '', '')])
         assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results.summary()))
 
-        results = Results('', '', '', [], [], [], [Result(2, '', [], 1., 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result('2', '', [], 1., 1., '', '', '')])
         assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results.summary()))
 
-        results = Results('', '', '', [], [], [], [Result(3, '', [], math.nan, 1., '', '', '')])
+        results = Results('', '', '', [], [], [], [Result('3', '', [], math.nan, 1., '', '', '')])
         assert_floats_equal((1, 0, 0, 1, math.nan, 1.), astuple(results.summary()))
 
 
@@ -314,7 +341,9 @@ class TestNotebookTest(TestCase):
                     'artifacts/figures/fig_code_cell_3_1.png',
                     'artifacts/figures/fig_code_cell_8_1.png',
                     'artifacts/figures/fig_code_cell_8_2.png',
+                    'artifacts/figures/fig_code_cell_9_1.png',
                     'artifacts/fnord.txt',
+                    'artifacts/plot.png',
                     'code.py',
                     'notebook.ipynb',
                     'results.json'
@@ -328,7 +357,7 @@ class TestNotebookTest(TestCase):
 
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
-        assert_floats_equal(astuple(results.summary()), (10, 4, 4, 2, math.nan, 16))
+        assert_floats_equal(astuple(results.summary()), (13, 5, 5, 3, math.nan, 19))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
@@ -341,4 +370,4 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            self.assertEqual(4, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))
+            self.assertEqual(5, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))

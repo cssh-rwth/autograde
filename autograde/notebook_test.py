@@ -8,6 +8,7 @@ import sys
 import json
 import math
 import pytz
+import base64
 import shutil
 import argparse
 import warnings
@@ -42,7 +43,16 @@ def as_py_comment(s):
     return '\n'.join(f'# {l}' for l in s.strip().split('\n'))
 
 
-def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, variables=None):
+class ArtifactLoader:
+    def __init__(self, root='artifacts'):
+        self._root = Path(root)
+
+    def __getitem__(self, path) -> bytes:
+        with self._root.joinpath(path).open(mode='rb') as f:
+            return f.read()
+
+
+def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0., variables=None):
     """
     Extract source code from jupyter notebook and execute it.
 
@@ -142,6 +152,9 @@ def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0, 
 
     # add markdown comments to state
     state['__COMMENTS__'] = md_cells
+
+    # add artifact loader
+    state['__ARTIFACTS__'] = ArtifactLoader()
 
     logger.debug('execution completed')
     return state
@@ -305,8 +318,8 @@ class NotebookTest:
 
         :param target: can be anything from the notebooks scope, be it a variable, function, class
             or module
+        :param label: label for identification of the test case
         :param score: the weight for the test case, default is 1.0
-        :param label: an optional label for easier identification of the test case
         :param timeout_: how many seconds to wait before aborting the test
         :return: decorator wrapping the original function
         """
@@ -319,16 +332,16 @@ class NotebookTest:
 
         return decorator
 
-    def register_comment(self, target: T_TARGET, label: str, score: float = 1.):
+    def register_comment(self, target: Union[str, re.Pattern], label: str, score: float = 1.):
         """
-        Registers a special test case that looks for markdown comments in the notebook by a given
+        Register a special test case that looks for markdown comments in the notebook by a given
         regular expression. If no such comment is found, the test fails. In all other cases,
         the comment texts are included into the report. NOTE: a "passed" test is scored with NaN
         (not a number) as its output is intended for further, manual inspection.
 
         :param target: (compiled) regular expression that is searched for in markdown comments
+        :param label: label for identification of the test case
         :param score: the weight for the test case, default is 1.0
-        :param label: an optional label for easier identification of the test case
         """
         pattern = re.compile(target) if isinstance(target, str) else target
 
@@ -339,12 +352,39 @@ class NotebookTest:
 
             msg = ''
             for i, comment in enumerate(comments, start=1):
-                msg += f'[MATCH {i}]\n'
+                msg += f'[MATCH {i}]:\n'
                 msg += f'{comment.strip()}\n\n'
 
             return math.nan, msg
 
         self.register('__COMMENTS__', label, score)(search_comment)
+
+    def register_figure(self, target: Union[str, Path], label: str, score: float = 1,):
+        """
+        Register a special test case that loads an base64 encoded PNG or SVG image from artifacts.
+        If the image does not exist, the test fails. In all other cases, the image isincluded into
+        the report. NOTE: a "passed" test is scored with NaN (not a number) as its output is
+        intended for further, manual inspection.
+
+        :param target: name or (relative) path of figure to load
+        :param label: label for identification of the test case
+        :param score: the weight for the test case, default is 1.0
+        """
+        target = Path(target)
+        prefixes = {
+            'png': 'data:image/png;base64,',
+            'svg': 'data:image/svg+xml;base64,'
+        }
+
+        prefix = prefixes.get(target.suffix[1:])
+
+        if prefix is None:
+            raise ValueError(f'Extension is not supported! Use one of {set(prefixes)}')
+
+        def load_plot(artifacts):
+            return math.nan, prefix + base64.b64encode(artifacts[target]).decode('utf8')
+
+        self.register('__ARTIFACTS__', label, score)(load_plot)
 
     def set_import_filter(self, regex, blacklist=False):
         """
@@ -355,7 +395,6 @@ class NotebookTest:
 
         :param regex: regular expression, e.g. `r"networkx|requests"`
         :param blacklist: whether the regex is used for white- or blacklisting, default is false
-        :return:
         """
         self._variables['IMPORT_FILTER'] = (
             re.compile(regex) if isinstance(regex, str) else regex,

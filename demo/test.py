@@ -70,6 +70,17 @@ nbt.register_comment(target=r'\*A1:\*', label='Bob', score=4)
 nbt.register_comment(target=r'\*A2:\*', label='Douglas', score=1)
 nbt.register_comment(target=r'\*A3:\*', label='???', score=2.5)
 
+# Similarly, one may include figures into the report. Currently, PNG and SVG files are supported.
+nbt.register_figure(target='plot.png', label='polygon PNG')
+nbt.register_figure(target='does_not_exist.png', label='file not found')
+
+
+# One may also load raw files from artifacts for more advanced testing
+@nbt.register(target='__ARTIFACTS__', label='raw artifact')
+def test_raw_artifacts(artifacts):
+    content = artifacts['fnord.txt'].decode('utf-8')
+    return f'the following was read from a file: "{content}"'
+
 
 # `execute` brings a simple comand line interface, e.g.:
 # `$ test.py notebook.ipynb -c context/ -t /tmp/ -vvv`
