@@ -178,7 +178,7 @@ class Result:
 
 @dataclass_json
 @dataclass
-class   Results:
+class Results:
     title: str
     notebook: str
     checksum: str
@@ -188,7 +188,7 @@ class   Results:
     results: List[Result]
     applied_patches: List[Tuple[str, str, List[int]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
-    timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(pytz.utc).replace(microsecond=0).isoformat())
 
     def patch(self, patch: Results) -> Results:
         """
