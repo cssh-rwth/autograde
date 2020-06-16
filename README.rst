@@ -20,19 +20,21 @@ Before installing *autograde* and in case you want to use it with a container ba
 We recommend podman as it runs rootless.
 
 Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
-Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .` within it (or :code:`pip install -e .[develop]` if you're a developer).
+Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .`
+within it (or :code:`pip install -e .[develop]` if you're a developer).
 
 Eventually build the respective container image: :code:`python -m autograde build`
 
 .. NOTE::
-    When installing *autograde* via *PyPI*, *containers* are not yet suported. If you want to use containers, clone this repository and install the package from source.
+    When installing *autograde* via *PyPI*, *containers* are not yet supported.
+    If you want to use containers, clone this repository and install the package from source.
 
 
 usage
 -----
 
-apply tests
-```````````
+testing
+```````
 
 *autograde* comes with some example files located in the :code:`demo/` subdirectory that we will use for now to illustrate the workflow. Run:
 
@@ -42,19 +44,41 @@ apply tests
 
 What happened? Let's first have a look at the arguments of *autograde*:
 
-* :code:`demo/test.py` contains the a script with test cases we want apply
+* :code:`demo/test.py` a script with test cases we want apply
 * :code:`demo/notebook.ipynb` is the a notebook to be tested (here you may also specify a directory to be recursively searched for notebooks)
-* The optional flag :code:`--target` tells *autograde* where to store results, :code:`/tmp` in our case and the current working directory by default.
-* The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may arbitrary files or subdirectories. This is useful when the notebook expects some external files to be present.
+* The optional flag :code:`--target` tells *autograde* where to store results, :code:`/tmp` in our case, and the current working directory by default.
+* The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may contain arbitrary files or subdirectories.
+  This is useful when the notebook expects some external files to be present such as data sets.
 
 The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.tar.xz` and which has the following contents:
 
-* :code:`artifacts.tar.xz`: all files that where created or modified by the tested notebook as well as rendered matplotlib plots
+* :code:`artifacts/`: directory with all files that where created or modified by the tested notebook as well as rendered matplotlib plots.
 * :code:`code.py`: code extracted from the notebook including :code:`stdout`/:code:`stderr` as comments
 * :code:`notebook.ipynb`: an identical copy of the tested notebook
-* :code:`test_results.csv`: test results
-* :code:`test_restults.json`: test results, enriched with participant credentials and a summary
-* :code:`report.rst`: human readable report
+* :code:`test_restults.json`: test results
+
+
+reports
+```````
+
+*autograde* is capable of creating human readable HTML reports from test results which is done by
+
+::
+
+    python -m autograde report path/to/result(s)
+
+The respective report is injected into the results archive.
+
+
+patching
+````````
+
+Results from multiple test runs can be merged via the :code:`patch` sub command
+
+::
+
+    python -m autograde patch path/to/result(s) /path/to/patch/result(s)
+
 
 summarize results
 `````````````````
@@ -68,6 +92,15 @@ In a typical scenario, test cases are not just applied to one notebook but many 
 Three new files will appear in the result directory:
 
 * :code:`summary.csv`: aggregated results
-* :code:`score_distribution.pdf`: a score distribution (without duplicates)
-* :code:`similarities.pdf`: similarity heatmap of all notebooks
+* :code:`summary.html`: human readable summary report
+
+
+help
+````
+
+To get an overview of all available commands and their usage, run
+
+::
+
+    python -m autograde [sub command] --help
 
