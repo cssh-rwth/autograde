@@ -19,7 +19,7 @@ from contextlib import ExitStack
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
-from typing import Dict, List, Tuple, Union, Iterable
+from typing import Dict, List, Tuple, Union, Iterable, TextIO
 
 # Third party modules.
 from nbformat import read
@@ -51,7 +51,8 @@ class ArtifactLoader:
             return f.read()
 
 
-def exec_notebook(buffer, file=sys.stdout, ignore_errors=False, cell_timeout=0., variables=None):
+def exec_notebook(buffer, file: TextIO = sys.stdout, ignore_errors: bool = False, cell_timeout: float = 0.,
+                  variables: Dict = None):
     """
     Extract source code from jupyter notebook and execute it.
 
@@ -385,7 +386,7 @@ class NotebookTest:
 
         self.register('__ARTIFACTS__', label, score)(load_plot)
 
-    def set_import_filter(self, regex, blacklist=False):
+    def set_import_filter(self, regex: Union[str, re.Pattern], blacklist: bool = False):
         """
         Set an import filter for the current notebook test. It will be activated for all cells
         executed (except the one injected before notebook) as well as all test cases. By default,
