@@ -170,11 +170,11 @@ class TestNotebookTestCase(TestCase):
         def test(foo):
             self.assertEqual(foo, 42)
 
-        tc = NotebookTestCase(test, target='foo')
+        tc = NotebookTestCase(test, target='foo', label='')
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42)))
 
     def test_msg(self):
-        tc = NotebookTestCase(lambda x: x, target='foo')
+        tc = NotebookTestCase(lambda x: x, target='foo', label='')
         self.assertTupleEqual((4.0, 'ok'), tc(dict(foo=4)))
         self.assertTupleEqual((4.2, 'ok'), tc(dict(foo=4.2)))
         self.assertTupleEqual((1.0, '42'), tc(dict(foo='42')))
@@ -183,7 +183,7 @@ class TestNotebookTestCase(TestCase):
         def test():
             pass
 
-        tc = NotebookTestCase(test, target='foo')
+        tc = NotebookTestCase(test, target='foo', label='')
         s, _ = tc({})
         self.assertEqual(s, 0.)
 
@@ -192,24 +192,24 @@ class TestNotebookTestCase(TestCase):
             self.assertEqual(foo, 42)
             self.assertEqual(bar, 1337)
 
-        tc = NotebookTestCase(test, target=('foo', 'bar'))
+        tc = NotebookTestCase(test, target=('foo', 'bar'), label='')
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42, bar=1337)))
 
     def test_score(self):
         def test(fail):
             assert not fail
 
-        tc = NotebookTestCase(test, target='fail')
+        tc = NotebookTestCase(test, target='fail', label='')
         s, _ = tc(dict(fail=False))
         self.assertEqual(s, 1.0)
         self.assertEqual(tc.score, 1.0)
 
-        tc = NotebookTestCase(test, target='fail')
+        tc = NotebookTestCase(test, target='fail', label='')
         s, _ = tc(dict(fail=True))
         self.assertEqual(s, 0.)
         self.assertEqual(tc.score, 1.0)
 
-        tc = NotebookTestCase(test, target='fail', score=2)
+        tc = NotebookTestCase(test, target='fail', label='', score=2)
         s, _ = tc(dict(fail=False))
         self.assertEqual(s, 2.0)
         self.assertEqual(tc.score, 2.0)
@@ -218,9 +218,6 @@ class TestNotebookTestCase(TestCase):
         def test():
             pass
 
-        tc = NotebookTestCase(test, target='foo')
-        self.assertEqual('', tc.label)
-
         tc = NotebookTestCase(test, target='foo', label='bar')
         self.assertEqual('bar', tc.label)
 
@@ -228,11 +225,11 @@ class TestNotebookTestCase(TestCase):
         def test(delay):
             time.sleep(delay)
 
-        tc = NotebookTestCase(test, target='delay')
+        tc = NotebookTestCase(test, target='delay', label='')
         s, _ = tc(dict(delay=.1))
         self.assertEqual(s, 1.)
 
-        tc = NotebookTestCase(test, target='delay', timeout=.05)
+        tc = NotebookTestCase(test, target='delay', label='', timeout=.05)
         s, _ = tc(dict(delay=.1))
         self.assertEqual(s, 0.)
 
@@ -244,7 +241,7 @@ class TestNotebookTest(TestCase):
         def test(foo):
             self.assertEqual(42, foo)
 
-        decorator = nbt.register(target='foo', score=2, label='bar', timeout_=1)
+        decorator = nbt.register(target='foo', label='bar', score=2, timeout_=1)
         self.assertEqual(0, len(nbt))
 
         case = decorator(test)
@@ -256,11 +253,14 @@ class TestNotebookTest(TestCase):
 
         self.assertTupleEqual((2.0, 'ok'), case(dict(foo=42)))
 
+        with self.assertRaises(ValueError):
+            nbt.register(target='foo', label='bar')(lambda: None)
+
     def test_register_decorator(self):
         nbt = NotebookTest('')
         self.assertEqual(0, len(nbt))
 
-        @nbt.register(target='foo', score=2, label='bar', timeout_=1)
+        @nbt.register(target='foo', label='bar', score=2, timeout_=1)
         def test(foo):
             self.assertEqual(42, foo)
 
@@ -271,6 +271,11 @@ class TestNotebookTest(TestCase):
         self.assertTupleEqual(test.targets, ('foo',))
 
         self.assertTupleEqual((2.0, 'ok'), test(dict(foo=42)))
+
+        with self.assertRaises(ValueError):
+            @nbt.register(target='foo', label='bar')
+            def test():
+                pass
 
     def test_set_import_filter(self):
         nbt = NotebookTest('')

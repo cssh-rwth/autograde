@@ -18,9 +18,9 @@ from hashlib import sha256
 from datetime import datetime
 from contextlib import ExitStack
 from collections import OrderedDict
-from typing import Dict, List, Tuple
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
+from typing import Dict, List, Tuple, Union, Iterable
 
 # Third party modules.
 from nbformat import read
@@ -33,6 +33,7 @@ from autograde.templates import INJECT_BEFORE, INJECT_AFTER
 from autograde.util import logger, loglevel, camel_case, capture_output, cd, mount_tar, timeout
 
 # Globals and constants variables.
+T_TARGET = Union[str, Iterable[str]]
 
 
 def as_py_comment(s):
@@ -157,7 +158,7 @@ class TeamMember:
 @dataclass_json
 @dataclass
 class Result:
-    id: int
+    id: str
     label: str
     target: List[str]
     score: float
@@ -239,11 +240,12 @@ class ResultSummary:
 
 
 class NotebookTestCase:
-    def __init__(self, test_function, target, score=1., label=None, timeout=0):
+    def __init__(self, test_function, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
+        self._id = sha256(label.lower().strip().encode('utf-8')).hexdigest()
         self._test_func = test_function
-        self._targets = (target,) if isinstance(target, str) else target
-        self._score = float(score)
-        self._label = str(label) if label else ''
+        self._targets = (target,) if isinstance(target, str) else tuple(target)
+        self._label = label
+        self._score = score
         self._timeout = timeout
 
     def __call__(self, state, *args, **kwargs):
@@ -273,16 +275,17 @@ class NotebookTestCase:
         return f'{self.__class__.__name__}(target={self.targets}, score={self.score}, ' \
                f'timeout={timeout_}, label="{self.label}")'
 
+    id = property(fget=lambda self: self._id)
     targets = property(fget=lambda self: self._targets)
-    score = property(fget=lambda self: self._score)
     label = property(fget=lambda self: self._label)
+    score = property(fget=lambda self: self._score)
     timout = property(fget=lambda self: self._timeout)
 
 
 class NotebookTest:
-    def __init__(self, title, cell_timeout=0, test_timeout=0):
+    def __init__(self, title, cell_timeout: float = 0., test_timeout: float = 0.):
         self._title = title
-        self._cases = []
+        self._cases = OrderedDict()
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
         self._variables = OrderedDict()
@@ -296,7 +299,7 @@ class NotebookTest:
     def __repr__(self):
         return f'{type(self).__name__}({self._cases})'
 
-    def register(self, target, score=1., label='', timeout_=0):
+    def register(self, target: T_TARGET, label: str, score: float = 1., timeout_: float = 0.):
         """
         Decorator for registering a new test case for given target.
 
@@ -308,13 +311,15 @@ class NotebookTest:
         :return: decorator wrapping the original function
         """
         def decorator(func):
-            case = NotebookTestCase(func, target, score, label, timeout_ or self._test_timeout)
-            self._cases.append(case)
+            case = NotebookTestCase(func, target, label, score, timeout_ or self._test_timeout)
+            if case.id in self._cases:
+                raise ValueError(f'A case with same id was already registered. Consider using a different label!')
+            self._cases[case.id] = case
             return case
 
         return decorator
 
-    def register_comment(self, target, score=1., label=''):
+    def register_comment(self, target: T_TARGET, label: str, score: float = 1.):
         """
         Registers a special test case that looks for markdown comments in the notebook by a given
         regular expression. If no such comment is found, the test fails. In all other cases,
@@ -339,7 +344,7 @@ class NotebookTest:
 
             return math.nan, msg
 
-        self.register('__COMMENTS__', score, label)(search_comment)
+        self.register('__COMMENTS__', label, score)(search_comment)
 
     def set_import_filter(self, regex, blacklist=False):
         """
@@ -364,7 +369,7 @@ class NotebookTest:
         # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
 
-        for i, case in enumerate(self._cases, start=1):
+        for i, case in enumerate(self._cases.values(), start=1):
             logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
@@ -376,7 +381,7 @@ class NotebookTest:
                     achieved, msg = case(state)
 
                 results.append(Result(
-                    id=i,
+                    id=case.id,
                     label=case.label,
                     target=case.targets,
                     score=achieved,
