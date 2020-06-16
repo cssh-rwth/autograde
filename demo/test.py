@@ -66,9 +66,9 @@ def test_sleep_2(sleep):
 # Sometimes, the textual cells of a notebook are also of interest and should be included into the
 # report. However, other than regular test cases, textual tests cannot be passed and scored with NaN
 # by default. This feature is intended to support manual inspection.
-nbt.register_textual(target=r'\*A1:\*', score=4, label='Bob')
-nbt.register_textual(target=r'\*A2:\*', score=1, label='Douglas')
-nbt.register_textual(target=r'\*A3:\*', score=2.5)
+nbt.register_comment(target=r'\*A1:\*', score=4, label='Bob')
+nbt.register_comment(target=r'\*A2:\*', score=1, label='Douglas')
+nbt.register_comment(target=r'\*A3:\*', score=2.5)
 
 
 # `execute` brings a simple comand line interface, e.g.:

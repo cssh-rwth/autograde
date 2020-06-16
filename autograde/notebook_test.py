@@ -316,7 +316,7 @@ class NotebookTest:
 
         return decorator
 
-    def register_textual(self, target, score=1., label=''):
+    def register_comment(self, target, score=1., label=''):
         """
         Registers a special test case that looks for markdown comments in the notebook by a given
         regular expression. If no such comment is found, the test fails. In all other cases,
