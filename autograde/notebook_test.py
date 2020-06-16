@@ -266,9 +266,7 @@ class NotebookTestCase:
             return float(score), str(msg)
 
         except Exception as err:
-            msg_buffer = io.StringIO()
-            traceback.print_exception(type(err), err, err.__traceback__, file=msg_buffer)
-            return 0, msg_buffer.getvalue()
+            return 0, f'{type(err).__name__}: "{err}"'
 
     def __str__(self):
         timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else '∞'
