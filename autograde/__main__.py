@@ -245,11 +245,13 @@ def audit(args):
 
                 # update results
                 for result in results.results:
-                    if score := scores.get(result.id):
+                    if not math.isclose((score := scores.get(result.id)), result.score):
+                        logger.debug(f'update score of result {result.id[:8]}')
                         result.score = score
 
-                    if (comment := comments.get(result.id)) and comment:
-                        result.message = f'{result.message}\n{comment.strip()}'
+                    if comment := comments.get(result.id):
+                        logger.debug(f'update messages of result {result.id[:8]}')
+                        result.messages.append(comment.strip())
 
                 # patch
                 inject_patch(results, mount)

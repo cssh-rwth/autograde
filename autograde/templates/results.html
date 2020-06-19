@@ -18,7 +18,7 @@
                 <th>Target(s)</th>
                 <th style="text-align: right">Reached Score</th>
                 <th style="text-align: right">Max Score</th>
-                <th>Message</th>
+                <th>Message(s)</th>
                 <th>STDOUT</th>
                 <th>STDERR</th>
             </tr>
@@ -43,11 +43,13 @@
                 </td>
                 <td style="text-align: right">{{ r.score_max }}</td>
                 <td>
-                    {% if r.message.startswith('data:image') %}
-                    <img src="{{ r.message }}" alt="{{ r.target }}" />
+                    {% for m in r.messages %}
+                    {% if m.startswith('data:image') %}
+                    <img src="{{ m }}" alt="{{ r.target }}" />
                     {% else %}
-                    <p>{{ r.message|e }}</p>
+                    <p><i>"{{ m|e }}"</i></p>
                     {% endif %}
+                    {% endfor %}
                     {% if edit_mode %}
                     <label>
                         Comment: <br />

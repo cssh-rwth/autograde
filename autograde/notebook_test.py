@@ -176,7 +176,7 @@ class Result:
     target: List[str]
     score: float
     score_max: float
-    message: str
+    messages: List[str]
     stdout: str
     stderr: str
 
@@ -224,7 +224,7 @@ class Results:
                 results[result.id] = result
                 change_list.append(result.id)
 
-        patched.results = sorted(results.values(), key=lambda r: r.id)
+        patched.results = list(results.values())
         patched.applied_patches.append((patch.title, patch.timestamp, change_list))
 
         return patched
@@ -425,7 +425,7 @@ class NotebookTest:
                     target=case.targets,
                     score=achieved,
                     score_max=case.score,
-                    message=msg,
+                    messages=[msg],
                     stdout=stdout.getvalue(),
                     stderr=stderr.getvalue()
                 ))
