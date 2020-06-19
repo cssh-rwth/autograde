@@ -8,13 +8,16 @@ import io
 import os
 import sys
 import json
+import math
 import base64
 import argparse
 import subprocess
 from typing import List
 from pathlib import Path
+from contextlib import ExitStack
 from itertools import combinations
 from difflib import SequenceMatcher
+from collections import OrderedDict
 
 # Third party modules.
 import numpy as np
@@ -79,7 +82,8 @@ def render(template, **kwargs):
         autograde=autograde,
         css=CSS,
         timestamp=timestamp_utc_iso(),
-        **kwargs)
+        **kwargs
+    )
 
 
 def build(args):
@@ -174,6 +178,101 @@ def patch(args):
                 logger.warn(f'no patch for {path} found')
 
     return 0
+
+
+def audit(args):
+    """Launch a web interface for manually auditing test results"""
+    import logging
+    from flask import Flask, redirect, request
+    import flask.cli as flask_cli
+    from werkzeug.exceptions import HTTPException, InternalServerError
+
+    with ExitStack() as exit_stack:
+        # mount & index all results
+        mounts = OrderedDict()
+        for path in list_results(args.result):
+            mount = exit_stack.enter_context(mount_tar(path, mode='a'))
+            mounts[load_patched(mount).checksum] = Path(mount)
+
+        patched = set()
+        next_ids = dict(zip(mounts, list(mounts)[1:]))
+
+        # create actual flask application
+        app = Flask('autograde - audit')
+
+        # monkey patching for nicer cli output
+        flask_cli.show_server_banner = lambda *_, **__: logger.debug('suppress flask banner')
+        app.logger = logger
+        logging.root = logger
+
+        @app.errorhandler(Exception)
+        def handle_error(error):
+            logger.warning(error)
+            error = error if isinstance(error, HTTPException) else InternalServerError()
+            return render('error.html', title='Oooops', error=error), error.code
+
+        @app.route('/')
+        def route_root():
+            logger.debug('route index, re-direct')
+            return redirect('/audit')
+
+        @app.route('/audit', strict_slashes=False)
+        @app.route('/audit/<string:id>')
+        def route_audit(id=None):
+            logger.debug('route audit')
+            path = mounts.get(id)
+            return render('audit.html', title='audit', mounts=mounts, next_id=next_ids.get(id),
+                          results=load_patched(path) if path else None, patched=patched)
+
+        @app.route('/patch', methods=('POST',))
+        def route_patch():
+            logger.debug('route patch')
+
+            if (id := request.form.get('id')) and (mount := mounts.get(id)):
+                scores = dict()
+                comments = dict()
+                results = load_patched(mount)
+
+                results.title = 'manual audit'
+                results.timestamp = timestamp_utc_iso()
+
+                # extract form data
+                for key, value in request.form.items():
+                    if key.startswith('score:'):
+                        scores[key.split(':')[-1]] = math.nan if value == '' else float(value)
+                    elif key.startswith('comment:'):
+                        comments[key.split(':')[-1]] = value
+
+                # update results
+                for result in results.results:
+                    if score := scores.get(result.id):
+                        result.score = score
+
+                    if (comment := comments.get(result.id)) and comment:
+                        result.message = f'{result.message}\n{comment.strip()}'
+
+                # patch
+                inject_patch(results, mount)
+
+                # flag results as patched
+                patched.add(id)
+
+                # update report if it exists
+                if path.joinpath('report.html').exists():
+                    logger.debug(f'update report for {id}')
+                    render('report.html', title='report', results=results, summary=results.summary())
+
+                if next_id := next_ids.get(id):
+                    return redirect(f'/audit/{next_id}')
+
+            return redirect('/audit')
+
+        @app.route('/report/<string:id>')
+        def route_report(id):
+            results = load_patched(mounts[id])
+            return render('report.html', title='report (preview)', results=results, summary=results.summary())
+
+        app.run(host=args.bind, port=args.port)
 
 
 def report(args):
@@ -327,6 +426,13 @@ def main(args=None):
     ptc_parser.add_argument('result', type=str, help='result archive(s) to be patched')
     ptc_parser.add_argument('patch', type=str, help='result archive(s) for patching')
     ptc_parser.set_defaults(func=patch)
+
+    # audit sub command
+    adt_parser = subparsers.add_parser('audit', help=report.__doc__)
+    adt_parser.add_argument('result', type=str, help='result archive(s) to audit')
+    adt_parser.add_argument('-b', '--bind', type=str, default='127.0.0.1', help='host to bind to')
+    adt_parser.add_argument('-p', '--port', type=int, default=5000, help='port')
+    adt_parser.set_defaults(func=audit)
 
     # report sub command
     rpt_parser = subparsers.add_parser('report', help=report.__doc__)

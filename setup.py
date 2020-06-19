@@ -21,7 +21,7 @@ PACKAGES = find_packages()
 
 INSTALL_REQUIRES = [
     'dataclasses-json', 'ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'scipy', 'pandas',
-    'jinja2'
+    'jinja2', 'flask'
 ]
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
 
@@ -46,7 +46,7 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     entry_points=ENTRY_POINTS,
     test_suite='nose.collector',
     version=VERSION,

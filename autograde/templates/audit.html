@@ -1,0 +1,30 @@
+{% extends "results.html" %}
+{% block content %}
+        <section style="justify-content: center">
+            <section>
+                <article>
+                    <h2>Overview</h2>
+                    <ul>
+                        {% for h in mounts %}
+                        <li>
+                            <a href="/audit/{{ h }}">{{ hash(h) }}</a> -
+                            <a href="/report/{{ h }}" target="_blank">Report Preview 🔗</a>
+                            {% if h in patched %} (patched) {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </article>
+            </section>
+        </section>
+        {% if results %}
+        <section>
+            <h2>Audit: {{ hash(results.checksum) }}</h2>
+            <form action="/patch" method="POST" style="width: 100%">
+                <input type="hidden" name="id" value="{{ results.checksum }}" />
+                {{ display_results(True)|indent|indent|indent }}
+                <input type="reset" value="Discard Changes" style="background-color: var(--c-danger)">
+                <input type="submit" value="Patch Changes" style="background-color: var(--c1)">
+            </form>
+        </section>
+        {% endif %}
+{% endblock %}
