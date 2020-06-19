@@ -71,26 +71,33 @@ def capture_output(tmp_stdout=None, tmp_stderr=None):
 
 @contextmanager
 def cd(path, mkdir=False):
+    cwd = os.getcwd()
+
     if mkdir:
+        logger.debug(f'create directories: {path}')
         os.makedirs(path, exist_ok=True)
 
-    cwd = os.getcwd()
+    logger.debug(f'change directory: {path}')
     os.chdir(path)
 
     try:
         yield cwd
 
     finally:
+        logger.debug(f'change directory: {cwd}')
         os.chdir(cwd)
 
 
 @contextmanager
 def mount_tar(path, mode='r'):
     prefix = mode[0]
+
+    # TODO use ValueError instead
     assert prefix in ['r', 'w', 'a'], f'unknown prefix {prefix}'
     assert '|' not in mode, 'streaming is not supported'
 
     with TemporaryDirectory() as tempdir:
+        logger.debug(f'mount {path} as {tempdir} in mode "{mode}"')
         try:
             if prefix in ['r', 'a']:
                 with tarfile.open(path, mode='r'+mode[1:]) as tar:
