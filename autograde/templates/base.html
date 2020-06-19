@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 {% macro hash(h) -%}
-    <span title="{{ h }}" style="text-decoration: underline"><code>{{ h[:8] }}</code></span>
+    <span title="{{ h }}" style="font-family: monospace, monospace; text-decoration: underline">{{ h[:8] }}</span>
 {%- endmacro %}
 <head>
     {% block head %}
@@ -12,28 +12,35 @@
     <title>autograde - {{ title }}</title>
     <style>
         {{ css|indent|indent }}
+
         /* autograde specific */
+        :root{
+            --c-success: #8DC060;
+            --c-danger: #FABE50;
+            --c-warning: #D85C41;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --c-success: #57AB27;
+                --c-danger: #CC071E;
+                --c-warning: #F6A800;
+            }
+        }
+
         main,footer {
 			margin: 0 auto;
 			width: 90%;
 			text-align: left;
 			padding: 0 20px;
 		}
+
 		section>section {
 			padding: 15px;
 			margin: 10px 8px 10px 8px;
             align-items: center;
             justify-content: center;
 		}
-        .ag-success {
-            background-color: #8DC060;
-        }
-        .ag-danger {
-            background-color: #D85C41;
-        }
-        .ag-warning {
-            background-color: #FABE50;
-        }
 	</style>
     {% endblock %}
 </head>
@@ -47,9 +54,9 @@
             created <code>{{ timestamp }}</code> by <i><a href="https://github.com/cssh-rwth/autograde" target="_blank">autograde</a></i>
         </p>
         <p>
-            <i>autograde</i> is developed by the
-            <a href="http://cssh.rwth-aachen.de/" target="_blank">Chair for Computational Social Sciences and Humanities</a>
-            at <a href="https://www.rwth-aachen.de" target="_blank">RWTH Aachen University</a>
+            <i>autograde</i> gets developed by the
+            <i><a href="http://cssh.rwth-aachen.de/" target="_blank">Chair for Computational Social Sciences and Humanities</a></i>
+            at <i><a href="https://www.rwth-aachen.de" target="_blank">RWTH Aachen University</a></i>
         </p>
         <p>the style sheet builds on <a href="https://vladocar.github.io/Basic.css" target="_blank">basic.css</a></p>
     </footer>

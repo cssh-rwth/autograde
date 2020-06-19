@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% macro status_color(result) -%}
+    {%- if result.passed() -%}
+        var(--c-success)
+    {%- elif result.failed() -%}
+        var(--c-danger)
+    {%- else -%}
+        var(--c-warning)
+    {%- endif -%}
+{%- endmacro %}
+{% macro display_results(edit_mode) -%}
+    <table style="table-layout: auto; width: 100%">
+        <thead>
+            <tr>
+                <th><i>i</i></th>
+                <th>ID</th>
+                <th>Label</th>
+                <th>Target(s)</th>
+                <th style="text-align: right">Reached Score</th>
+                <th style="text-align: right">Max Score</th>
+                <th>Message</th>
+                <th>STDOUT</th>
+                <th>STDERR</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results.results %}
+            <tr>
+                <td {% if not edit_mode %}style="background-color: {{ status_color(r) }}"{% endif %}><b>{{ loop.index }}</b></td>
+                <td>{{ hash(r.id) }}<br></td>
+                <td><i>"{{ r.label|e }}"</i></td>
+                <td>
+                    {{ r.target|join(', ') }}
+                </td>
+                <td style="text-align: right">
+                    {% if edit_mode %}
+                    <label>
+                        <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.1" value="{{ r.score }}">
+                    </label>
+                    {% else %}
+                    {{ r.score  }}
+                    {% endif %}
+                </td>
+                <td style="text-align: right">{{ r.score_max }}</td>
+                <td>
+                    {% if r.message.startswith('data:image') %}
+                    <img src="{{ r.message }}" alt="{{ r.target }}" />
+                    {% else %}
+                    <p>{{ r.message|e }}</p>
+                    {% endif %}
+                    {% if edit_mode %}
+                    <label>
+                        Comment: <br />
+                        <textarea name="comment:{{ r.id }}" style="width: 100%"></textarea>
+                    </label>
+                    {% endif %}
+                </td>
+                <td><pre>{{ r.stdout|e }}</pre></td>
+                <td><pre>{{ r.stderr|e }}</pre></td>
+            </tr>
+            {% endfor%}
+            {% if summary is defined %}
+            <tr style="background: var(--c2);">
+                <td><b>{{ summary.tests }}</b></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td style="text-align: right"><b>{{ summary.score }}</b></td>
+                <td style="text-align: right"><b>{{ summary.score_max }}</b></td>
+                <td><b>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</b></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {% endif %}
+        <tbody>
+    </table>
+{%- endmacro %}

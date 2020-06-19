@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "results.html" %}
 {% macro status_class(result) -%}
     {%- if result.passed() -%}
         ag-success
@@ -27,13 +27,19 @@
                             <tr>
                                 <td><i>{{ results.title }}</i></td>
                                 <td><i>{{ results.timestamp }}</i></td>
-                                <td><i>*</i></td>
+                                <td></td>
                             </tr>
                             {% for ap in results.applied_patches %}
                             <tr>
                                 <td>{{ ap[0] }}</td>
                                 <td>{{ ap[1] }}</td>
-                                <td>{{ ap[2]|join(', ') }}</td>
+                                <td>
+                                    <ul>
+                                        {% for h in ap[2] %}
+                                        <li>{{ hash(h) }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
                             </tr>
                             {% endfor%}
                         </tbody>
@@ -68,71 +74,31 @@
                 <article style="max-width: 500px">
                     <h2>Artifacts</h2>
                     <p>While the jupyter notebook is executed, <i>autograde</i> watches the current working directory for files being created or modified:</p>
+                    {% if results.artifacts %}
                     <ul>
                         {% for file in results.artifacts %}
                         <li><code>artifacts/{{ file }}</code></li>
                         {% endfor %}
                     </ul>
+                    {% else %}
+                    <b>None</b>
+                    {% endif %}
                     <p>All files listed above can be found in the <code>/artifacts</code> directory of your results archive.</p>
                     <p>The following files have been excluded from results as they haven't changed during execution:</p>
+                    {% if results.artifacts %}
                     <ul>
                         {% for file in results.excluded_artifacts %}
                         <li><code>artifacts/{{ file }}</code></li>
                         {% endfor %}
                     </ul>
+                    {% else %}
+                    <b>None</b>
+                    {% endif %}
                 </article>
             </section>
 		</section>
         <section>
-            <table style="table-layout: auto; width: 100%">
-                <caption>Test Results</caption>
-                <thead>
-                    <tr>
-                        <th><i>i</i></th>
-                        <th>ID</th>
-                        <th>Label</th>
-                        <th>Target(s)</th>
-                        <th>Reached Score</th>
-                        <th>Max Score</th>
-                        <th>Message</th>
-                        <th>STDOUT</th>
-                        <th>STDERR</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in results.results %}
-                    <tr>
-                        <td class="{{ status_class(r) }}"><b>{{ loop.index }}</b></td>
-                        <td>{{ hash(r.id) }}<br></td>
-                        <td><i>"{{ r.label|e }}"</i></td>
-                        <td>
-                            {{ r.target|join(', ') }}
-                        </td>
-                        <td>{{ r.score  }}</td>
-                        <td>{{ r.score_max }}</td>
-                        <td>
-                            {% if r.message.startswith('data:image') %}
-                            <img src="{{ r.message }}" alt="{{ r.target }}" />
-                            {% else %}
-                            <p>{{ r.message|e }}</p>
-                            {% endif %}
-                        </td>
-                        <td><pre>{{ r.stdout|e }}</pre></td>
-                        <td><pre>{{ r.stderr|e }}</pre></td>
-                    </tr>
-                    {% endfor%}
-                    <tr style="background: var(--c2);">
-                        <td><b>{{ summary.tests }}</b></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td><b>{{ summary.score }}</b></td>
-                        <td><b>{{ summary.score_max }}</b></td>
-                        <td><b>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</b></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                <tbody>
-            </table>
+            <h2>Test Results</h2>
+            {{ display_results(False)|indent|indent }}
         </section>
 {% endblock %}
