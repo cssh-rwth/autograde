@@ -8,7 +8,8 @@
                         {% for h in mounts %}
                         <li>
                             <a href="/audit/{{ h }}">{{ hash(h) }}</a> -
-                            <a href="/report/{{ h }}" target="_blank">Report Preview 🔗</a>
+                            <a href="/report/{{ h }}" target="_blank">Report Preview 🔗</a> -
+                            <a href="/source/{{ h }}" target="_blank">Source Code 🔗</a>
                             {% if h in patched %} (patched) {% endif %}
                         </li>
                         {% endfor %}

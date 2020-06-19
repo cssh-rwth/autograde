@@ -351,9 +351,15 @@ def audit(args):
 
         @app.route('/report/<string:id>')
         def route_report(id):
-            logger.debug('route report')
+            logger.debug(f'route report {id}')
             results = load_patched(mounts[id])
             return render('report.html', title='report (preview)', results=results, summary=results.summary())
+
+        @app.route('/source/<string:id>')
+        def route_source(id):
+            logger.debug(f'route source {id}')
+            return render('source_view.html', title='source view', source=sources.get(id, 'None'),
+                          id=id)
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
