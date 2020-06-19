@@ -7,10 +7,10 @@
                         <th>Student ID</th>
                         <th>Last Name</th>
                         <th>First Name</th>
-                        <th>Score</th>
-                        <th>Max Score</th>
+                        <th style="text-align: right">Score</th>
+                        <th style="text-align: right">Max Score</th>
+                        <th style="text-align: right">Patches</th>
                         <th>Checksum</th>
-                        <th>File</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -19,10 +19,10 @@
                         <td class="{% if r['multiple_submissions'] %}ag-warning{% else %}ag-success{% endif %}" ><code>{{ r['student_id'] }}</code></td>
                         <td>{{ r['last_name'] }}</td>
                         <td>{{ r['first_name'] }}</td>
-                        <td>{{ r['score'] }}</td>
-                        <td>{{ r['max_score'] }}</td>
+                        <td style="text-align: right">{{ r['score'] }}</td>
+                        <td style="text-align: right">{{ r['max_score'] }}</td>
+                        <td style="text-align: right">{{ r['patches'] }}</td>
                         <td>{{ hash(r['checksum']) }}</td>
-                        <td><a href="{{ r['path'] }}">{{ r['path'] }}</a></td>
                     </tr>
                     {% endfor%}
                 <tbody>

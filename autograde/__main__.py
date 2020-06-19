@@ -12,8 +12,8 @@ import math
 import base64
 import argparse
 import subprocess
-from typing import List
 from pathlib import Path
+from typing import List, Dict
 from contextlib import ExitStack
 from itertools import combinations
 from difflib import SequenceMatcher
@@ -42,6 +42,10 @@ JINJA_ENV = Environment(
     trim_blocks=True,
     lstrip_blocks=True
 )
+
+
+def b64str(data) -> str:
+    return base64.b64encode(data).decode('utf-8')
 
 
 def list_results(path='.', prefix='results') -> List[Path]:
@@ -180,6 +184,76 @@ def patch(args):
     return 0
 
 
+def compute_summary(results) -> pd.DataFrame:
+    logger.debug(f'summarize {len(results)} results')
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
+
+    def row_factory():
+        for r in results:
+            for member in r.team_members:
+                s = r.summary()
+                yield (
+                    member.student_id,
+                    member.last_name,
+                    member.first_name,
+                    s.score,
+                    s.score_max,
+                    len(r.applied_patches),
+                    r.checksum
+                )
+
+    summary_df = pd.DataFrame(row_factory(), columns=header).sort_values(by='last_name')
+    summary_df['multiple_submissions'] = summary_df['student_id'].duplicated(keep=False)
+
+    if not math.isclose(summary_df['max_score'].std(), 0):
+        logger.warning('max scores seem not to be consistent!')
+
+    return summary_df
+
+
+def plot_score_distribution(summary_df: pd.DataFrame):
+    logger.debug('plot score distributions')
+    max_score = summary_df['max_score'].sum()
+
+    plt.clf()
+    ax = plt.gca()
+    try:
+        sns.distplot(
+            summary_df[~summary_df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm,
+            bins=int(max_score), ax=ax
+        )
+    except LinAlgError:
+        logger.warning('unable to plot score distribution')
+    ax.set_xlim(0, max_score)
+    ax.set_xlabel('score')
+    ax.set_ylabel('share')
+    ax.set_title('score distribution without duplicates (takes lower score)')
+
+    with io.BytesIO() as buffer:
+        plt.savefig(buffer, format='svg', transparent=False)
+        return buffer.getvalue()
+
+
+def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
+    logger.debug('apply fraud detection')
+    hashes = sorted(sources)
+    diffs = pd.DataFrame(np.NaN, index=hashes, columns=hashes)
+
+    for h in hashes:
+        diffs.loc[h][h] = 1.
+
+    for (ha, ca), (hb, cb) in combinations(sources.items(), 2):
+        diffs.loc[ha][hb] = diffs.loc[hb][ha] = SequenceMatcher(a=ca, b=cb).ratio()
+
+    plt.clf()
+    ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
+    ax.set_title('similarity of notebook code')
+
+    with io.BytesIO() as buffer:
+        plt.savefig(buffer, format='svg', transparent=False)
+        return buffer.getvalue()
+
+
 def audit(args):
     """Launch a web interface for manually auditing test results"""
     import logging
@@ -190,9 +264,15 @@ def audit(args):
     with ExitStack() as exit_stack:
         # mount & index all results
         mounts = OrderedDict()
+        sources = dict()
         for path in list_results(args.result):
-            mount = exit_stack.enter_context(mount_tar(path, mode='a'))
-            mounts[load_patched(mount).checksum] = Path(mount)
+            mount = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
+
+            results = load_patched(mount)
+            mounts[results.checksum] = mount
+
+            with mount.joinpath('code.py').open(mode='rt') as f:
+                sources[results.checksum] = f.read()
 
         patched = set()
         next_ids = dict(zip(mounts, list(mounts)[1:]))
@@ -271,8 +351,22 @@ def audit(args):
 
         @app.route('/report/<string:id>')
         def route_report(id):
+            logger.debug('route report')
             results = load_patched(mounts[id])
             return render('report.html', title='report (preview)', results=results, summary=results.summary())
+
+        @app.route('/summary', strict_slashes=False)
+        def route_summary():
+            logger.debug('route summary')
+            results = [load_patched(m) for m in mounts.values()]
+            summary_df = compute_summary(results)
+
+            plots = dict(
+                score_distribution=b64str(plot_score_distribution(summary_df)),
+                similarities=b64str(plot_fraud_matrix(sources))
+            )
+
+            return render('summary.html', title='summary', summary=summary_df, plots=plots)
 
         app.run(host=args.bind, port=args.port)
 
@@ -291,102 +385,35 @@ def report(args):
 
 def summary(args):
     """Generate humand & machine readable summary of results"""
-    root = Path(args.result or Path.cwd()).expanduser().absolute()
+    path = Path(args.result or Path.cwd()).expanduser().absolute()
+    assert path.is_dir(), f'{path} is no regular directory'
 
-    assert root.is_dir(), f'{root} is no regular directory'
-
-    logger.info(f'summarize results in: {root}')
-
-    # extract results
     results = list()
-    code = dict()
-    paths = dict()
-    for path in list_results(root):
-        logger.debug(f'read {path}')
+    sources = dict()
+    for path_ in list_results(path):
+        logger.debug(f'read {path_}')
 
-        with mount_tar(path) as tar, cd(tar):
+        with mount_tar(path_) as tar, cd(tar):
             r = load_patched()
             results.append(r)
 
-            paths[r.checksum] = path
-
             with open('code.py', mode='rt') as f:
-                code[r.checksum] = f.read()
+                sources[r.checksum] = f.read()
 
-    # consistency check
-    max_scores = {r.summary().score_max for r in results}
-    assert len(max_scores) == 1, 'found different max scores in results'
-    max_score = max_scores.pop()
+    summary_df = compute_summary(results)
 
-    # summary
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'checksum', 'path']
+    logger.debug('render summary.csv')
+    summary_df.to_csv(path.joinpath('summary.csv'), index=False)
 
-    def row_factory():
-        for r in results:
-            for member in r.team_members:
-                yield (
-                    member.student_id,
-                    member.last_name,
-                    member.first_name,
-                    r.summary().score,
-                    max_score,
-                    r.checksum,
-                    paths[r.checksum].relative_to(root)
-                )
-
-    df = pd.DataFrame(row_factory(), columns=header).sort_values(by='last_name')
-    df['multiple_submissions'] = df['student_id'].duplicated(keep=False)
-
-    # csv export
-    logger.debug('save summary')
-    df.drop(columns=['path']).to_csv(root.joinpath('summary.csv'), index=False)
-
-    # plotting
-    plots = dict()
-    # plot score distributions
-    logger.debug('plot score distributions')
-    plt.clf()
-    ax = plt.gca()
-    try:
-        sns.distplot(
-            df[~df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm,
-            bins=int(max_score), ax=ax
-        )
-    except LinAlgError:
-        logger.warning('unable to plot score distribution')
-    ax.set_xlim(0, max_score)
-    ax.set_xlabel('score')
-    ax.set_ylabel('share')
-    ax.set_title('score distribution without duplicates (takes lower score)')
-
-    with io.BytesIO() as buffer:
-        plt.savefig(buffer, format='svg', transparent=False)
-        plots['score_distribution'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-    # basic fraud detection
-    logger.debug('apply fraud detection')
-    hashes = sorted(code)
-    diffs = pd.DataFrame(np.NaN, index=hashes, columns=hashes)
-
-    for h in hashes:
-        diffs.loc[h][h] = 1.
-
-    for (ha, ca), (hb, cb) in combinations(code.items(), 2):
-        diffs.loc[ha][hb] = diffs.loc[hb][ha] = SequenceMatcher(a=ca, b=cb).ratio()
-
-    plt.clf()
-    ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
-    ax.set_title('similarity of notebook code')
-
-    with io.BytesIO() as buffer:
-        plt.savefig(buffer, format='svg', transparent=False)
-        plots['similarities'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    plots = dict(
+        score_distribution=b64str(plot_score_distribution(summary_df)),
+        similarities=b64str(plot_fraud_matrix(sources))
+    )
 
     logger.info('render summary.html')
-    with open(root.joinpath('summary.html'), mode='wt') as f:
-        f.write(render('summary.html', title='summary', summary=df, plots=plots))
+    with open(path.joinpath('summary.html'), mode='wt') as f:
+        f.write(render('summary.html', title='summary', summary=summary_df, plots=plots))
 
-    logger.debug('done')
     return 0
 
 
@@ -407,13 +434,13 @@ def main(args=None):
     parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
     parser.add_argument('-e', '--backend', type=str, default=None, choices=['docker', 'podman'],
                         metavar='', help='container backend to use')
+    parser.set_defaults(func=version)
 
     subparsers = parser.add_subparsers(help='sub command help')
 
     # build sub command
     bld_parser = subparsers.add_parser('build', help=build.__doc__)
     bld_parser.add_argument('-q', '--quiet', action='store_true', help='mute output')
-    bld_parser.set_defaults(func=build)
 
     # test sub command
     tst_parser = subparsers.add_parser('test', help=test.__doc__)
