@@ -19,11 +19,14 @@
         {% if results %}
         <section>
             <h2>Audit: {{ hash(results.checksum) }}</h2>
-            <form action="/patch" method="POST" style="width: 100%">
+            <form action="/patch" method="POST" style="width: 100%; margin: 1em">
                 <input type="hidden" name="id" value="{{ results.checksum }}" />
                 {{ display_results(True)|indent|indent|indent }}
-                <input type="reset" value="Discard Changes" style="background-color: var(--c-danger)">
-                <input type="submit" value="Patch Changes" style="background-color: var(--c1)">
+                <p>
+                    <a href="/audit"><input type="button" value="Overview" /></a>
+                    <input type="submit" value="Patch Changes" style="background-color: var(--c-success); float: right" />
+                    <input type="reset" value="Reset" style="background-color: var(--c-danger); float: right" />
+                </p>
             </form>
         </section>
         {% endif %}

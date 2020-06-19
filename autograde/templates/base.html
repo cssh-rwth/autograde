@@ -11,9 +11,10 @@
 	<meta name="author" content="Chair for Computational Social Sciences and Humanities at RWTH Aachen University">
     <title>autograde - {{ title }}</title>
     <style>
-        {{ css|indent|indent }}
+        {{ css|safe|indent|indent }}
 
         /* autograde specific */
+
         :root{
             --c-success: #8DC060;
             --c-warning: #FABE50;

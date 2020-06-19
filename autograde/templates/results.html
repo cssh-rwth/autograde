@@ -28,14 +28,14 @@
             <tr>
                 <td {% if not edit_mode %}style="background-color: {{ status_color(r) }}"{% endif %}><b>{{ loop.index }}</b></td>
                 <td>{{ hash(r.id) }}<br></td>
-                <td><i>"{{ r.label|e }}"</i></td>
+                <td><i>{{ r.label|e }}</i></td>
                 <td>
                     {{ r.target|join(', ') }}
                 </td>
                 <td style="text-align: right">
                     {% if edit_mode %}
                     <label>
-                        <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.1" value="{{ r.score }}">
+                        <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.1" value="{{ r.score }}" style="text-align: center; width: 5rem">
                     </label>
                     {% else %}
                     {{ r.score  }}
@@ -45,14 +45,14 @@
                 <td>
                     {% for m in r.messages %}
                     {% if m.startswith('data:image') %}
-                    <img src="{{ m }}" alt="{{ r.target }}" />
+                    <img src="{{ m }}" alt="{{ r.target }}" /><br />
                     {% else %}
-                    <p><i>"{{ m|e }}"</i></p>
+                    <blockquote><i>{{ m|e }}</i></blockquote>
                     {% endif %}
                     {% endfor %}
                     {% if edit_mode %}
                     <label>
-                        Comment: <br />
+                        Add a comment: <br />
                         <textarea name="comment:{{ r.id }}" style="width: 100%"></textarea>
                     </label>
                     {% endif %}
