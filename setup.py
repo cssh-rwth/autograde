@@ -19,10 +19,9 @@ with open(BASEDIR.joinpath('README.rst'), 'r') as f:
 
 PACKAGES = find_packages()
 
-INSTALL_REQUIRES = [
-    'dataclasses-json', 'ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'scipy', 'pandas',
-    'jinja2', 'flask'
-]
+with BASEDIR.joinpath('requirements.txt').open(mode='rt') as f:
+    INSTALL_REQUIRES = f.read().split('\n')
+
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
 
 ENTRY_POINTS = {}

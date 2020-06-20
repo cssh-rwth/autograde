@@ -1,0 +1,10 @@
+dataclasses-json
+numpy
+scipy
+pandas
+matplotlib
+seaborn
+ipykernel
+jupyter
+jinja2
+flask

@@ -10,6 +10,7 @@ import sys
 import json
 import math
 import base64
+import shutil
 import argparse
 import subprocess
 from pathlib import Path
@@ -18,6 +19,7 @@ from contextlib import ExitStack
 from itertools import combinations
 from difflib import SequenceMatcher
 from collections import OrderedDict
+from tempfile import TemporaryDirectory
 
 # Third party modules.
 import numpy as np
@@ -96,9 +98,22 @@ def build(args):
         logger.warning('no backend specified')
         return 1
 
-    cmd = [args.backend, 'build', '-t', CONTAINER_TAG, '.']
+    if args.requirements:
+        with Path(args.requirements).open(mode='rt') as f:
+            requirements = list(filter(lambda s: s, map(str.strip, f.read().split('\n'))))
+    else:
+        requirements = []
 
-    with cd(project_root()):
+    with TemporaryDirectory() as tmp:
+        shutil.copytree('.', tmp, dirs_exist_ok=True)
+
+        if requirements:
+            logger.info(f'add additional requirements: {requirements}')
+            with Path(tmp).joinpath('requirements.txt').open(mode='w') as f:
+                f.write('\n'.join(requirements))
+
+        cmd = [args.backend, 'build', '-t', args.tag, tmp]
+        logger.debug(' '.join(cmd))
         return subprocess.run(cmd, capture_output=args.quiet).returncode
 
 
@@ -446,7 +461,10 @@ def main(args=None):
 
     # build sub command
     bld_parser = subparsers.add_parser('build', help=build.__doc__)
+    bld_parser.add_argument('-t', '--tag', type=str, default=CONTAINER_TAG, help=f'container tag (default: "{CONTAINER_TAG}")')
+    bld_parser.add_argument('-r', '--requirements', type=Path, default=None, help='requirements to install')
     bld_parser.add_argument('-q', '--quiet', action='store_true', help='mute output')
+    bld_parser.set_defaults(func=build)
 
     # test sub command
     tst_parser = subparsers.add_parser('test', help=test.__doc__)
