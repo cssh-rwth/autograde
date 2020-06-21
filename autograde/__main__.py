@@ -284,13 +284,15 @@ def audit(args):
             mount = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
 
             results = load_patched(mount)
-            mounts[results.checksum] = mount
+            # include teammembers and summary in mounts
+            # summary allows to identify pending reports
+            mounts[results.checksum] = {'path' : mount, 'team_members': results.team_members, 'summary' : results.summary()}
 
             with mount.joinpath('code.py').open(mode='rt') as f:
                 sources[results.checksum] = f.read()
 
         patched = set()
-        next_ids = dict(zip(mounts, list(mounts)[1:]))
+        next_ids = dict(zip(mounts.keys(), list(mounts.keys())[1:]))
 
         # create actual flask application
         app = Flask('autograde - audit')
@@ -315,7 +317,11 @@ def audit(args):
         @app.route('/audit/<string:id>')
         def route_audit(id=None):
             logger.debug('route audit')
-            path = mounts.get(id)
+            tmp = mounts.get(id)
+            if tmp:
+                path = tmp['path']
+            else:
+                path = None
             return render('audit.html', title='audit', mounts=mounts, next_id=next_ids.get(id),
                           results=load_patched(path) if path else None, patched=patched)
 
@@ -323,7 +329,8 @@ def audit(args):
         def route_patch():
             logger.debug('route patch')
 
-            if (id := request.form.get('id')) and (mount := mounts.get(id)):
+            if (id := request.form.get('id')) and (tmp := mounts.get(id)):
+                mount = tmp['path']
                 scores = dict()
                 comments = dict()
                 results = load_patched(mount)
@@ -334,7 +341,8 @@ def audit(args):
                 # extract form data
                 for key, value in request.form.items():
                     if key.startswith('score:'):
-                        scores[key.split(':')[-1]] = math.nan if value == '' else float(value)
+                        new_value = math.nan if value == '' else float(value)
+                        scores[key.split(':')[-1]] = new_value
                     elif key.startswith('comment:'):
                         comments[key.split(':')[-1]] = value
 
@@ -354,6 +362,10 @@ def audit(args):
                 # flag results as patched
                 patched.add(id)
 
+                # patch pending display
+                results = load_patched(mount)
+                mounts.get(id)['summary'] = results.summary()
+
                 # update report if it exists
                 if path.joinpath('report.html').exists():
                     logger.debug(f'update report for {id}')
@@ -367,7 +379,7 @@ def audit(args):
         @app.route('/report/<string:id>')
         def route_report(id):
             logger.debug(f'route report {id}')
-            results = load_patched(mounts[id])
+            results = load_patched(mounts[id]['path'])
             return render('report.html', title='report (preview)', results=results, summary=results.summary())
 
         @app.route('/source/<string:id>')
@@ -379,7 +391,7 @@ def audit(args):
         @app.route('/summary', strict_slashes=False)
         def route_summary():
             logger.debug('route summary')
-            results = [load_patched(m) for m in mounts.values()]
+            results = [load_patched(m['path']) for m in mounts.values()]
             summary_df = compute_summary(results)
 
             plots = dict(

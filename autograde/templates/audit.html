@@ -1,16 +1,22 @@
 {% extends "results.html" %}
+{% macro get_lastnames(team_members) -%}
+{% for student in team_members %}
+{{ student.last_name }}
+{% endfor%}
+{%- endmacro %}
 {% block content %}
         <section style="justify-content: center">
             <section>
                 <article>
                     <h2>Overview</h2>
                     <ul>
-                        {% for h in mounts %}
+                        {% for h, content  in mounts.items() %}
                         <li>
-                            <a href="/audit/{{ h }}">{{ hash(h) }}</a> -
+                            <a href="/audit/{{ h }}">{{ hash(h) }} {{ get_lastnames(content.team_members)}}</a> -
                             <a href="/report/{{ h }}" target="_blank">Report Preview 🔗</a> -
                             <a href="/source/{{ h }}" target="_blank">Source Code 🔗</a>
-                            {% if h in patched %} (patched) {% endif %}
+                            {% if h.path in patched %} (patched) {% endif %}
+                            {% if content.summary.pending > 0 %}(pending){% endif %}
                         </li>
                         {% endfor %}
                     </ul>
@@ -20,7 +26,7 @@
         </section>
         {% if results %}
         <section>
-            <h2>Audit: {{ hash(results.checksum) }}</h2>
+            <h2>Audit: {{hash(results.checksum)}} {{ get_lastnames(results.team_members)}}</h2>
             <form action="/patch" method="POST" style="width: 100%; margin: 1em">
                 <input type="hidden" name="id" value="{{ results.checksum }}" />
                 {{ display_results(True)|indent|indent|indent }}

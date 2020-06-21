@@ -9,6 +9,34 @@
     {%- endif -%}
 {%- endmacro %}
 {% block content %}
+<section style="max-width: 481px">
+    <article>
+        <h2>Group</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Last Name</th>
+                    <th>First Name</th>
+                    <th>Student ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in results.team_members %}
+                <tr>
+                    <td>{{ student.last_name }}</td>
+                    <td>{{ student.first_name }}</td>
+                    <td><code>{{ student.student_id }}</code></td>
+                </tr>
+                {% endfor%}
+            </tbody>
+        </table>
+        <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!</p>
+    </article>
+</section>
+<section>
+    <h2>Test Results</h2>
+    {{ display_results(False)|indent|indent }}
+</section>
         <section style="justify-content: center">
             <section style="max-width: 481px">
                 <article>
@@ -46,30 +74,7 @@
                     </table>
                 </article>
             </section>
-            <section style="max-width: 481px">
-                <article>
-                    <h2>Group</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Last Name</th>
-                                <th>First Name</th>
-                                <th>Student ID</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for student in results.team_members %}
-                            <tr>
-                                <td>{{ student.last_name }}</td>
-                                <td>{{ student.first_name }}</td>
-                                <td><code>{{ student.student_id }}</code></td>
-                            </tr>
-                            {% endfor%}
-                        </tbody>
-                    </table>
-                    <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!</p>
-                </article>
-            </section>
+
             <section style="max-width: 481px">
                 <article>
                     <h2>Artifacts</h2>
@@ -97,8 +102,5 @@
                 </article>
             </section>
 		</section>
-        <section>
-            <h2>Test Results</h2>
-            {{ display_results(False)|indent|indent }}
-        </section>
+
 {% endblock %}
