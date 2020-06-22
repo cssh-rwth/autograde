@@ -26,19 +26,19 @@
                         <tbody>
                             <tr>
                                 <td><i>{{ results.title }}</i></td>
-                                <td><i>{{ results.timestamp }}</i></td>
+                                <td><code>{{ results.timestamp }}</code></td>
                                 <td></td>
                             </tr>
                             {% for ap in results.applied_patches %}
                             <tr>
                                 <td>{{ ap[0] }}</td>
-                                <td>{{ ap[1] }}</td>
+                                <td><code>{{ ap[1] }}</code></td>
                                 <td>
-                                    <ul>
+                                    <p>
                                         {% for h in ap[2] %}
-                                        <li>{{ hash(h) }}</li>
+                                        {{ hash(h) }}<br />
                                         {% endfor %}
-                                    </ul>
+                                    </p>
                                 </td>
                             </tr>
                             {% endfor%}
@@ -77,7 +77,7 @@
                     {% if results.artifacts %}
                     <ul>
                         {% for file in results.artifacts %}
-                        <li><code>artifacts/{{ file }}</code></li>
+                        <li><code>{{ file }}</code></li>
                         {% endfor %}
                     </ul>
                     {% else %}
@@ -88,7 +88,7 @@
                     {% if results.artifacts %}
                     <ul>
                         {% for file in results.excluded_artifacts %}
-                        <li><code>artifacts/{{ file }}</code></li>
+                        <li><code>{{ file }}</code></li>
                         {% endfor %}
                     </ul>
                     {% else %}
