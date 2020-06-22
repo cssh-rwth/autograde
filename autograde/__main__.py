@@ -389,6 +389,19 @@ def audit(args):
 
             return render('summary.html', title='summary', summary=summary_df, plots=plots)
 
+        @app.route('/stop')
+        def route_stop():
+            logger.debug('route stop')
+
+            if func := request.environ.get('werkzeug.server.shutdown'):
+                logger.debug('shutdown werkzeug server')
+                func()
+            else:
+                logger.debug('not running with werkzeug server')
+                return redirect('/audit')
+
+            return 'stop'
+
         app.run(host=args.bind, port=args.port)
 
 

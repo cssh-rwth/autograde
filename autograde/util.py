@@ -97,9 +97,10 @@ def mount_tar(path, mode='r'):
     assert '|' not in mode, 'streaming is not supported'
 
     with TemporaryDirectory() as tempdir:
-        logger.debug(f'mount {path} as {tempdir} in mode "{mode}"')
+        logger.debug(f'create mount point at {tempdir} in mode "{mode}"')
         try:
             if prefix in ['r', 'a']:
+                logger.debug(f'extract files from {path}')
                 with tarfile.open(path, mode='r'+mode[1:]) as tar:
                     tar.extractall(tempdir)
 
@@ -107,6 +108,7 @@ def mount_tar(path, mode='r'):
 
         finally:
             if prefix in ['w', 'a']:
+                logger.debug(f'write changes to {path}')
                 with tarfile.open(path, mode='w'+mode[1:]) as tar:
                     tar.add(tempdir, arcname='')
 
