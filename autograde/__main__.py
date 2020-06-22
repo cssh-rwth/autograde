@@ -151,14 +151,14 @@ def cmd_test(args):
                 *(('-c', str(path_cxt)) if path_cxt else ()),
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
-        elif args.backend == 'docker':
+        elif 'docker' in args.backend:
             cmd = [
                 args.backend, 'run',
                 '-v', f'{path_tst}:/autograde/test.py',
                 '-v', f'{path_nb_}:/autograde/notebook.ipynb',
                 '-v', f'{path_tgt}:/autograde/target',
                 *(('-v', f'{path_cxt}:/autograde/context:ro') if path_cxt else ()),
-                '-u', str(os.geteuid()),
+                *(('-u', str(os.geteuid())) if 'rootless' not in args.backend else ()),
                 CONTAINER_TAG,
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
@@ -177,6 +177,9 @@ def cmd_test(args):
 
         logger.info(f'test: {path_nb_}')
         logger.debug(' '.join(cmd))
+
+        if not args.backend:
+            return subprocess.call(' '.join(cmd), shell=True)
 
         return subprocess.run(cmd).returncode
 
@@ -462,7 +465,8 @@ def cli(args=None):
 
     # global flags
     parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
-    parser.add_argument('-e', '--backend', type=str, default=None, choices=['docker', 'podman'],
+    parser.add_argument('-e', '--backend', type=str, default=None,
+                        choices=['docker', 'rootless-docker', 'podman'],
                         metavar='', help='container backend to use, default is none')
     parser.set_defaults(func=version)
 
