@@ -489,12 +489,16 @@ class NotebookTest:
                     artifacts_excluded = []
                     for path in Path('.').glob('**/*'):
                         if path.is_file():
+                            delete_flag = False
                             with path.open(mode='rb') as f:
                                 if sha256(f.read()).hexdigest() in index:
                                     artifacts_excluded.append(str(path))
-                                    path.unlink()
+                                    delete_flag = True
                                 else:
                                     artifacts.append(str(path))
+
+                            if delete_flag:
+                                path.unlink()
 
                 # infer meta information
                 group = list(map(lambda m: TeamMember(**m), state.get('team_members', [])))
