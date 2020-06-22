@@ -7,7 +7,7 @@ __LABEL__ = None
 # If matplotlib is available on the test system, it's set to headless mode and all plots are stored
 # on disk rather than displayed.
 try:
-    print("use 'Agg' backend")
+    print("use 'Agg' backend for matplotlib")
     import matplotlib as mpl
     mpl.use('Agg')
 
@@ -41,7 +41,7 @@ try:
     plt.show = lambda *args, **kwargs: _dump_figure()
 
 except ImportError:
-    print("'matplotlib' not found")
+    pass
 
 
 dump_figure = globals().get('_dump_figure', lambda *args, **kwargs: None)

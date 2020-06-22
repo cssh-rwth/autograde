@@ -32,9 +32,9 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 
 # Local modules
 import autograde
-from autograde.util import logger, timestamp_utc_iso, loglevel, project_root, cd, mount_tar
 from autograde.static import CSS
 from autograde.notebook_test import Results
+from autograde.util import logger, timestamp_utc_iso, loglevel, cd, mount_tar
 
 # Globals and constants variables.
 CONTAINER_TAG = 'autograde'
@@ -47,10 +47,12 @@ JINJA_ENV = Environment(
 
 
 def b64str(data) -> str:
+    """Convert bytes like in base64 encoded utf-8 string"""
     return base64.b64encode(data).decode('utf-8')
 
 
 def list_results(path='.', prefix='results') -> List[Path]:
+    """List all results archives at given location"""
     path = Path(path).expanduser().absolute()
 
     if path.is_file():
@@ -59,7 +61,8 @@ def list_results(path='.', prefix='results') -> List[Path]:
     return list(path.rglob(f'{prefix}_*.tar.xz'))
 
 
-def inject_patch(results, path='.', prefix='results') -> Path:
+def inject_patch(results: Results, path='.', prefix: str = 'results') -> Path:
+    """Store results as patch in mounted results archive"""
     path = Path(path)
     patch_count = len(list(path.glob(f'{prefix}_patch*.json')))
     path = path.joinpath(f'{prefix}_patch_{patch_count+1}.json')
@@ -70,7 +73,8 @@ def inject_patch(results, path='.', prefix='results') -> Path:
     return path
 
 
-def load_patched(path='.', prefix='results') -> Results:
+def load_patched(path='.', prefix: str = 'results') -> Results:
+    """Load results and apply patches from mounted results archive"""
     path = Path(path)
 
     with path.joinpath(f'{prefix}.json').open(mode='rt') as f:
@@ -84,6 +88,7 @@ def load_patched(path='.', prefix='results') -> Results:
 
 
 def render(template, **kwargs):
+    """Render template with default values set"""
     return JINJA_ENV.get_template(template).render(
         autograde=autograde,
         css=CSS,
@@ -92,7 +97,7 @@ def render(template, **kwargs):
     )
 
 
-def build(args):
+def cmd_build(args):
     """Build autograde container image for specified backend"""
     if args.backend is None:
         logger.warning('no backend specified')
@@ -117,7 +122,7 @@ def build(args):
         return subprocess.run(cmd, capture_output=args.quiet).returncode
 
 
-def test(args):
+def cmd_test(args):
     """Run autograde test script on jupyter notebook(s)"""
     path_tst = Path(args.test).expanduser().absolute()
     path_nbk = Path(args.notebook).expanduser().absolute()
@@ -178,7 +183,7 @@ def test(args):
     return sum(map(run, notebooks))
 
 
-def patch(args):
+def cmd_patch(args):
     """Patch result archive(s) with results from a different run"""
     # load & index all patches
     patches = dict()
@@ -269,7 +274,7 @@ def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
         return buffer.getvalue()
 
 
-def audit(args):
+def cmd_audit(args):
     """Launch a web interface for manually auditing test results"""
     import logging
     from flask import Flask, redirect, request
@@ -308,21 +313,17 @@ def audit(args):
 
         @app.route('/')
         def route_root():
-            logger.debug('route index, re-direct')
             return redirect('/audit')
 
         @app.route('/audit', strict_slashes=False)
         @app.route('/audit/<string:id>')
         def route_audit(id=None):
-            logger.debug('route audit')
             path = mounts.get(id)
             return render('audit.html', title='audit', mounts=mounts, next_id=next_ids.get(id),
                           results=load_patched(path) if path else None, patched=patched)
 
         @app.route('/patch', methods=('POST',))
         def route_patch():
-            logger.debug('route patch')
-
             if (id := request.form.get('id')) and (mount := mounts.get(id)):
                 scores = dict()
                 comments = dict()
@@ -366,19 +367,16 @@ def audit(args):
 
         @app.route('/report/<string:id>')
         def route_report(id):
-            logger.debug(f'route report {id}')
             results = load_patched(mounts[id])
             return render('report.html', title='report (preview)', results=results, summary=results.summary())
 
         @app.route('/source/<string:id>')
         def route_source(id):
-            logger.debug(f'route source {id}')
             return render('source_view.html', title='source view', source=sources.get(id, 'None'),
                           id=id)
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
-            logger.debug('route summary')
             results = [load_patched(m) for m in mounts.values()]
             summary_df = compute_summary(results)
 
@@ -391,8 +389,6 @@ def audit(args):
 
         @app.route('/stop')
         def route_stop():
-            logger.debug('route stop')
-
             if func := request.environ.get('werkzeug.server.shutdown'):
                 logger.debug('shutdown werkzeug server')
                 func()
@@ -405,7 +401,7 @@ def audit(args):
         app.run(host=args.bind, port=args.port)
 
 
-def report(args):
+def cmd_report(args):
     """Inject a human readable report (standalone HTML) into result archive(s)"""
     for path in list_results(args.result):
         logger.info(f'render report for {path}')
@@ -417,8 +413,8 @@ def report(args):
     return 0
 
 
-def summary(args):
-    """Generate humand & machine readable summary of results"""
+def cmd_summary(args):
+    """Generate human & machine readable summary of results"""
     path = Path(args.result or Path.cwd()).expanduser().absolute()
     assert path.is_dir(), f'{path} is no regular directory'
 
@@ -453,11 +449,11 @@ def summary(args):
 
 def version(_):
     """Display version of autograde"""
-    print(f'autograde {autograde.__version__}')
+    print(f'autograde version {autograde.__version__}')
     return 0
 
 
-def main(args=None):
+def cli(args=None):
     parser = argparse.ArgumentParser(
         description=f'utility for grading jupyter notebooks',
         epilog=f'autograde on github: https://github.com/cssh-rwth/autograde',
@@ -467,48 +463,50 @@ def main(args=None):
     # global flags
     parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
     parser.add_argument('-e', '--backend', type=str, default=None, choices=['docker', 'podman'],
-                        metavar='', help='container backend to use')
+                        metavar='', help='container backend to use, default is none')
     parser.set_defaults(func=version)
 
     subparsers = parser.add_subparsers(help='sub command help')
 
     # build sub command
-    bld_parser = subparsers.add_parser('build', help=build.__doc__)
-    bld_parser.add_argument('-t', '--tag', type=str, default=CONTAINER_TAG, help=f'container tag (default: "{CONTAINER_TAG}")')
-    bld_parser.add_argument('-r', '--requirements', type=Path, default=None, help='requirements to install')
+    bld_parser = subparsers.add_parser('build', help=cmd_build.__doc__)
+    bld_parser.add_argument('-t', '--tag', type=str, default=CONTAINER_TAG,
+                            help=f'container tag, default: "{CONTAINER_TAG}"')
+    bld_parser.add_argument('-r', '--requirements', type=Path, default=None,
+                            help='additional requirements to install')
     bld_parser.add_argument('-q', '--quiet', action='store_true', help='mute output')
-    bld_parser.set_defaults(func=build)
+    bld_parser.set_defaults(func=cmd_build)
 
     # test sub command
-    tst_parser = subparsers.add_parser('test', help=test.__doc__)
+    tst_parser = subparsers.add_parser('test', help=cmd_test.__doc__)
     tst_parser.add_argument('test', type=str, help='autograde test script')
     tst_parser.add_argument('notebook', type=str, help='the jupyter notebook(s) to be tested')
     tst_parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
     tst_parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
-    tst_parser.set_defaults(func=test)
+    tst_parser.set_defaults(func=cmd_test)
 
     # patch sub command
-    ptc_parser = subparsers.add_parser('patch', help=patch.__doc__)
+    ptc_parser = subparsers.add_parser('patch', help=cmd_patch.__doc__)
     ptc_parser.add_argument('result', type=str, help='result archive(s) to be patched')
     ptc_parser.add_argument('patch', type=str, help='result archive(s) for patching')
-    ptc_parser.set_defaults(func=patch)
+    ptc_parser.set_defaults(func=cmd_patch)
 
     # audit sub command
-    adt_parser = subparsers.add_parser('audit', help=report.__doc__)
+    adt_parser = subparsers.add_parser('audit', help=cmd_audit.__doc__)
     adt_parser.add_argument('result', type=str, help='result archive(s) to audit')
     adt_parser.add_argument('-b', '--bind', type=str, default='127.0.0.1', help='host to bind to')
     adt_parser.add_argument('-p', '--port', type=int, default=5000, help='port')
-    adt_parser.set_defaults(func=audit)
+    adt_parser.set_defaults(func=cmd_audit)
 
     # report sub command
-    rpt_parser = subparsers.add_parser('report', help=report.__doc__)
+    rpt_parser = subparsers.add_parser('report', help=cmd_report.__doc__)
     rpt_parser.add_argument('result', type=str, help='result archive(s) for creating the report')
-    rpt_parser.set_defaults(func=report)
+    rpt_parser.set_defaults(func=cmd_report)
 
     # summary sub command
-    sum_parser = subparsers.add_parser('summary', help=summary.__doc__)
+    sum_parser = subparsers.add_parser('summary', help=cmd_summary.__doc__)
     sum_parser.add_argument('result', type=str, help='result archives to summarize')
-    sum_parser.set_defaults(func=summary)
+    sum_parser.set_defaults(func=cmd_summary)
 
     # version sub command
     vrs_parser = subparsers.add_parser('version', help=version.__doc__)
@@ -523,4 +521,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(cli())

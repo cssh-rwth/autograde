@@ -12,7 +12,7 @@ import pandas as pd
 # Local modules
 from autograde.util import project_root, cd
 from autograde.helpers import assert_isclose
-from autograde.__main__ import list_results, main
+from autograde.__main__ import list_results, cli
 
 # Globals and constants variables.
 PROJECT_ROOT = project_root()
@@ -28,8 +28,8 @@ class TestWorkflow(TestCase):
             os.mkdir('results_2')
 
             # run tests
-            main(['test', str(EXAMPLES.joinpath('test_1.py')), str(EXAMPLES), '-t', 'results_1'])
-            main(['test', str(EXAMPLES.joinpath('test_2.py')), str(EXAMPLES), '-t', 'results_2'])
+            cli(['test', str(EXAMPLES.joinpath('test_1.py')), str(EXAMPLES), '-t', 'results_1'])
+            cli(['test', str(EXAMPLES.joinpath('test_2.py')), str(EXAMPLES), '-t', 'results_2'])
 
             for path in list_results():
                 with tarfile.open(path, mode='r') as tar:
@@ -41,15 +41,15 @@ class TestWorkflow(TestCase):
                     ])
 
             # create reports for test 2 results
-            main(['report', 'results_2'])
+            cli(['report', 'results_2'])
 
             for path in list_results('results_2'):
                 with tarfile.open(path, mode='r') as tar:
                     self.assertTrue('report.html' in tar.getnames())
 
             # create test summaries
-            main(['summary', 'results_1'])
-            main(['summary', 'results_2'])
+            cli(['summary', 'results_1'])
+            cli(['summary', 'results_2'])
 
             summary_1 = pd.read_csv(Path('results_1', 'summary.csv'))
             summary_2 = pd.read_csv(Path('results_2', 'summary.csv'))
@@ -62,9 +62,9 @@ class TestWorkflow(TestCase):
             self.assertFalse(any(summary_2['multiple_submissions']))
 
             # patch test 1 results and re-compute report + summary
-            main(['patch', 'results_1', 'results_2'])
-            main(['report', 'results_1'])
-            main(['summary', 'results_1'])
+            cli(['patch', 'results_1', 'results_2'])
+            cli(['report', 'results_1'])
+            cli(['summary', 'results_1'])
 
             for path in list_results('results_1'):
                 with tarfile.open(path, mode='r') as tar:
@@ -77,7 +77,7 @@ class TestWorkflow(TestCase):
             self.assertFalse(any(summary_1['multiple_submissions']))
 
             # compute global summary
-            main(['summary', '.'])
+            cli(['summary', '.'])
 
             summary = pd.read_csv('summary.csv')
 

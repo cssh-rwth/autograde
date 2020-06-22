@@ -24,7 +24,9 @@ with BASEDIR.joinpath('requirements.txt').open(mode='rt') as f:
 
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
 
-ENTRY_POINTS = {}
+ENTRY_POINTS = {
+    'console_scripts': ['autograde=autograde.__main__:cli'],
+}
 
 setup(
     name='jupyter-autograde',
