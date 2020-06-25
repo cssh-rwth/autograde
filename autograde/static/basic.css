@@ -5,11 +5,13 @@
 :root{
     --sans: 1em/1.6 system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Droid Sans, Helvetica Neue, Fira Sans, sans-serif;
     --mono: 'Courier New', Courier, 'Ubuntu Mono', 'Liberation Mono', monospace;
-    --c1: #0074d9;
+    --c1: #17a2b8;
     --c2: #eee;
     --c3: #fff;
     --c4: #000;
     --c5: #fff;
+    --c6: #f7f7f7;
+    --c7: #e5e5e5;
     --m1: 8px;
     --rc: 8px;
 }
@@ -19,13 +21,18 @@
         --c2: #333;
         --c3: #1e1f20;
         --c4: #fff;
+        --c6: #282828;
+        --c7: #3d3d3d;
 	}
+    img {
+       -webkit-filter: invert(1);
+       filter: invert(1);
+   }
 }
 
 html {
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
-
 }
 
 /* General settings */
@@ -40,9 +47,27 @@ body {
     background-color: var(--c3);
     color: var(--c4);
 }
-img, iframe {border: none; max-width: 100%}
 
-a {color: var(--c1);  text-decoration:none}
+main,footer {
+    margin: 0 auto;
+    width: 90%;
+    text-align: left;
+    padding: 0 20px;
+}
+
+main {
+    min-height: 80vh;
+}
+
+img, iframe {
+    border: none;
+    max-width: 100%
+}
+
+a {
+    color: var(--c1);
+    text-decoration:none
+}
 
 a:hover {color: var(--c1); text-decoration: underline}
 
@@ -74,7 +99,7 @@ table {border-collapse: collapse; border-spacing: 0; margin:1em 0}
 
 th, td {text-align: left; vertical-align: top; border: 1px solid; padding: 0.4em}
 
-thead,tfoot {background: var(--c2)}
+thead,tfoot {background: var(--c7)}
 
 /* Rounded Corners*/
 
@@ -85,7 +110,7 @@ pre,code,input,select,textarea,button,img {border-radius: var(--rc)}
 
 input, select, textarea {font-size: 1em; color:var(--c4); background: var(--c2); border: 0; padding: 0.6em}
  
-button, input[type=submit], input[type=reset], input[type="button"] { -webkit-appearance: none; font-size: 1em; display: inline-block; color: var(--c5); background: var(--c1);  border: 0; margin: 4px;  padding: 0.6em; cursor: pointer; text-align: center}
+button, input[type=submit], input[type=reset], input[type="button"] { -webkit-appearance: none; font-size: 1em; display: inline-block; border: 0; margin: 4px;  padding: 0.6em; cursor: pointer; text-align: center}
 
 button:hover, button:focus, input:hover, textarea:hover, select:hover {opacity: 0.8}
 
@@ -93,10 +118,51 @@ button:hover, button:focus, input:hover, textarea:hover, select:hover {opacity: 
 
 section {display: flex; flex-flow: row wrap}
 
-[style*="--c:"], section>section, aside, article {flex:var(--c1); margin:var(--m1)}
+[style*="--c:"], section>section, aside, article {flex:var(--c,1); margin:var(--m1)}
 
 /* Cards */
 
-article {background: var(--c2); border-radius: var(--rc); padding: 1em; box-shadow: 0px 1px 0px rgba(0,0,0,0.3)}
+article {
+    background: var(--c2);
+    border-radius: var(--rc);
+    padding: 1em;
+    box-shadow: 0px 1px 0px rgba(0,0,0,0.3);
+    justify-content: left;
+    text-align: left;
+}
+
+section>section {
+    background-color: var(--c6);
+    padding: 15px;
+    align-items: center;
+    justify-content: center;
+}
 
 [style*="--c:"]:first-child, section>section:first-child, article:first-child {margin-left:0}
+
+/* Classes */
+
+.cls-neutral {
+    color: var(--c4);
+    background-color: var(--c7);
+}
+
+.cls-link {
+    color: #FFFFFF;
+    background-color: var(--c1);
+}
+
+.cls-success {
+    color: #FFFFFF;
+    background-color: #57AB27;
+}
+
+.cls-warning {
+    color: #000000;
+    background-color: #F6A800;
+}
+
+.cls-danger {
+    color: #FFFFFF;
+    background-color: #CC071E;
+}

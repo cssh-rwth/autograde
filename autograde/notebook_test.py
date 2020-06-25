@@ -204,6 +204,9 @@ class Results:
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: str = field(default_factory=timestamp_utc_iso)
 
+    def __iter__(self):
+        return iter(self.results)
+
     def patch(self, patch: Results) -> Results:
         """
         Create a copy of self and patch results of given results object into it. NOTE that pending

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% macro status_color(result) -%}
+{% macro status_class(result) -%}
     {%- if result.passed() -%}
-        var(--c-success)
+        cls-success
     {%- elif result.failed() -%}
-        var(--c-danger)
+        cls-danger
     {%- else -%}
-        var(--c-warning)
+        cls-warning
     {%- endif -%}
 {%- endmacro %}
-{% macro display_results(edit_mode) -%}
+{% macro display_results(results, edit_mode) -%}
     <table style="table-layout: auto; width: 100%">
         <thead>
             <tr>
@@ -24,9 +24,12 @@
             </tr>
         </thead>
         <tbody>
-            {% for r in results.results %}
+            {% for r in results %}
+            {% if settings is undefined or settings.select(r) %}
             <tr>
-                <td {% if not edit_mode %}style="background-color: {{ status_color(r) }}"{% endif %}><b>{{ loop.index }}</b></td>
+                <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c4)">
+                    <span class="{{ status_class(r) }}">{{ loop.index }}</span>
+                </td>
                 <td>{{ hash(r.id) }}<br></td>
                 <td><i>{{ r.label|e }}</i></td>
                 <td>
@@ -60,9 +63,10 @@
                 <td><pre>{{ r.stdout|e }}</pre></td>
                 <td><pre>{{ r.stderr|e }}</pre></td>
             </tr>
+            {% endif %}
             {% endfor%}
             {% if summary is defined %}
-            <tr style="background: var(--c2);">
+            <tr style="background-color: var(--c7)">
                 <td><b>{{ summary.tests }}</b></td>
                 <td></td>
                 <td></td>

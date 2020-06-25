@@ -30,15 +30,23 @@
         </section>
         <section style="justify-content: center">
             <section>
-                <article>
+                <article style="flex: none">
                     <h2>Score Distribution</h2>
+                    {% if plots.score_distribution %}
                     <img src="data:image/svg+xml;base64,{{ plots.score_distribution }}" alt="score distribution" />
+                    {% else %}
+                    <p>Not enough data available</p>
+                    {% endif %}
                 </article>
             </section>
             <section>
-                <article>
+                <article style="flex: none">
                     <h2>Code Similarities</h2>
+                    {% if plots.similarities %}
                     <img src="data:image/svg+xml;base64,{{ plots.similarities }}" alt="similarities" />
+                    {% else %}
+                    <p>Not enough data available</p>
+                    {% endif %}
                 </article>
             </section>
         </section>

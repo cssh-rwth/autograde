@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-        <section style="justify-content: center">
-            <section style="width: 100%">
-                <article>
-                    <h2>{{ hash(id) }}</h2>
-                    <pre>{{ source}}</pre>
+        <h2>Execution log: {{ hash(id) }}</h2>
+        <section>
+            <section>
+                <article style="flex: none; text-align: left">
+                    <pre style="width: 80em; max-width: 120em">{{ source|e }}
+                    </pre>
                 </article>
             </section>
         </section>

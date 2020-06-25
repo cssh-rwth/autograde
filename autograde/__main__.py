@@ -6,6 +6,7 @@ mpl.use('Agg')
 # Standard library modules.
 import io
 import os
+import re
 import sys
 import json
 import math
@@ -14,11 +15,12 @@ import shutil
 import argparse
 import subprocess
 from pathlib import Path
-from typing import List, Dict
+from copy import deepcopy
 from contextlib import ExitStack
 from itertools import combinations
 from difflib import SequenceMatcher
 from collections import OrderedDict
+from typing import List, Dict, Iterable
 from tempfile import TemporaryDirectory
 
 # Third party modules.
@@ -33,7 +35,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 # Local modules
 import autograde
 from autograde.static import CSS
-from autograde.notebook_test import Results
+from autograde.notebook_test import Result, Results
 from autograde.util import logger, timestamp_utc_iso, loglevel, cd, mount_tar
 
 # Globals and constants variables.
@@ -236,7 +238,7 @@ def compute_summary(results) -> pd.DataFrame:
 
 def plot_score_distribution(summary_df: pd.DataFrame):
     logger.debug('plot score distributions')
-    max_score = summary_df['max_score'].sum()
+    max_score = summary_df['max_score'].max()
 
     plt.clf()
     ax = plt.gca()
@@ -247,6 +249,7 @@ def plot_score_distribution(summary_df: pd.DataFrame):
         )
     except LinAlgError:
         logger.warning('unable to plot score distribution')
+
     ax.set_xlim(0, max_score)
     ax.set_xlabel('score')
     ax.set_ylabel('share')
@@ -277,6 +280,26 @@ def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
         return buffer.getvalue()
 
 
+class AuditSettings:
+    def __init__(self, **kwargs):
+        self.update(**kwargs)
+
+    def update(self, selector=None, auditor=None):
+        self.selector = re.compile(selector or '')
+        self.auditor = auditor or ''
+
+    def select(self, result: Result) -> bool:
+        return bool(self.selector.search(result.label))
+
+    def filter_results(self, results: Iterable[Result]) -> Iterable[Result]:
+        return filter(self.select, results)
+
+    def format_comment(self, comment):
+        if self.auditor:
+            return f'{self.auditor}: {comment.strip()}'
+        return comment.strip()
+
+
 def cmd_audit(args):
     """Launch a web interface for manually auditing test results"""
     import logging
@@ -285,20 +308,26 @@ def cmd_audit(args):
     from werkzeug.exceptions import HTTPException, InternalServerError
 
     with ExitStack() as exit_stack:
+        # settings
+        settings = AuditSettings()
+
         # mount & index all results
         mounts = OrderedDict()
         sources = dict()
+        results = dict()
         for path in list_results(args.result):
             mount = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
 
-            results = load_patched(mount)
-            mounts[results.checksum] = mount
+            r = load_patched(mount)
+            results[r.checksum] = r
+            mounts[r.checksum] = mount
 
             with mount.joinpath('code.py').open(mode='rt') as f:
-                sources[results.checksum] = f.read()
+                sources[r.checksum] = f.read()
 
         patched = set()
         next_ids = dict(zip(mounts, list(mounts)[1:]))
+        prev_ids = dict(((b, a) for a, b in next_ids.items()))
 
         # create actual flask application
         app = Flask('autograde - audit')
@@ -310,7 +339,7 @@ def cmd_audit(args):
 
         @app.errorhandler(Exception)
         def handle_error(error):
-            logger.warning(error)
+            logger.warning(type(error), error)
             error = error if isinstance(error, HTTPException) else InternalServerError()
             return render('error.html', title='Oooops', error=error), error.code
 
@@ -318,22 +347,27 @@ def cmd_audit(args):
         def route_root():
             return redirect('/audit')
 
+        @app.route('/settings', methods=('POST',))
+        def route_settings():
+            settings.update(**request.form)
+            return redirect(request.referrer)
+
         @app.route('/audit', strict_slashes=False)
         @app.route('/audit/<string:id>')
         def route_audit(id=None):
-            path = mounts.get(id)
-            return render('audit.html', title='audit', mounts=mounts, next_id=next_ids.get(id),
-                          results=load_patched(path) if path else None, patched=patched)
+            return render('audit.html', title='audit', settings=settings, results=results, id=id,
+                          prev_id=prev_ids.get(id), next_id=next_ids.get(id), patched=patched,
+                          mounts=mounts)
 
         @app.route('/patch', methods=('POST',))
         def route_patch():
             if (id := request.form.get('id')) and (mount := mounts.get(id)):
                 scores = dict()
                 comments = dict()
-                results = load_patched(mount)
+                r = deepcopy(results[id])
 
-                results.title = 'manual audit'
-                results.timestamp = timestamp_utc_iso()
+                r.title = 'manual audit'
+                r.timestamp = timestamp_utc_iso()
 
                 # extract form data
                 for key, value in request.form.items():
@@ -343,35 +377,35 @@ def cmd_audit(args):
                         comments[key.split(':')[-1]] = value
 
                 # update results
-                for result in results.results:
+                for result in r.results:
                     if not math.isclose((score := scores.get(result.id)), result.score):
                         logger.debug(f'update score of result {result.id[:8]}')
                         result.score = score
 
                     if comment := comments.get(result.id):
                         logger.debug(f'update messages of result {result.id[:8]}')
-                        result.messages.append(comment.strip())
+                        result.messages.append(settings.format_comment(comment))
 
-                # patch
-                inject_patch(results, mount)
-
-                # flag results as patched
+                # update state & persist patch
+                inject_patch(r, mount)
+                results[id] = results[id].patch(r)
                 patched.add(id)
 
                 # update report if it exists
                 if path.joinpath('report.html').exists():
                     logger.debug(f'update report for {id}')
-                    render('report.html', title='report', results=results, summary=results.summary())
+                    render('report.html', title='report', id=id, results=results,
+                           summary=results[id].summary())
 
                 if next_id := next_ids.get(id):
-                    return redirect(f'/audit/{next_id}')
+                    return redirect(f'/audit/{next_id}#edit')
 
             return redirect('/audit')
 
         @app.route('/report/<string:id>')
         def route_report(id):
-            results = load_patched(mounts[id])
-            return render('report.html', title='report (preview)', results=results, summary=results.summary())
+            return render('report.html', title='report (preview)', id=id, results=results,
+                          summary=results[id].summary())
 
         @app.route('/source/<string:id>')
         def route_source(id):
@@ -380,12 +414,10 @@ def cmd_audit(args):
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
-            results = [load_patched(m) for m in mounts.values()]
-            summary_df = compute_summary(results)
-
+            summary_df = compute_summary(results.values())
             plots = dict(
-                score_distribution=b64str(plot_score_distribution(summary_df)),
-                similarities=b64str(plot_fraud_matrix(sources))
+                score_distribution=b64str(plot_score_distribution(summary_df)) if len(summary_df) > 2 else None,
+                similarities=b64str(plot_fraud_matrix(sources)) if len(summary_df) > 1 else None
             )
 
             return render('summary.html', title='summary', summary=summary_df, plots=plots)
@@ -399,7 +431,7 @@ def cmd_audit(args):
                 logger.debug('not running with werkzeug server')
                 return redirect('/audit')
 
-            return 'stop'
+            return render('message.html', title='stop server', message='ciao kakao :)')
 
         app.run(host=args.bind, port=args.port)
 
@@ -411,7 +443,8 @@ def cmd_report(args):
         with mount_tar(path, mode='a') as tar, cd(tar):
             results = load_patched()
             with open('report.html', mode='wt') as f:
-                f.write(render('report.html', title='report', results=results, summary=results.summary()))
+                f.write(render('report.html', title='report', id=results.checksum,
+                               results={results.checksum: results}, summary=results.summary()))
 
     return 0
 

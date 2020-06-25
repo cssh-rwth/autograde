@@ -10,10 +10,43 @@
 {%- endmacro %}
 {% block content %}
         <section style="justify-content: center">
-            <section style="max-width: 481px">
+            <section>
+                <article style="flex: none">
+                    <h2>Group</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Student ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in results[id].team_members %}
+                            <tr>
+                                <td>{{ student.last_name }}</td>
+                                <td>{{ student.first_name }}</td>
+                                <td><code>{{ student.student_id }}</code></td>
+                            </tr>
+                            {% endfor%}
+                        </tbody>
+                    </table>
+                    <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!</p>
+                </article>
+            </section>
+		</section>
+        <h2>Test Results</h2>
+        <section>
+            <section>
+                {{ display_results(results[id], False)|indent|indent|indent }}
+            </section>
+        </section>
+        <h2>Meta</h2>
+        <section style="justify-content: center">
+            <section>
                 <article>
                     <h2>Report</h2>
-                    <p>All test results are based on the <i>jupyter</i> notebook with checksum: {{ hash(results.checksum) }} (unsalted sha256).</p>
+                    <p>All test results are based on the <i>jupyter</i> notebook with checksum: {{ hash(results[id].checksum) }} (unsalted sha256).</p>
                     <p>The following results have been merged for this report:</p>
                     <table>
                         <thead>
@@ -25,11 +58,11 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><i>{{ results.title }}</i></td>
-                                <td><code>{{ results.timestamp }}</code></td>
+                                <td><i>{{ results[id].title }}</i></td>
+                                <td><code>{{ results[id].timestamp }}</code></td>
                                 <td></td>
                             </tr>
-                            {% for ap in results.applied_patches %}
+                            {% for ap in results[id].applied_patches %}
                             <tr>
                                 <td>{{ ap[0] }}</td>
                                 <td><code>{{ ap[1] }}</code></td>
@@ -46,37 +79,13 @@
                     </table>
                 </article>
             </section>
-            <section style="max-width: 481px">
-                <article>
-                    <h2>Group</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Last Name</th>
-                                <th>First Name</th>
-                                <th>Student ID</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for student in results.team_members %}
-                            <tr>
-                                <td>{{ student.last_name }}</td>
-                                <td>{{ student.first_name }}</td>
-                                <td><code>{{ student.student_id }}</code></td>
-                            </tr>
-                            {% endfor%}
-                        </tbody>
-                    </table>
-                    <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!</p>
-                </article>
-            </section>
-            <section style="max-width: 481px">
+            <section>
                 <article>
                     <h2>Artifacts</h2>
                     <p>While the jupyter notebook is executed, <i>autograde</i> watches the current working directory for files being created or modified:</p>
-                    {% if results.artifacts %}
+                    {% if results[id].artifacts %}
                     <ul>
-                        {% for file in results.artifacts %}
+                        {% for file in results[id].artifacts %}
                         <li><code>{{ file }}</code></li>
                         {% endfor %}
                     </ul>
@@ -85,9 +94,9 @@
                     {% endif %}
                     <p>All files listed above can be found in the <code>/artifacts</code> directory of your results archive.</p>
                     <p>The following files have been excluded from results as they haven't changed during execution:</p>
-                    {% if results.artifacts %}
+                    {% if results[id].artifacts %}
                     <ul>
-                        {% for file in results.excluded_artifacts %}
+                        {% for file in results[id].excluded_artifacts %}
                         <li><code>{{ file }}</code></li>
                         {% endfor %}
                     </ul>
@@ -97,8 +106,4 @@
                 </article>
             </section>
 		</section>
-        <section>
-            <h2>Test Results</h2>
-            {{ display_results(False)|indent|indent }}
-        </section>
 {% endblock %}

@@ -12,42 +12,6 @@
     <title>autograde - {{ title }}</title>
     <style>
         {{ css|safe|indent|indent }}
-
-        /* autograde specific */
-
-        :root{
-            --c1: #17a2b8;
-            --c-success: #8DC060;
-            --c-warning: #FABE50;
-            --c-danger: #D85C41;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --c-success: #57AB27;
-                --c-warning: #F6A800;
-                --c-danger: #CC071E;
-             }
-
-            img {
-               -webkit-filter: invert(1);
-               filter: invert(1);
-           }
-        }
-
-        main,footer {
-			margin: 0 auto;
-			width: 90%;
-			text-align: left;
-			padding: 0 20px;
-		}
-
-		section>section {
-			padding: 15px;
-			margin: 10px 8px 10px 8px;
-            align-items: center;
-            justify-content: center;
-		}
 	</style>
     {% endblock %}
 </head>

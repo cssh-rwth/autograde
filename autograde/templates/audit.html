@@ -1,36 +1,62 @@
 {% extends "results.html" %}
 {% block content %}
-        <section style="justify-content: center">
+        <h2 id="controlls">Controlls</h2>
+        <section>
             <section>
-                <article>
-                    <h2>Results</h2>
-                    <ul>
-                        {% for h in mounts %}
-                        <li>
-                            <a href="/audit/{{ h }}">{{ hash(h) }}</a> -
-                            <a href="/report/{{ h }}" target="_blank">Report Preview 🔗</a> -
-                            <a href="/source/{{ h }}" target="_blank">Source Code 🔗</a>
-                            {% if h in patched %} (patched) {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    <a href="/stop"><input type="button" value="Stop" style="float: left; background-color: #CC071E" /></a>
-                    <a href="/summary" target="_blank"><input type="button" value="Summary" style="float: right" /></a>
-                </article>
+                <form action="/settings" method="POST" style="width: 100%">
+                    <span title="regular expression for filtering results by label">
+                        <label style="float: left">
+                            Selector:
+                            <input type="text" name="selector" min="0" value="{{ settings.selector.pattern }}">
+                        </label>
+                    </span>
+                    <span title="name of the auditor (is added to patches!)">
+                        <label style="float: left; margin-left: 1em">
+                            Who's auditing?
+                            <input type="text" name="auditor" min="0" value="{{ settings.auditor }}">
+                        </label>
+                    </span>
+                    <input type="submit" value="Apply" style="float: right" class="cls-success"/>
+                </form>
+            </section>
+            <section>
+                <p style="width: 100%">
+                    <a href="/summary" target="_blank"><button class="cls-link" style="float: right">Summary</button></a>
+                    <a href="/stop"><button class="cls-danger" style="float: right">Stop</button></a>
+                </p>
             </section>
         </section>
-        {% if results %}
+        <h2 id="overview">Results</h2>
         <section>
-            <h2>Audit: {{ hash(results.checksum) }}</h2>
-            <form action="/patch" method="POST" style="width: 100%; margin: 1em">
-                <input type="hidden" name="id" value="{{ results.checksum }}" />
-                {{ display_results(True)|indent|indent|indent }}
-                <p>
-                    <a href="/audit"><input type="button" value="Overview" /></a>
-                    <input type="submit" value="Patch Changes" style="float: right" />
-                    <input type="reset" value="Reset" style="background-color: #CC071E; float: right" />
-                </p>
-            </form>
+            <section>
+                {% for h in mounts %}
+                <article style="flex: none; min-width: 16em">
+                    <h3>{{ hash(h) }} {% if h in patched %}✔{% endif %}</h3>
+                    <a href="/audit/{{ h }}#edit"><button class="{% if results[h].summary().pending %}cls-warning{% else %}cls-neutral{% endif %}">edit</button></a>
+                    <a href="/report/{{ h }}" target="_blank"><button class="cls-neutral">preview</button></a>
+                    <a href="/source/{{ h }}" target="_blank"><button class="cls-neutral">code</button></a>
+                </article>
+                {% endfor %}
+            </section>
+        </section>
+        {% if id in results %}
+        <h2 id="edit">Edit: {{ hash(results[id].checksum) }}</h2>
+        <section>
+            <section>
+                <form action="/patch" method="POST" style="width: 100%; margin: 1em">
+                    <input type="hidden" name="id" value="{{ id }}" />
+                    {{ display_results(results[id], True)|indent|indent|indent }}
+                    {% if prev_id %}
+                    <a href="/audit/{{ prev_id }}#edit"><input type="button" value="<< prev" class="cls-link" style="float: left"/></a>
+                    {% endif %}
+                    <a href="/audit/#overview"><input type="button" value="Overview" class="cls-link" style="float: left" /></a>
+                    {% if next_id %}
+                    <a href="/audit/{{ next_id }}#edit"><input type="button" value="next >>" class="cls-link" style="float: left" /></a>
+                    {% endif %}
+                    <input type="submit" value="Patch & Next" style="float: right" class="cls-warning"/>
+                    <input type="reset" value="Reset" style="float: right" class="cls-danger"/>
+                </form>
+            </section>
         </section>
         {% endif %}
 {% endblock %}
