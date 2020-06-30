@@ -118,11 +118,11 @@ def cmd_build(args):
         if requirements:
             logger.info(f'add additional requirements: {requirements}')
             with Path(tmp).joinpath('requirements.txt').open(mode='w') as f:
-                logger.debug('add additional requirements:', ' '.join(requirements))
+                logger.debug('add additional requirements: ' + ' '.join(requirements))
                 f.write('\n'.join(requirements))
 
         cmd = [args.backend, 'build', '-t', args.tag, tmp]
-        logger.debug('run:', ' '.join(cmd))
+        logger.debug('run: ' + ' '.join(cmd))
         return subprocess.run(cmd, capture_output=args.quiet).returncode
 
 
@@ -180,7 +180,7 @@ def cmd_test(args):
             raise ValueError(f'unknown backend: {args.backend}')
 
         logger.info(f'test: {path_nb_}')
-        logger.debug('run',  ' '.join(cmd))
+        logger.debug('run' +  ' '.join(cmd))
 
         if not args.backend:
             return subprocess.call(' '.join(cmd), shell=True)
