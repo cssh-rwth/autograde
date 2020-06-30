@@ -121,7 +121,13 @@ def cmd_build(args):
                 logger.debug('add additional requirements: ' + ' '.join(requirements))
                 f.write('\n'.join(requirements))
 
-        cmd = [args.backend, 'build', '-t', args.tag, tmp]
+        if 'docker' in args.backend:
+            cmd = ['docker', 'build', '-t', args.tag, tmp]
+        elif args.backend == 'podman':
+            cmd = ['podman', 'build', '-t', args.tag, '--cgroup-manager=cgroupfs', tmp]
+        else:
+            raise ValueError(f'unknown backend: {args.backend}')
+
         logger.debug('run: ' + ' '.join(cmd))
         return subprocess.run(cmd, capture_output=args.quiet).returncode
 
