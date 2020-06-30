@@ -377,25 +377,32 @@ def cmd_audit(args):
                         comments[key.split(':')[-1]] = value
 
                 # update results
+                modification_flag = False
                 for result in r.results:
                     if not math.isclose((score := scores.get(result.id)), result.score):
                         logger.debug(f'update score of result {result.id[:8]}')
                         result.score = score
+                        modification_flag = True
 
                     if comment := comments.get(result.id):
                         logger.debug(f'update messages of result {result.id[:8]}')
                         result.messages.append(settings.format_comment(comment))
+                        modification_flag = True
 
-                # update state & persist patch
-                inject_patch(r, mount)
-                results[id] = results[id].patch(r)
-                patched.add(id)
+                # patch results back
+                if modification_flag:
+                    # update state & persist patch
+                    inject_patch(r, mount)
+                    results[id] = results[id].patch(r)
+                    patched.add(id)
 
-                # update report if it exists
-                if path.joinpath('report.html').exists():
-                    logger.debug(f'update report for {id}')
-                    render('report.html', title='report', id=id, results=results,
-                           summary=results[id].summary())
+                    # update report if it exists
+                    if path.joinpath('report.html').exists():
+                        logger.debug(f'update report for {id}')
+                        render('report.html', title='report', id=id, results=results,
+                               summary=results[id].summary())
+                else:
+                    logger.debug('no modifications were made')
 
                 if next_id := next_ids.get(id):
                     return redirect(f'/audit/{next_id}#edit')
