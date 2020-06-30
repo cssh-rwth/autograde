@@ -9,7 +9,7 @@ RUN mkdir src && mkdir target && mkdir context
 
 # load src & install
 ADD ./requirements.txt requirements.txt
-RUN pip install --user -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY . src
 RUN pip install -e src
