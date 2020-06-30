@@ -200,7 +200,7 @@ class Results:
     artifacts: List[str]
     excluded_artifacts: List[str]
     results: List[Result]
-    applied_patches: List[Tuple[str, str, List[int]]] = field(default_factory=lambda: [])
+    applied_patches: List[Tuple[str, str, List[str]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: str = field(default_factory=timestamp_utc_iso)
 
