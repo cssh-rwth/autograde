@@ -38,7 +38,7 @@
                 <td style="text-align: right">
                     {% if edit_mode %}
                     <label>
-                        <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.1" value="{{ r.score }}" style="text-align: center; width: 5rem">
+                        <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.05" value="{{ r.score }}" style="text-align: center; width: 5rem">
                     </label>
                     {% else %}
                     {{ r.score  }}
