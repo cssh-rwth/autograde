@@ -2,16 +2,18 @@
 import io
 import sys
 import time
-import tarfile
+import string
 from pathlib import Path
 from unittest import TestCase
+from collections import Counter
+from itertools import combinations
 from tempfile import TemporaryDirectory
 
 # Third party modules.
 
 # Local modules
-from autograde.util import loglevel, project_root, snake_case, camel_case, capture_output, cd, \
-    mount_tar, timeout
+from autograde.util import loglevel, project_root, snake_case, camel_case, \
+    prune_join, capture_output, cd, mount_tar, timeout
 
 # Globals and constants variables.
 
@@ -29,14 +31,34 @@ class TestUtil(TestCase):
         self.assertEqual(project_root(), Path(__file__).parent.parent)
 
     def test_snake_case(self):
+        self.assertEqual('', snake_case(''))
         self.assertEqual('foo_bar', snake_case('fOO+BaR'))
         self.assertEqual('fnord_foo42_bar', snake_case('FnORD&FOo42=bar'))
         self.assertEqual('hein_blöd', snake_case(' hein blöd'))
 
     def test_camel_case(self):
+        self.assertEqual('', camel_case(''))
         self.assertEqual('FooBar', camel_case('fOO+BaR'))
         self.assertEqual('FnordFoo42Bar', camel_case('FnORD&FOo42=bar'))
         self.assertEqual('HeinBlöd', camel_case(' hein blöd'))
+
+    def test_prune_join(self):
+        dictionary = [string.ascii_uppercase[i-1] * i for i in range(1, 9)]
+
+        for words in combinations(dictionary, 3):
+            for mw in range(15):
+                if mw < 11:
+                    with self.assertRaises(ValueError):
+                        prune_join(words, max_width=mw)
+                else:
+                    joined = prune_join(words, max_width=mw)
+                    self.assertLessEqual(len(joined), mw)
+
+                    counts = Counter(joined)
+                    self.assertEqual(2, counts[','])
+
+                    for word in words:
+                        self.assertIn(word[0], counts)
 
     def test_capture_output(self):
         stdout = sys.stdout

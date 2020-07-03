@@ -2,12 +2,14 @@
 import os
 import re
 import sys
+import math
 import pytz
 import time
 import logging
 import tarfile
 import datetime
 from pathlib import Path
+from typing import Iterable, Union
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 
@@ -45,12 +47,39 @@ def project_root():
     return Path(autograde.__file__).parent.parent
 
 
+def _alpha_numeric_split(s):
+    for w in ALPHA_NUMERIC.split(s.strip()):
+        if w:
+            yield w
+
+
 def snake_case(s):
-    return '_'.join(map(str.lower, ALPHA_NUMERIC.split(s.strip())))
+    return '_'.join(map(str.lower,_alpha_numeric_split(s)))
 
 
 def camel_case(s):
-    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in ALPHA_NUMERIC.split(s.strip()))
+    if not s:
+        return ''
+    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in _alpha_numeric_split(s))
+
+
+def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int, float] = float('inf')):
+    """
+    Join strings by given separator. Optionally, the strings are pruned in order
+    make the resulting string matching the maximum width criteria.
+    """
+    words = list(words)
+    max_words_width = max_width - (len(words) - 1) * len(separator)
+
+    if max_words_width < len(words) * 3:
+        raise ValueError(f'cannot fit given words into a string of width {max_width}')
+
+    if not math.isinf(max_width):
+        for _ in range(int(sum(map(len, words)) - max_words_width)):
+            idx = words.index(max(words, key=len))
+            words[idx] = f'{words[idx][:-3]}..'
+
+    return separator.join(words)
 
 
 @contextmanager

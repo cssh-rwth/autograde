@@ -24,7 +24,7 @@ from typing import Dict, List, Tuple, Union, Iterable
 import autograde
 from autograde.helpers import import_filter
 from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
-    capture_output, cd, mount_tar, timeout
+    prune_join, capture_output, cd, mount_tar, timeout
 from autograde.notebook_executor import exec_notebook
 
 # Globals and constants variables.
@@ -77,6 +77,10 @@ class Results:
 
     def __iter__(self):
         return iter(self.results)
+
+    def format_members(self, *args, **kwargs):
+        last_names = sorted((m.last_name for m in self.team_members))
+        return prune_join(map(camel_case, last_names), *args, **kwargs)
 
     def patch(self, patch: Results) -> Results:
         """
@@ -401,7 +405,7 @@ class NotebookTest:
                     json.dump(results.to_dict(), fp=f, indent=4)
 
                 # infer new, more readable name
-                names = ','.join(map(camel_case, sorted(m.last_name for m in group)))
+                names = results.format_members(separator=',')
                 archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.tar.xz')
 
             if archive_name_new.exists():
