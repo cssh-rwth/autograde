@@ -568,6 +568,7 @@ def cli(args=None):
     args = parser.parse_args(args)
 
     logger.setLevel(loglevel(args.verbose))
+    logger.debug(f'default encoding: {sys.getdefaultencoding()}')
     logger.debug(f'args: {args}')
 
     return args.func(args)
