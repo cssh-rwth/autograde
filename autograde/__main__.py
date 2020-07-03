@@ -387,7 +387,8 @@ def cmd_audit(args):
                 # update results
                 modification_flag = False
                 for result in r.results:
-                    if not math.isclose((score := scores.get(result.id)), result.score):
+                    score = scores.get(result.id)
+                    if score is not None and not math.isclose(score, result.score):
                         logger.debug(f'update score of result {result.id[:8]}')
                         result.score = score
                         modification_flag = True
