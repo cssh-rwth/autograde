@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Standard library modules.
 import sys
+import inspect
 
 # Third party modules.
 
@@ -61,6 +62,12 @@ def test_sleep_1(sleep):
 @nbt.register(target='sleep', label='test local timeout', score=1, timeout_=.06)
 def test_sleep_2(sleep):
     sleep(.08)
+
+
+# this test will succeed
+@nbt.register(target='foo', label='inspect source')
+def test_inspect_source(foo):
+    print(inspect.getsource(foo))
 
 
 # Sometimes, the textual cells of a notebook are also of interest and should be included into the

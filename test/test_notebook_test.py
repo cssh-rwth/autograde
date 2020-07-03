@@ -19,8 +19,8 @@ from tempfile import TemporaryDirectory
 import autograde
 from autograde.util import project_root, cd
 from autograde.helpers import assert_iter_eqal
-from autograde.notebook_test import as_py_comment, ArtifactLoader, exec_notebook, Result, Results, \
-    NotebookTestCase, NotebookTest
+from autograde.notebook_test import Result, Results, NotebookTestCase, \
+    NotebookTest
 
 # Globals and constants variables.
 PROJECT_ROOT = project_root()
@@ -31,67 +31,6 @@ def float_equal(a, b):
 
 
 assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)
-
-
-class TestArtifactLoader(TestCase):
-    def test_default(self):
-        with TemporaryDirectory() as temp, cd(temp):
-            os.mkdir('artifacts')
-
-            with Path('artifacts').joinpath('foo').open(mode='wb') as f:
-                f.write(b'FOO')
-
-            loader = ArtifactLoader()
-
-            self.assertEqual(b'FOO', loader['foo'])
-            with self.assertRaises(FileNotFoundError):
-                _ = loader['bar']
-
-    def test_custom_root(self):
-        with TemporaryDirectory() as temp, cd(temp):
-            os.mkdir('root')
-
-            with Path('root').joinpath('foo').open(mode='wb') as f:
-                f.write(b'FOO')
-
-            loader = ArtifactLoader('root')
-
-            self.assertEqual(b'FOO', loader['foo'])
-            with self.assertRaises(FileNotFoundError):
-                _ = loader['bar']
-
-
-class TestFunctions(TestCase):
-    def test_as_py_comment(self):
-        self.assertEqual('', as_py_comment(''))
-        self.assertEqual('# foo', as_py_comment('foo'))
-        self.assertEqual('# foo\n# bar', as_py_comment('foo\nbar'))
-
-    def test_exec_notebook(self):
-        nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
-        with open(nb_path, mode='rt') as f:
-            nb = f.read()
-
-        with TemporaryDirectory() as path, cd(path):
-            # forward errors raised in notebook
-            with self.assertRaises(FileNotFoundError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    exec_notebook(nb_buffer, file=stdout)
-
-            # cell timeout
-            with self.assertRaises(TimeoutError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    exec_notebook(nb_buffer, file=stdout, cell_timeout=0.05)
-
-            # ignore errors
-            with io.StringIO(nb) as nb_buffer, io.StringIO() as stdout:
-                state = exec_notebook(nb_buffer, file=stdout, ignore_errors=True)
-                stdout = stdout.getvalue()
-
-        self.assertIn('__IB_FLAG__', state)
-        self.assertIn('__IA_FLAG__', state)
-        self.assertEqual(state.get('SOME_CONSTANT'), 42)
-        self.assertIn('this goes to stdout', stdout)
 
 
 class TestResult(TestCase):
@@ -357,7 +296,7 @@ class TestNotebookTest(TestCase):
 
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
-        assert_floats_equal(astuple(results.summary()), (13, 5, 5, 3, math.nan, 19))
+        assert_floats_equal(astuple(results.summary()), (14, 5, 6, 3, math.nan, 20))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')

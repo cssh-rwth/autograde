@@ -4,14 +4,11 @@ from __future__ import annotations
 import io
 import os
 import re
-import sys
 import json
 import math
 import base64
 import shutil
 import argparse
-import warnings
-import traceback
 from pathlib import Path
 from copy import deepcopy
 from hashlib import sha256
@@ -19,145 +16,19 @@ from contextlib import ExitStack
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
-from typing import Dict, List, Tuple, Union, Iterable, TextIO
+from typing import Dict, List, Tuple, Union, Iterable
 
 # Third party modules.
-from nbformat import read
-from IPython.core.interactiveshell import InteractiveShell
 
 # Local modules
 import autograde
 from autograde.helpers import import_filter
-from autograde.static import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, capture_output, cd, \
-    mount_tar, timeout
+from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
+    capture_output, cd, mount_tar, timeout
+from autograde.notebook_executor import exec_notebook
 
 # Globals and constants variables.
 T_TARGET = Union[str, Iterable[str]]
-
-
-def as_py_comment(s):
-    if not s:
-        return ''
-    return '\n'.join(f'# {l}' for l in s.strip().split('\n'))
-
-
-class ArtifactLoader:
-    def __init__(self, root='artifacts'):
-        self._root = Path(root)
-
-    def __getitem__(self, path) -> bytes:
-        with self._root.joinpath(path).open(mode='rb') as f:
-            return f.read()
-
-
-def exec_notebook(buffer, file: TextIO = sys.stdout, ignore_errors: bool = False, cell_timeout: float = 0.,
-                  variables: Dict = None):
-    """
-    Extract source code from jupyter notebook and execute it.
-
-    :param buffer: file like with notebook data
-    :param file: where to send stdout
-    :param ignore_errors: whether or not errors will be forwarded or ignored
-    :param cell_timeout: timeout for cell execution 0=∞
-    :param variables: variables to be inserted into initial state
-    :return: the state mutated by executed code
-    """
-    state = dict()
-    variables = variables or {}
-    state.update(deepcopy(variables))
-
-    try:
-        logger.debug('parse notebook')
-
-        # when executed within a docker container, some minor warnings occur that we filter here
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-
-            notebook = read(buffer, 4)
-            shell = InteractiveShell.instance()
-
-        # extract comment cells
-        md_cells = [c.source for c in filter(lambda c: c.cell_type == 'markdown', notebook.cells)]
-
-        # prepare code cells for execution
-        def _code_cells():
-            yield 'injected: setup', INJECT_BEFORE, 0
-
-            for i, cell in enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells)):
-                # render code
-                source = shell.input_transformer_manager.transform_cell(cell.source)
-                yield (
-                    f'code cell {i+1}',
-                    f'{source.strip()}\n\n# injected by test\ndump_figure()',
-                    cell_timeout
-                )
-
-            yield 'injected: teardown', INJECT_AFTER, 0
-
-        code_cells = list(_code_cells())
-
-    except Exception as error:
-        logger.error(f'unable to parse notebook: {error}')
-        raise ValueError(error)
-
-    # prepare import filter
-    if_regex, if_blacklist = variables.get('IMPORT_FILTER', (None, None))
-
-    # the log is supposed to be a valid, standalone python script
-    print('#!/usr/bin/env python3', file=file)
-
-    # actual code execution
-    for i, (label, code, timeout_) in enumerate(code_cells, start=1):
-        state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
-
-        with io.StringIO() as stdout, io.StringIO() as stderr:
-            logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
-
-            try:
-                with capture_output(stdout, stderr):
-                    # actual execution that extends state
-                    with ExitStack() as es:
-                        if if_regex is not None and i > 1:
-                            es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                        es.enter_context(timeout(timeout_))
-
-                        exec(code, state)
-
-            except Exception as error:
-                # extend log with some meaningful error message
-                traceback.print_exception(type(error), error, error.__traceback__, file=stderr)
-
-                if not ignore_errors:
-                    raise error
-
-            finally:
-                # log code and output
-                with capture_output(file):
-                    _label = f' CODE CELL {label} '
-                    print(f'# {_label:-^78}')
-                    print(str(code).strip())
-
-                    stdout_s = stdout.getvalue()
-                    if stdout_s:
-                        print(f'\n# STDOUT')
-                        print(as_py_comment(stdout_s))
-
-                    stderr_s = stderr.getvalue()
-                    if stderr_s:
-                        print(f'\n# STDERR')
-                        print(as_py_comment(stderr_s))
-
-                    print('\n')
-
-    # add markdown comments to state
-    state['__COMMENTS__'] = md_cells
-
-    # add artifact loader
-    state['__ARTIFACTS__'] = ArtifactLoader()
-
-    logger.debug('execution completed')
-    return state
 
 
 @dataclass_json
@@ -453,7 +324,10 @@ class NotebookTest:
                 logger.debug(f'remove existing {archive}')
                 archive.unlink()
 
-            with mount_tar(archive, mode='w:xz') as tar, cd(tar):
+            with ExitStack() as exec_test_stack:
+                tar = exec_test_stack.enter_context(mount_tar(archive, mode='w:xz'))
+                exec_test_stack.enter_context(cd(tar))
+
                 # store copy of notebook
                 logger.debug('dump copy of original notebook')
                 with open(f'notebook.ipynb', mode='wb') as f:
@@ -476,13 +350,13 @@ class NotebookTest:
                     # actual notebook execution
                     try:
                         logger.debug('execute notebook')
-                        state = exec_notebook(
+                        state = exec_test_stack.enter_context(exec_notebook(
                             io.StringIO(nb_data.decode('utf-8')),
                             file=c,
                             ignore_errors=True,
                             cell_timeout=self._cell_timeout,
                             variables=self._variables
-                        )
+                        ))
 
                     except ValueError:
                         state = {}
