@@ -150,6 +150,16 @@ thead, tfoot {
     background: var(--c7)
 }
 
+td>pre {
+    font-size: 0.8em;
+    max-width: 40em;
+}
+
+td>img, td>blockquote {
+    min-width: 20em;
+    max-width: 40em;
+}
+
 /* Rounded Corners*/
 
 pre, code, input, select, textarea, button, img {

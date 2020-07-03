@@ -5,18 +5,18 @@
             <section>
                 <form action="/settings" method="POST" style="width: 100%">
                     <span title="regular expression for filtering results by label">
-                        <label style="float: left">
+                        <label style="float: left; white-space: nowrap; margin: 0.5em">
                             Selector:
                             <input type="text" name="selector" min="0" value="{{ settings.selector.pattern }}">
                         </label>
                     </span>
                     <span title="name of the auditor (is added to patches!)">
-                        <label style="float: left; margin-left: 1em">
+                        <label style="float: left; white-space: nowrap; margin: 0.5em">
                             Who's auditing?
                             <input type="text" name="auditor" min="0" value="{{ settings.auditor }}">
                         </label>
                     </span>
-                    <input type="submit" value="Apply" style="float: right" class="cls-success"/>
+                    <input type="submit" value="Apply" style="float: right; margin: 0.5em" class="cls-success"/>
                 </form>
             </section>
             <section>
