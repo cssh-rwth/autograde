@@ -152,12 +152,11 @@ thead, tfoot {
 
 td>pre {
     font-size: 0.8em;
-    max-width: 40em;
+    max-width: 80ch;
 }
 
 td>img, td>blockquote {
-    min-width: 20em;
-    max-width: 40em;
+    min-width: 40ch;
 }
 
 /* Rounded Corners*/

@@ -18,7 +18,7 @@ nbt.set_import_filter(r'networkx|requests', blacklist=True)
 # this test will succeed
 @nbt.register(target='foo', label='test foo')
 def test_foo(foo):
-    print('foo')
+    print('F' + ('O' * 80))
     for i in range(-5, 5):
         assert i ** 2 == foo(i)
 

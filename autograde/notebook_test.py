@@ -4,11 +4,13 @@ from __future__ import annotations
 import io
 import os
 import re
+import sys
 import json
 import math
 import base64
 import shutil
 import argparse
+import traceback
 from pathlib import Path
 from copy import deepcopy
 from hashlib import sha256
@@ -159,6 +161,8 @@ class NotebookTestCase:
             return float(score), str(msg)
 
         except Exception as err:
+            print('Test failed:', file=sys.stderr)
+            traceback.print_exception(type(err), err, err.__traceback__, file=sys.stderr)
             return 0, f'{type(err).__name__}: "{err}"'
 
     def __str__(self):

@@ -46,7 +46,7 @@
             <section>
                 <form action="/patch" method="POST" style="width: 100%; margin: 1em">
                     <input type="hidden" name="id" value="{{ id }}" />
-                    {{ display_results(results[id], True)|indent|indent|indent }}
+                    {{ display_results(results[id], True) }}
                     {% if prev_id %}
                     <a href="/audit/{{ prev_id }}#edit"><input type="button" value="<< prev" class="cls-link" style="float: left"/></a>
                     {% endif %}
