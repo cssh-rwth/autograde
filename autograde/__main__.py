@@ -36,7 +36,8 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 import autograde
 from autograde.static import CSS
 from autograde.notebook_test import Result, Results
-from autograde.util import logger, timestamp_utc_iso, loglevel, cd, mount_tar
+from autograde.util import logger, parse_bool, timestamp_utc_iso, loglevel, cd, \
+    mount_tar
 
 # Globals and constants variables.
 CONTAINER_TAG = 'autograde'
@@ -255,13 +256,14 @@ def plot_score_distribution(summary_df: pd.DataFrame):
             summary_df[~summary_df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm,
             bins=int(max_score), ax=ax
         )
-    except LinAlgError:
-        logger.warning('unable to plot score distribution')
+    except LinAlgError as error:
+        logger.warning(f'unable to plot score distribution: {error}')
 
     ax.set_xlim(0, max_score)
     ax.set_xlabel('score')
     ax.set_ylabel('share')
     ax.set_title('score distribution without duplicates (takes lower score)')
+    plt.tight_layout()
 
     with io.BytesIO() as buffer:
         plt.savefig(buffer, format='svg', transparent=False)
@@ -282,6 +284,7 @@ def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
     plt.clf()
     ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
     ax.set_title('similarity of notebook code')
+    plt.tight_layout()
 
     with io.BytesIO() as buffer:
         plt.savefig(buffer, format='svg', transparent=False)
@@ -431,9 +434,13 @@ def cmd_audit(args):
         @app.route('/summary', strict_slashes=False)
         def route_summary():
             summary_df = compute_summary(results.values())
+
+            plot_distribution = parse_bool(request.args.get('distribution', 'f')) and 2 < len(summary_df)
+            plot_similarities = parse_bool(request.args.get('similarities', 'f')) and 1 < len(summary_df)
+
             plots = dict(
-                score_distribution=b64str(plot_score_distribution(summary_df)) if len(summary_df) > 2 else None,
-                similarities=b64str(plot_fraud_matrix(sources)) if len(summary_df) > 1 else None
+                distribution=b64str(plot_score_distribution(summary_df)) if plot_distribution else None,
+                similarities=b64str(plot_fraud_matrix(sources)) if plot_similarities else None
             )
 
             return render('summary.html', title='summary', summary=summary_df, plots=plots)
