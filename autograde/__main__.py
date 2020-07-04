@@ -217,7 +217,27 @@ def cmd_patch(args):
     return 0
 
 
-def compute_summary(results) -> pd.DataFrame:
+def merge_results(results) -> pd.DataFrame:
+    header = ['student_id', 'last_name', 'first_name', 'notebook_id', 'task_id', 'score', 'max_score']
+
+    def row_factory():
+        for r in results:
+            for member in r.team_members:
+                for t in r:
+                    yield (
+                        member.student_id,
+                        member.last_name,
+                        member.first_name,
+                        r.checksum,
+                        t.id,
+                        t.score,
+                        t.score_max
+                    )
+
+    return pd.DataFrame(row_factory(), columns=header)
+
+
+def summarize_results(results) -> pd.DataFrame:
     logger.debug(f'summarize {len(results)} results')
     header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
 
@@ -236,7 +256,7 @@ def compute_summary(results) -> pd.DataFrame:
                 )
 
     summary_df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
-    summary_df['multiple_submissions'] = summary_df['student_id'].duplicated(keep=False)
+    summary_df['duplicate'] = summary_df['student_id'].duplicated(keep=False)
 
     if not math.isclose(summary_df['max_score'].std(), 0):
         logger.warning('max scores seem not to be consistent!')
@@ -246,6 +266,8 @@ def compute_summary(results) -> pd.DataFrame:
 
 def plot_score_distribution(summary_df: pd.DataFrame):
     logger.debug('plot score distributions')
+
+    summary_df = summary_df.sort_values(by='score')
     max_score = summary_df['max_score'].max()
 
     plt.clf()
@@ -283,7 +305,6 @@ def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
     plt.clf()
     ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
     ax.set_title('similarity of notebook code')
-    plt.tight_layout()
 
     with io.BytesIO() as buffer:
         plt.savefig(buffer, format='svg', transparent=False)
@@ -432,7 +453,7 @@ def cmd_audit(args):
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
-            summary_df = compute_summary(results.values())
+            summary_df = summarize_results(results.values())
 
             plot_distribution = parse_bool(request.args.get('distribution', 'f')) and 2 < len(summary_df)
             plot_similarities = parse_bool(request.args.get('similarities', 'f')) and 1 < len(summary_df)
@@ -488,13 +509,18 @@ def cmd_summary(args):
             with open('code.py', mode='rt') as f:
                 sources[r.checksum] = f.read()
 
-    summary_df = compute_summary(results)
+    # merge results
+    results_df = merge_results(results)
+    logger.debug('store raw.csv')
+    results_df.to_csv(path.joinpath('raw.csv'), index=False)
 
-    logger.debug('render summary.csv')
+    # summarize results
+    summary_df = summarize_results(results)
+    logger.debug('store summary.csv')
     summary_df.to_csv(path.joinpath('summary.csv'), index=False)
 
     plots = dict(
-        score_distribution=b64str(plot_score_distribution(summary_df)),
+        distribution=b64str(plot_score_distribution(summary_df)),
         similarities=b64str(plot_fraud_matrix(sources))
     )
 

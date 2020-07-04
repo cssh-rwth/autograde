@@ -54,12 +54,12 @@ class TestWorkflow(TestCase):
             summary_1 = pd.read_csv(Path('results_1', 'summary.csv'))
             summary_2 = pd.read_csv(Path('results_2', 'summary.csv'))
 
-            assert_isclose(8., summary_1['score'].sum())
-            assert_isclose(6., summary_2['score'].sum())
-            assert_isclose(9., summary_1['max_score'].sum())
-            assert_isclose(9., summary_2['max_score'].sum())
-            self.assertFalse(any(summary_1['multiple_submissions']))
-            self.assertFalse(any(summary_2['multiple_submissions']))
+            assert_isclose(10., summary_1['score'].sum())
+            assert_isclose(8., summary_2['score'].sum())
+            assert_isclose(12., summary_1['max_score'].sum())
+            assert_isclose(12., summary_2['max_score'].sum())
+            self.assertEqual(2, sum(summary_1['duplicate']))
+            self.assertEqual(2, sum(summary_2['duplicate']))
 
             # patch test 1 results and re-compute report + summary
             cli(['patch', 'results_1', 'results_2'])
@@ -72,15 +72,15 @@ class TestWorkflow(TestCase):
 
             summary_1 = pd.read_csv(Path('results_1', 'summary.csv'))
 
-            assert_isclose(6., summary_1['score'].sum())
-            assert_isclose(9., summary_1['max_score'].sum())
-            self.assertFalse(any(summary_1['multiple_submissions']))
+            assert_isclose(8., summary_1['score'].sum())
+            assert_isclose(12., summary_1['max_score'].sum())
+            self.assertEqual(2, sum(summary_1['duplicate']))
 
             # compute global summary
             cli(['summary', '.'])
 
             summary = pd.read_csv('summary.csv')
 
-            assert_isclose(12., summary['score'].sum())
-            assert_isclose(18., summary['max_score'].sum())
-            self.assertTrue(all(summary['multiple_submissions']))
+            assert_isclose(16., summary['score'].sum())
+            assert_isclose(24., summary['max_score'].sum())
+            self.assertTrue(all(summary['duplicate']))

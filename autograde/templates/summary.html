@@ -16,7 +16,13 @@
                 <tbody>
                     {% for i, r in summary.iterrows() %}
                     <tr>
-                        <td class="{% if r['multiple_submissions'] %}ag-warning{% else %}ag-success{% endif %}" ><code>{{ r['student_id'] }}</code></td>
+                        {% if r['duplicate'] %}
+                        <td class="cls-warning" style="font-weight: bold; color: var(--c4)">
+                            <span class="cls-warning">{{ r['student_id'] }}</span>
+                        </td>
+                        {% else %}
+                        <td><code>{{ r['student_id'] }}</code></td>
+                        {% endif %}
                         <td>{{ r['last_name'] }}</td>
                         <td>{{ r['first_name'] }}</td>
                         <td style="text-align: right">{{ r['score'] }}</td>
