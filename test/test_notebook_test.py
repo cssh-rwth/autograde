@@ -1,60 +1,133 @@
 # Standard library modules.
-import io
 import os
 import re
-import json
 import math
 import time
 import tarfile
-from hashlib import md5
 from pathlib import Path
+from hashlib import sha256
+from functools import partial
 from unittest import TestCase
+from dataclasses import astuple
 import importlib.util as import_util
 from tempfile import TemporaryDirectory
-
 
 # Third party modules.
 
 # Local modules
 import autograde
-from autograde.util import project_root, cd
-from autograde.notebook_test import as_py_comment, exec_notebook, NotebookTestCase, NotebookTest
+from autograde.helpers import assert_iter_eqal
+from autograde.util import project_root, cd, capture_output
+from autograde.notebook_test import Result, Results, NotebookTestCase, \
+    NotebookTest
 
 # Globals and constants variables.
 PROJECT_ROOT = project_root()
 
 
-class TestFunctions(TestCase):
-    def test_as_py_comment(self):
-        self.assertEqual('', as_py_comment(''))
-        self.assertEqual('# foo', as_py_comment('foo'))
-        self.assertEqual('# foo\n# bar', as_py_comment('foo\nbar'))
+def float_equal(a, b):
+    return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
 
-    def test_exec_notebook(self):
-        nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
-        with open(nb_path, mode='rt') as f:
-            nb = f.read()
 
-        with TemporaryDirectory() as path, cd(path):
-            # forward errors raised in notebook
-            with self.assertRaises(FileNotFoundError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    exec_notebook(nb_buffer, file=stdout)
+assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)
 
-            # cell timeout
-            with self.assertRaises(TimeoutError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    exec_notebook(nb_buffer, file=stdout, cell_timeout=0.05)
 
-            # ignore errors
-            with io.StringIO(nb) as nb_buffer, io.StringIO() as stdout:
-                state = exec_notebook(nb_buffer, file=stdout, ignore_errors=True)
-                stdout = stdout.getvalue()
+class TestResult(TestCase):
+    def test_passed(self):
+        for r in [Result('1', '', [], 0., 0., [], '', ''), Result('1', '', [], 1., 1., [], '', '')]:
+            self.assertTrue(r.passed())
+            self.assertFalse(r.failed())
+            self.assertFalse(r.pending())
 
-        self.assertIn('__IB_FLAG__', state)
-        self.assertIn('__IA_FLAG__', state)
-        self.assertEqual(state.get('SOME_CONSTANT'), 42)
-        self.assertIn('this goes to stdout', stdout)
+    def test_failed(self):
+        for r in [Result('1', '', [], 0., 1., [], '', ''), Result('1', '', [], .5, 1., [], '', '')]:
+            self.assertFalse(r.passed())
+            self.assertTrue(r.failed())
+            self.assertFalse(r.pending())
+
+    def test_pending(self):
+        for r in [Result('1', '', [], math.nan, 0., [], '', ''), Result('1', '', [], math.nan, 1., [], '', '')]:
+            self.assertFalse(r.passed())
+            self.assertFalse(r.failed())
+            self.assertTrue(r.pending())
+
+
+class TestResults(TestCase):
+    def test_patch(self):
+        results_a = Results('', '', '', [], [], [], [])
+        results_b = Results('', '', '', [], [], [], [])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((0, 0, 0, 0, 0., 0.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('2', '', [], 1., 1., [], '', '')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((2, 1, 1, 0, 1., 2.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, ['2'])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 1., 1., [], '', '')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', 'foo')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], math.nan, 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
+
+        results_a = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('', '', '', [], [], [], [Result('1', '', [], math.nan, 1., [], '', '')])
+        patch_result = results_a.patch(results_b)
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(patch_result.summary()))
+        self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
+
+        results_a = Results('a', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        results_b = Results('b', '', '', [], [], [], [Result('2', '', [], 1., 1., [], '', '')])
+        results_c = Results('c', '', '', [], [], [], [Result('3', '', [], 2., 4., [], '', ''),
+                                                      Result('4', '', [], 4., 8., [], '', '')])
+        patch_result = results_a.patch(results_b).patch(results_c)
+        assert_floats_equal((4, 3, 1, 0, 7., 14.), astuple(patch_result.summary()))
+        self.assertListEqual([('b', results_b.timestamp, ['2']),
+                              ('c', results_c.timestamp, ['3', '4'])], patch_result.applied_patches)
+
+        with self.assertRaises(ValueError):
+            results_a = Results('', '', '0'*64, [], [], [], [])
+            results_b = Results('', '', '1'*64, [], [], [], [])
+            results_a.patch(results_b)
+
+    def test_summary(self):
+        results = Results('', '', '', [], [], [], [])
+        assert_floats_equal((0, 0, 0, 0, 0, 0), astuple(results.summary()))
+
+        results = Results('', '', '', [], [], [], [Result('1', '', [], 0., 1., [], '', '')])
+        assert_floats_equal((1, 1, 0, 0, 0., 1.), astuple(results.summary()))
+
+        results = Results('', '', '', [], [], [], [Result('2', '', [], 1., 1., [], '', '')])
+        assert_floats_equal((1, 0, 1, 0, 1., 1.), astuple(results.summary()))
+
+        results = Results('', '', '', [], [], [], [Result('3', '', [], math.nan, 1., [], '', '')])
+        assert_floats_equal((1, 0, 0, 1, math.nan, 1.), astuple(results.summary()))
 
 
 class TestNotebookTestCase(TestCase):
@@ -62,11 +135,11 @@ class TestNotebookTestCase(TestCase):
         def test(foo):
             self.assertEqual(foo, 42)
 
-        tc = NotebookTestCase(test, target='foo')
+        tc = NotebookTestCase(test, target='foo', label='')
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42)))
 
     def test_msg(self):
-        tc = NotebookTestCase(lambda x: x, target='foo')
+        tc = NotebookTestCase(lambda x: x, target='foo', label='')
         self.assertTupleEqual((4.0, 'ok'), tc(dict(foo=4)))
         self.assertTupleEqual((4.2, 'ok'), tc(dict(foo=4.2)))
         self.assertTupleEqual((1.0, '42'), tc(dict(foo='42')))
@@ -75,8 +148,9 @@ class TestNotebookTestCase(TestCase):
         def test():
             pass
 
-        tc = NotebookTestCase(test, target='foo')
-        s, _ = tc({})
+        tc = NotebookTestCase(test, target='foo', label='')
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc({})
         self.assertEqual(s, 0.)
 
     def test_multi_target(self):
@@ -84,24 +158,25 @@ class TestNotebookTestCase(TestCase):
             self.assertEqual(foo, 42)
             self.assertEqual(bar, 1337)
 
-        tc = NotebookTestCase(test, target=('foo', 'bar'))
+        tc = NotebookTestCase(test, target=('foo', 'bar'), label='')
         self.assertTupleEqual((1.0, 'ok'), tc(dict(foo=42, bar=1337)))
 
     def test_score(self):
         def test(fail):
             assert not fail
 
-        tc = NotebookTestCase(test, target='fail')
+        tc = NotebookTestCase(test, target='fail', label='')
         s, _ = tc(dict(fail=False))
         self.assertEqual(s, 1.0)
         self.assertEqual(tc.score, 1.0)
 
-        tc = NotebookTestCase(test, target='fail')
-        s, _ = tc(dict(fail=True))
+        tc = NotebookTestCase(test, target='fail', label='')
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc(dict(fail=True))
         self.assertEqual(s, 0.)
         self.assertEqual(tc.score, 1.0)
 
-        tc = NotebookTestCase(test, target='fail', score=2)
+        tc = NotebookTestCase(test, target='fail', label='', score=2)
         s, _ = tc(dict(fail=False))
         self.assertEqual(s, 2.0)
         self.assertEqual(tc.score, 2.0)
@@ -110,9 +185,6 @@ class TestNotebookTestCase(TestCase):
         def test():
             pass
 
-        tc = NotebookTestCase(test, target='foo')
-        self.assertEqual('', tc.label)
-
         tc = NotebookTestCase(test, target='foo', label='bar')
         self.assertEqual('bar', tc.label)
 
@@ -120,23 +192,24 @@ class TestNotebookTestCase(TestCase):
         def test(delay):
             time.sleep(delay)
 
-        tc = NotebookTestCase(test, target='delay')
+        tc = NotebookTestCase(test, target='delay', label='')
         s, _ = tc(dict(delay=.1))
         self.assertEqual(s, 1.)
 
-        tc = NotebookTestCase(test, target='delay', timeout=.05)
-        s, _ = tc(dict(delay=.1))
+        tc = NotebookTestCase(test, target='delay', label='', timeout=.05)
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc(dict(delay=.1))
         self.assertEqual(s, 0.)
 
 
 class TestNotebookTest(TestCase):
     def test_register(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
 
         def test(foo):
             self.assertEqual(42, foo)
 
-        decorator = nbt.register(target='foo', score=2, label='bar', timeout_=1)
+        decorator = nbt.register(target='foo', label='bar', score=2, timeout_=1)
         self.assertEqual(0, len(nbt))
 
         case = decorator(test)
@@ -148,11 +221,14 @@ class TestNotebookTest(TestCase):
 
         self.assertTupleEqual((2.0, 'ok'), case(dict(foo=42)))
 
+        with self.assertRaises(ValueError):
+            nbt.register(target='foo', label='bar')(lambda: None)
+
     def test_register_decorator(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
         self.assertEqual(0, len(nbt))
 
-        @nbt.register(target='foo', score=2, label='bar', timeout_=1)
+        @nbt.register(target='foo', label='bar', score=2, timeout_=1)
         def test(foo):
             self.assertEqual(42, foo)
 
@@ -164,8 +240,13 @@ class TestNotebookTest(TestCase):
 
         self.assertTupleEqual((2.0, 'ok'), test(dict(foo=42)))
 
+        with self.assertRaises(ValueError):
+            @nbt.register(target='foo', label='bar')
+            def test():
+                pass
+
     def test_set_import_filter(self):
-        nbt = NotebookTest()
+        nbt = NotebookTest('')
         regex = r'networkx|requests'
 
         self.assertNotIn('IMPORT_FILTER', nbt._variables)
@@ -181,7 +262,7 @@ class TestNotebookTest(TestCase):
         c_path = PROJECT_ROOT.joinpath('demo', 'context')
 
         with open(nb_path, mode='rb') as f:
-            md5_sum = md5(f.read()).hexdigest()
+            sha256_sum = sha256(f.read()).hexdigest()
 
         # load test as module
         spec = import_util.spec_from_file_location('nbtest', t_path)
@@ -195,38 +276,29 @@ class TestNotebookTest(TestCase):
 
             with tarfile.open(rpath, mode='r') as tar:
                 self.assertListEqual(sorted(tar.getnames())[1:], [
-                    'artifacts.tar.xz',
+                    'artifacts',
+                    'artifacts/bar.txt',
+                    'artifacts/figures',
+                    'artifacts/figures/fig_code_cell_3_1.png',
+                    'artifacts/figures/fig_code_cell_8_1.png',
+                    'artifacts/figures/fig_code_cell_8_2.png',
+                    'artifacts/figures/fig_code_cell_9_1.png',
+                    'artifacts/fnord.txt',
+                    'artifacts/plot.png',
                     'code.py',
                     'notebook.ipynb',
-                    'report.rst',
-                    'test_results.csv',
-                    'test_results.json'
+                    'results.json'
                 ])
 
-                with tar.extractfile('artifacts.tar.xz') as f:
-                    with tarfile.open(fileobj=io.BytesIO(f.read()), mode='r:xz') as itar:
-                        self.assertListEqual(sorted(itar.getnames())[1:], [
-                            'bar.txt',
-                            'figures',
-                            'figures/fig_code_cell_3_1.png',
-                            'figures/fig_code_cell_8_1.png',
-                            'figures/fig_code_cell_8_2.png',
-                            'fnord.txt'
-                        ])
+                results = Results.from_json(tar.extractfile(tar.getmember('results.json')).read())
 
-                results = json.load(tar.extractfile(tar.getmember('test_results.json')))
+        self.assertEqual(results.version, autograde.__version__)
 
-        self.assertEqual(results['autograde_version'], autograde.__version__)
+        self.assertEqual(results.checksum, sha256_sum)
 
-        self.assertEqual(results['checksum']['md5sum'], md5_sum)
+        self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
 
-        self.assertEqual(10, results['summary']['tests'])
-        self.assertEqual(4, results['summary']['passed'])
-        self.assertTrue(math.isnan(results['summary']['score']))
-        self.assertEqual(16, results['summary']['score_max'])
-
-        for key in ['orig_file', 'team_members', 'test_cases', 'results']:
-            self.assertIn(key, results)
+        assert_floats_equal(astuple(results.summary()), (14, 5, 6, 3, math.nan, 20))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
@@ -239,4 +311,4 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            self.assertEqual(4, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))
+            self.assertEqual(5, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))

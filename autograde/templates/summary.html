@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+        <section>
+            <table style="table-layout: auto; width: 100%">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Last Name</th>
+                        <th>First Name</th>
+                        <th style="text-align: right">Score</th>
+                        <th style="text-align: right">Max Score</th>
+                        <th style="text-align: right">Patches</th>
+                        <th>Checksum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, r in summary.iterrows() %}
+                    <tr>
+                        {% if r['duplicate'] %}
+                        <td class="cls-warning" style="font-weight: bold; color: var(--c4)">
+                            <span class="cls-warning">{{ r['student_id'] }}</span>
+                        </td>
+                        {% else %}
+                        <td><code>{{ r['student_id'] }}</code></td>
+                        {% endif %}
+                        <td>{{ r['last_name'] }}</td>
+                        <td>{{ r['first_name'] }}</td>
+                        <td style="text-align: right">{{ r['score'] }}</td>
+                        <td style="text-align: right">{{ r['max_score'] }}</td>
+                        <td style="text-align: right">{{ r['patches'] }}</td>
+                        <td>{{ hash(r['checksum']) }}</td>
+                    </tr>
+                    {% endfor%}
+                <tbody>
+            </table>
+        </section>
+        <section style="justify-content: center">
+            <section>
+                <article style="flex: none">
+                    <h2>Score Distribution</h2>
+                    {% if plots.distribution %}
+                    <img src="data:image/svg+xml;base64,{{ plots.distribution }}" alt="score distribution" />
+                    {% else %}
+                    <p>Not available</p>
+                    {% endif %}
+                </article>
+            </section>
+            <section>
+                <article style="flex: none">
+                    <h2>Code Similarities</h2>
+                    {% if plots.similarities %}
+                    <img src="data:image/svg+xml;base64,{{ plots.similarities }}" alt="similarities" />
+                    {% else %}
+                    <p>Not available</p>
+                    {% endif %}
+                </article>
+            </section>
+        </section>
+{% endblock %}

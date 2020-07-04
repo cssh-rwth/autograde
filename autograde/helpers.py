@@ -20,6 +20,16 @@ def assert_equal(x, exp, msg=None):
     assert x == exp, msg or _msg(x, exp)
 
 
+def assert_iter_eqal(x, exp, comp=lambda a, b: a == b, msg=None):
+    la = tuple(x)
+    lb = tuple(exp)
+
+    assert len(la) == len(lb), f'given iterables are of different size: len({la}) != len({lb})'
+
+    for a, b in zip(la, lb):
+        assert comp(a, b), msg or _msg(la, lb)
+
+
 def assert_is(x, exp, msg=None):
     assert x is exp, msg or _msg(x, exp)
 

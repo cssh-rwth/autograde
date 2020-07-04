@@ -19,10 +19,14 @@ with open(BASEDIR.joinpath('README.rst'), 'r') as f:
 
 PACKAGES = find_packages()
 
-INSTALL_REQUIRES = ['ipykernel', 'jupyter', 'matplotlib', 'seaborn', 'numpy', 'pandas', 'tabulate']
+with BASEDIR.joinpath('requirements.txt').open(mode='rt') as f:
+    INSTALL_REQUIRES = f.read().split('\n')
+
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
 
-ENTRY_POINTS = {}
+ENTRY_POINTS = {
+    'console_scripts': ['autograde=autograde.__main__:cli'],
+}
 
 setup(
     name='jupyter-autograde',
@@ -43,7 +47,7 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     entry_points=ENTRY_POINTS,
     test_suite='nose.collector',
     version=VERSION,

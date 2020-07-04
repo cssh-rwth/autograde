@@ -1,0 +1,64 @@
+{% extends "results.html" %}
+{% block content %}
+        <h2 id="controlls">Controlls</h2>
+        <section>
+            <section>
+                <form action="/settings" method="POST" style="width: 100%">
+                    <span title="regular expression for filtering results by label">
+                        <label style="float: left; white-space: nowrap; margin: 0.5em">
+                            Selector:
+                            <input type="text" name="selector" min="0" value="{{ settings.selector.pattern }}">
+                        </label>
+                    </span>
+                    <span title="name of the auditor (is added to patches!)">
+                        <label style="float: left; white-space: nowrap; margin: 0.5em">
+                            Who's auditing?
+                            <input type="text" name="auditor" min="0" value="{{ settings.auditor }}">
+                        </label>
+                    </span>
+                    <input type="submit" value="Apply" style="float: right; margin: 0.5em" class="cls-success"/>
+                </form>
+            </section>
+            <section>
+                <p style="width: 100%">
+                    <a href="/summary?distribution=True&similarities=False" target="_blank"><button class="cls-link" style="float: right">Summary</button></a>
+                    <a href="/summary?distribution=True&similarities=True" target="_blank"><button class="cls-link" style="float: right">Summary (+Similarities)</button></a>
+                    <a href="/stop"><button class="cls-danger" style="float: right">Stop</button></a>
+                </p>
+            </section>
+        </section>
+        <h2 id="overview">Results</h2>
+        <section>
+            <section>
+                {% for h, r in results.items() %}
+                <article style="flex: none; min-width: 16em">
+                    <h3 style="margin: 0">{{ hash(h) }} {% if h in patched %}✔{% endif %}</h3>
+                    <span style="font-size: 0.75em; font-style: italic; opacity: 0.8">{{ r.format_members(separator='/', max_width=32) }}</span><br>
+                    <a href="/audit/{{ h }}#edit"><button class="{% if results[h].summary().pending %}cls-warning{% else %}cls-neutral{% endif %}">edit</button></a>
+                    <a href="/report/{{ h }}" target="_blank"><button class="cls-neutral">preview</button></a>
+                    <a href="/source/{{ h }}" target="_blank"><button class="cls-neutral">code</button></a>
+                </article>
+                {% endfor %}
+            </section>
+        </section>
+        {% if id in results %}
+        <h2 id="edit">Edit: {{ hash(results[id].checksum) }}</h2>
+        <section>
+            <section>
+                <form action="/patch" method="POST" style="width: 100%; margin: 1em">
+                    <input type="hidden" name="id" value="{{ id }}" />
+                    {{ display_results(results[id], True) }}
+                    {% if prev_id %}
+                    <a href="/audit/{{ prev_id }}#edit"><input type="button" value="<< prev" class="cls-link" style="float: left"/></a>
+                    {% endif %}
+                    <a href="/audit/#overview"><input type="button" value="Overview" class="cls-link" style="float: left" /></a>
+                    {% if next_id %}
+                    <a href="/audit/{{ next_id }}#edit"><input type="button" value="next >>" class="cls-link" style="float: left" /></a>
+                    {% endif %}
+                    <input type="submit" value="Patch & Next" style="float: right" class="cls-warning"/>
+                    <input type="reset" value="Reset" style="float: right" class="cls-danger"/>
+                </form>
+            </section>
+        </section>
+        {% endif %}
+{% endblock %}

@@ -1,4 +1,4 @@
-FROM continuumio/anaconda3:latest
+FROM python:3.8-buster
 
 # install requirements
 RUN apt-get --assume-yes update && apt-get --assume-yes upgrade
@@ -7,9 +7,12 @@ RUN apt-get --assume-yes update && apt-get --assume-yes upgrade
 WORKDIR /autograde
 RUN mkdir src && mkdir target && mkdir context
 
-# load src
+# load src & install
+ADD ./requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
 COPY . src
-RUN pip install -e src[develop]
+RUN pip install -e src
 
 # create dummy files (will be overwritten by mounted test and notebook)
 RUN touch notebook.ipynb && cp src/dummy.py test.py

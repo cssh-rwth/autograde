@@ -1,0 +1,109 @@
+{% extends "results.html" %}
+{% macro status_class(result) -%}
+    {%- if result.passed() -%}
+        ag-success
+    {%- elif result.failed() -%}
+        ag-danger
+    {%- else -%}
+        ag-warning
+    {%- endif -%}
+{%- endmacro %}
+{% block content %}
+        <section style="justify-content: center">
+            <section>
+                <article style="flex: none">
+                    <h2>Group</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Student ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in results[id].team_members %}
+                            <tr>
+                                <td>{{ student.last_name }}</td>
+                                <td>{{ student.first_name }}</td>
+                                <td><code>{{ student.student_id }}</code></td>
+                            </tr>
+                            {% endfor%}
+                        </tbody>
+                    </table>
+                    <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!</p>
+                </article>
+            </section>
+		</section>
+        <h2>Test Results</h2>
+        <section>
+            <section>
+                {{ display_results(results[id], False) }}
+            </section>
+        </section>
+        <h2>Meta</h2>
+        <section style="justify-content: center">
+            <section>
+                <article>
+                    <h2>Report</h2>
+                    <p>All test results are based on the <i>jupyter</i> notebook with checksum: {{ hash(results[id].checksum) }} (unsalted sha256).</p>
+                    <p>The following results have been merged for this report:</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Timestamp</th>
+                                <th>Changed Results</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i>{{ results[id].title }}</i></td>
+                                <td><code>{{ results[id].timestamp }}</code></td>
+                                <td></td>
+                            </tr>
+                            {% for ap in results[id].applied_patches %}
+                            <tr>
+                                <td>{{ ap[0] }}</td>
+                                <td><code>{{ ap[1] }}</code></td>
+                                <td>
+                                    <p>
+                                        {% for h in ap[2] %}
+                                        {{ hash(h) }}<br />
+                                        {% endfor %}
+                                    </p>
+                                </td>
+                            </tr>
+                            {% endfor%}
+                        </tbody>
+                    </table>
+                </article>
+            </section>
+            <section>
+                <article>
+                    <h2>Artifacts</h2>
+                    <p>While the jupyter notebook is executed, <i>autograde</i> watches the current working directory for files being created or modified:</p>
+                    {% if results[id].artifacts %}
+                    <ul>
+                        {% for file in results[id].artifacts %}
+                        <li><code>{{ file }}</code></li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <b>None</b>
+                    {% endif %}
+                    <p>All files listed above can be found in the <code>/artifacts</code> directory of your results archive.</p>
+                    <p>The following files have been excluded from results as they haven't changed during execution:</p>
+                    {% if results[id].artifacts %}
+                    <ul>
+                        {% for file in results[id].excluded_artifacts %}
+                        <li><code>{{ file }}</code></li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <b>None</b>
+                    {% endif %}
+                </article>
+            </section>
+		</section>
+{% endblock %}

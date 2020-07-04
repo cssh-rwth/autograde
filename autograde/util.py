@@ -2,10 +2,14 @@
 import os
 import re
 import sys
+import math
+import pytz
 import time
 import logging
 import tarfile
+import datetime
 from pathlib import Path
+from typing import Iterable, Union
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 
@@ -30,6 +34,19 @@ logger = logging.getLogger('autograde')
 logger.addHandler(_stream_handler)
 
 
+def parse_bool(s):
+    s = str(s).lower()
+    if s in {'0', 'false', 'f', 'no', 'n'}:
+        return False
+    elif s in {'1', 'true', 't', 'yes', 'y'}:
+        return True
+    raise ValueError(f'cannot parse "{s}" as boolean')
+
+
+def timestamp_utc_iso():
+    return datetime.datetime.now(pytz.utc).replace(microsecond=0).isoformat()
+
+
 def loglevel(x):
     return max(10, 40 - max(x, 0) * 10)
 
@@ -39,12 +56,39 @@ def project_root():
     return Path(autograde.__file__).parent.parent
 
 
+def _alpha_numeric_split(s):
+    for w in ALPHA_NUMERIC.split(s.strip()):
+        if w:
+            yield w
+
+
 def snake_case(s):
-    return '_'.join(map(str.lower, ALPHA_NUMERIC.split(s.strip())))
+    return '_'.join(map(str.lower,_alpha_numeric_split(s)))
 
 
 def camel_case(s):
-    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in ALPHA_NUMERIC.split(s.strip()))
+    if not s:
+        return ''
+    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in _alpha_numeric_split(s))
+
+
+def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int, float] = float('inf')):
+    """
+    Join strings by given separator. Optionally, the strings are pruned in order
+    make the resulting string matching the maximum width criteria.
+    """
+    words = list(words)
+    max_words_width = max_width - (len(words) - 1) * len(separator)
+
+    if max_words_width < len(words) * 3:
+        raise ValueError(f'cannot fit given words into a string of width {max_width}')
+
+    if not math.isinf(max_width):
+        for _ in range(int(sum(map(len, words)) - max_words_width)):
+            idx = words.index(max(words, key=len))
+            words[idx] = f'{words[idx][:-3]}..'
+
+    return separator.join(words)
 
 
 @contextmanager
@@ -64,32 +108,47 @@ def capture_output(tmp_stdout=None, tmp_stderr=None):
 
 
 @contextmanager
-def cd(tmp_cwd, mkdir=False):
-    if mkdir:
-        os.makedirs(tmp_cwd, exist_ok=True)
-
+def cd(path, mkdir=False):
     cwd = os.getcwd()
-    os.chdir(tmp_cwd)
+
+    if mkdir:
+        logger.debug(f'create directories: {path}')
+        os.makedirs(path, exist_ok=True)
+
+    logger.debug(f'change directory: {path}')
+    os.chdir(path)
 
     try:
-        yield tmp_cwd
+        yield cwd
 
     finally:
+        logger.debug(f'change directory: {cwd}')
         os.chdir(cwd)
 
 
 @contextmanager
-def cd_tar(name, mode='w'):
-    assert mode.startswith('w') and '|' not in mode
+def mount_tar(path, mode='r'):
+    prefix = mode[0]
+
+    # TODO use ValueError instead
+    assert prefix in ['r', 'w', 'a'], f'unknown prefix {prefix}'
+    assert '|' not in mode, 'streaming is not supported'
 
     with TemporaryDirectory() as tempdir:
+        logger.debug(f'create mount point at {tempdir} in mode "{mode}"')
         try:
-            with cd(tempdir):
-                yield tempdir
+            if prefix in ['r', 'a']:
+                logger.debug(f'extract files from {path}')
+                with tarfile.open(path, mode='r'+mode[1:]) as tar:
+                    tar.extractall(tempdir)
+
+            yield tempdir
 
         finally:
-            with tarfile.open(name, mode=mode) as tf:
-                tf.add(tempdir, arcname='')
+            if prefix in ['w', 'a']:
+                logger.debug(f'write changes to {path}')
+                with tarfile.open(path, mode='w'+mode[1:]) as tar:
+                    tar.add(tempdir, arcname='')
 
 
 @contextmanager
