@@ -34,6 +34,15 @@ logger = logging.getLogger('autograde')
 logger.addHandler(_stream_handler)
 
 
+def parse_bool(s):
+    s = str(s).lower()
+    if s in {'0', 'false', 'f', 'no', 'n'}:
+        return False
+    elif s in {'1', 'true', 't', 'yes', 'y'}:
+        return True
+    raise ValueError(f'cannot parse "{s}" as boolean')
+
+
 def timestamp_utc_iso():
     return datetime.datetime.now(pytz.utc).replace(microsecond=0).isoformat()
 

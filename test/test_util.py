@@ -12,13 +12,24 @@ from tempfile import TemporaryDirectory
 # Third party modules.
 
 # Local modules
-from autograde.util import loglevel, project_root, snake_case, camel_case, \
-    prune_join, capture_output, cd, mount_tar, timeout
+from autograde.util import parse_bool, loglevel, project_root, snake_case,\
+    camel_case, prune_join, capture_output, cd, mount_tar, timeout
 
 # Globals and constants variables.
 
 
 class TestUtil(TestCase):
+    def test_parse_bool(self):
+        for v in (False, 0, 'F', 'f', 'false', 'FALSE',  'FalsE', 'nO', 'n'):
+            self.assertFalse(parse_bool(v))
+
+        for v in (True, 1, 'T', 't', 'true', 'TRUE', 'TruE', 'yEs', 'y'):
+            self.assertTrue(parse_bool(v))
+
+        for v in ('ja', 'nein', 'fnord', Exception, io):
+            with self.assertRaises(ValueError):
+                parse_bool(v)
+
     def test_loglevel(self):
         self.assertEqual(40, loglevel(-1))
         self.assertEqual(40, loglevel(0))
