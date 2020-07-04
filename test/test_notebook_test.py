@@ -1,5 +1,4 @@
 # Standard library modules.
-import io
 import os
 import re
 import math
@@ -17,8 +16,8 @@ from tempfile import TemporaryDirectory
 
 # Local modules
 import autograde
-from autograde.util import project_root, cd
 from autograde.helpers import assert_iter_eqal
+from autograde.util import project_root, cd, capture_output
 from autograde.notebook_test import Result, Results, NotebookTestCase, \
     NotebookTest
 
@@ -150,7 +149,8 @@ class TestNotebookTestCase(TestCase):
             pass
 
         tc = NotebookTestCase(test, target='foo', label='')
-        s, _ = tc({})
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc({})
         self.assertEqual(s, 0.)
 
     def test_multi_target(self):
@@ -171,7 +171,8 @@ class TestNotebookTestCase(TestCase):
         self.assertEqual(tc.score, 1.0)
 
         tc = NotebookTestCase(test, target='fail', label='')
-        s, _ = tc(dict(fail=True))
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc(dict(fail=True))
         self.assertEqual(s, 0.)
         self.assertEqual(tc.score, 1.0)
 
@@ -196,7 +197,8 @@ class TestNotebookTestCase(TestCase):
         self.assertEqual(s, 1.)
 
         tc = NotebookTestCase(test, target='delay', label='', timeout=.05)
-        s, _ = tc(dict(delay=.1))
+        with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
+            s, _ = tc(dict(delay=.1))
         self.assertEqual(s, 0.)
 
 
