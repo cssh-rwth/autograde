@@ -34,12 +34,13 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 
 # Local modules
 import autograde
-from autograde.static import CSS
+from autograde.static import CSS, FAVICON
 from autograde.notebook_test import Result, Results
 from autograde.util import logger, parse_bool, timestamp_utc_iso, loglevel, cd, \
     mount_tar
 
 # Globals and constants variables.
+FAVICON = base64.b64encode(FAVICON).decode('utf-8')
 JINJA_ENV = Environment(
     loader=PackageLoader('autograde', 'templates'),
     autoescape=select_autoescape(['html', 'xml']),
@@ -102,6 +103,7 @@ def render(template, **kwargs):
     return JINJA_ENV.get_template(template).render(
         autograde=autograde,
         css=CSS,
+        favicon=FAVICON,
         timestamp=timestamp_utc_iso(),
         **kwargs
     )

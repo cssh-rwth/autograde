@@ -18,3 +18,4 @@ def _load(*args, mode='rt'):
 INJECT_BEFORE = _load('inject_before.py')
 INJECT_AFTER = _load('inject_after.py')
 CSS = _load('basic.css')
+FAVICON = _load('favicon.ico', mode='rb')
