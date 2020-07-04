@@ -236,13 +236,13 @@ def compute_summary(results) -> pd.DataFrame:
                     r.checksum
                 )
 
-    summary_df = pd.DataFrame(row_factory(), columns=header).sort_values(by='last_name')
+    summary_df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
     summary_df['multiple_submissions'] = summary_df['student_id'].duplicated(keep=False)
 
     if not math.isclose(summary_df['max_score'].std(), 0):
         logger.warning('max scores seem not to be consistent!')
 
-    return summary_df
+    return summary_df.sort_values(by='last_name')
 
 
 def plot_score_distribution(summary_df: pd.DataFrame):
