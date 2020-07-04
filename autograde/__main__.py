@@ -66,11 +66,19 @@ def list_results(path='.', prefix='results') -> List[Path]:
 def inject_patch(results: Results, path='.', prefix: str = 'results') -> Path:
     """Store results as patch in mounted results archive"""
     path = Path(path)
-    patch_count = len(list(path.glob(f'{prefix}_patch*.json')))
-    path = path.joinpath(f'{prefix}_patch_{patch_count+1}.json')
+    ct = len(list(path.glob(f'{prefix}_patch*.json')))
 
-    with path.open(mode='wt') as f:
-        json.dump(results.to_dict(), f, indent=4)
+    with cd(path):
+        with open(f'{prefix}_patch_{ct+1:02d}.json', mode='wt') as f:
+            json.dump(results.to_dict(), f, indent=4)
+
+        # update report if it exists
+        if Path('report.html').exists():
+            results = load_patched()
+            logger.debug(f'update report for {results.checksum}')
+            with open('report.html', mode='wt') as f:
+                f.write(render('report.html', title='report', id=results.checksum,
+                               results={results.checksum: results}, summary=results.summary()))
 
     return path
 
@@ -427,12 +435,6 @@ def cmd_audit(args):
                     inject_patch(r, mount)
                     results[id] = results[id].patch(r)
                     patched.add(id)
-
-                    # update report if it exists
-                    if path.joinpath('report.html').exists():
-                        logger.debug(f'update report for {id}')
-                        render('report.html', title='report', id=id, results=results,
-                               summary=results[id].summary())
                 else:
                     logger.debug('no modifications were made')
 
