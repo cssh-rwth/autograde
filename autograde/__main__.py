@@ -40,7 +40,6 @@ from autograde.util import logger, parse_bool, timestamp_utc_iso, loglevel, cd, 
     mount_tar
 
 # Globals and constants variables.
-CONTAINER_TAG = 'autograde'
 JINJA_ENV = Environment(
     loader=PackageLoader('autograde', 'templates'),
     autoescape=select_autoescape(['html', 'xml']),
@@ -164,23 +163,23 @@ def cmd_test(args):
             ]
         elif 'docker' in args.backend:
             cmd = [
-                args.backend, 'run',
+                'docker', 'run',
                 '-v', f'{path_tst}:/autograde/test.py',
                 '-v', f'{path_nb_}:/autograde/notebook.ipynb',
                 '-v', f'{path_tgt}:/autograde/target',
                 *(('-v', f'{path_cxt}:/autograde/context:ro') if path_cxt else ()),
                 *(('-u', str(os.geteuid())) if 'rootless' not in args.backend else ()),
-                CONTAINER_TAG,
+                args.tag,
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
         elif args.backend == 'podman':
             cmd = [
-                args.backend, 'run',
+                'podman', 'run',
                 '-v', f'{path_tst}:/autograde/test.py:Z',
                 '-v', f'{path_nb_}:/autograde/notebook.ipynb:Z',
                 '-v', f'{path_tgt}:/autograde/target:Z',
                 *(('-v', f'{path_cxt}:/autograde/context:Z') if path_cxt else ()),
-                CONTAINER_TAG,
+                args.tag,
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
         else:
@@ -513,6 +512,12 @@ def version(_):
 
 
 def cli(args=None):
+    # environment variables
+    verbosity = int(os.environ.get('AG_VERBOSITY', 0))
+    container_backend = os.environ.get('AG_BACKEND', None)
+    container_tag = os.environ.get('AG_TAG', 'autograde')
+
+    # command line arguments
     parser = argparse.ArgumentParser(
         description=f'utility for grading jupyter notebooks',
         epilog=f'autograde on github: https://github.com/cssh-rwth/autograde',
@@ -520,18 +525,19 @@ def cli(args=None):
     )
 
     # global flags
-    parser.add_argument('-v', '--verbose', action='count', default=0, help='verbosity level')
-    parser.add_argument('-e', '--backend', type=str, default=None,
+    parser.add_argument('-v', '--verbose', action='count', default=verbosity,
+                        help='verbosity level')
+    parser.add_argument('--backend', type=str, default=container_backend,
                         choices=['docker', 'rootless-docker', 'podman'],
-                        metavar='', help='container backend to use, default is none')
+                        metavar='', help=f'container backend to use, default is {container_backend}')
+    parser.add_argument('--tag', type=str, default=container_tag, metavar='',
+                        help=f'container tag, default: "{container_tag}"')
     parser.set_defaults(func=version)
 
     subparsers = parser.add_subparsers(help='sub command help')
 
     # build sub command
     bld_parser = subparsers.add_parser('build', help=cmd_build.__doc__)
-    bld_parser.add_argument('-t', '--tag', type=str, default=CONTAINER_TAG,
-                            help=f'container tag, default: "{CONTAINER_TAG}"')
     bld_parser.add_argument('-r', '--requirements', type=Path, default=None,
                             help='additional requirements to install')
     bld_parser.add_argument('-q', '--quiet', action='store_true', help='mute output')
