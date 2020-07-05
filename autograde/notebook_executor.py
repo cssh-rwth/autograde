@@ -157,12 +157,12 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
                         stdout_s = stdout.getvalue()
                         if stdout_s:
-                            print(f'\n# STDOUT')
+                            print('\n# STDOUT')
                             print(as_py_comment(stdout_s))
 
                         stderr_s = stderr.getvalue()
                         if stderr_s:
-                            print(f'\n# STDERR')
+                            print('\n# STDERR')
                             print(as_py_comment(stderr_s))
 
                         print('\n')

@@ -22,7 +22,7 @@ PACKAGES = find_packages()
 with BASEDIR.joinpath('requirements.txt').open(mode='rt') as f:
     INSTALL_REQUIRES = f.read().split('\n')
 
-EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine',]}
+EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine', 'flake8']}
 
 ENTRY_POINTS = {
     'console_scripts': ['autograde=autograde.__main__:cli'],
@@ -52,4 +52,3 @@ setup(
     test_suite='nose.collector',
     version=VERSION,
 )
-

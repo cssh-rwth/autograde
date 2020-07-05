@@ -7,7 +7,6 @@ import subprocess
 
 # Local modules
 import autograde
-from autograde.util import project_root
 
 # Globals and constants variables.
 

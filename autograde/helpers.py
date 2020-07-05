@@ -55,7 +55,7 @@ def assert_raises(*exceptions):
 @contextmanager
 def import_hook(callback):
     def dummy(*_):
-        raise ImportError(f'calling `import_module` is not allowed within `import_hook` context')
+        raise ImportError('calling `import_module` is not allowed within `import_hook` context')
 
     with ExitStack() as es:
         es.enter_context(mock.patch('importlib.import_module', side_effect=dummy))
@@ -82,4 +82,3 @@ def import_filter(regex, flags=0, blacklist=False):
 
     with import_hook(callback):
         yield None
-

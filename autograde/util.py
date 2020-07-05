@@ -63,7 +63,7 @@ def _alpha_numeric_split(s):
 
 
 def snake_case(s):
-    return '_'.join(map(str.lower,_alpha_numeric_split(s)))
+    return '_'.join(map(str.lower, _alpha_numeric_split(s)))
 
 
 def camel_case(s):

@@ -196,7 +196,7 @@ def cmd_test(args):
             raise ValueError(f'unknown backend: {args.backend}')
 
         logger.info(f'test: {path_nb_}')
-        logger.debug('run' +  ' '.join(cmd))
+        logger.debug('run' + ' '.join(cmd))
 
         if not args.backend:
             return subprocess.call(' '.join(cmd), shell=True)
@@ -249,7 +249,7 @@ def merge_results(results) -> pd.DataFrame:
 
 def summarize_results(results) -> pd.DataFrame:
     logger.debug(f'summarize {len(results)} results')
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score',  'patches', 'checksum']
 
     def row_factory():
         for r in results:
@@ -549,8 +549,8 @@ def cli(args=None):
 
     # command line arguments
     parser = argparse.ArgumentParser(
-        description=f'utility for grading jupyter notebooks',
-        epilog=f'autograde on github: https://github.com/cssh-rwth/autograde',
+        description='utility for grading jupyter notebooks',
+        epilog='autograde on github: https://github.com/cssh-rwth/autograde',
         prog='autograde',
     )
 
@@ -558,8 +558,8 @@ def cli(args=None):
     parser.add_argument('-v', '--verbose', action='count', default=verbosity,
                         help='verbosity level')
     parser.add_argument('--backend', type=str, default=container_backend,
-                        choices=['docker', 'rootless-docker', 'podman'],
-                        metavar='', help=f'container backend to use, default is {container_backend}')
+                        choices=['docker', 'rootless-docker', 'podman'], metavar='',
+                        help=f'container backend to use, default is {container_backend}')
     parser.add_argument('--tag', type=str, default=container_tag, metavar='',
                         help=f'container tag, default: "{container_tag}"')
     parser.set_defaults(func=version)

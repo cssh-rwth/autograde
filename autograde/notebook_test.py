@@ -96,7 +96,7 @@ class Results:
         results = {r.id: r for r in self.results}
 
         if not patched.checksum == patch.checksum:
-            raise ValueError(f'patch must not have a different origin aka checksum!')
+            raise ValueError('patch must not have a different origin aka checksum!')
 
         change_list = []
         for result in patch.results:
@@ -208,7 +208,7 @@ class NotebookTest:
         def decorator(func):
             case = NotebookTestCase(func, target, label, score, timeout_ or self._test_timeout)
             if case.id in self._cases:
-                raise ValueError(f'A case with same id was already registered. Consider using a different label!')
+                raise ValueError('A case with same id was already registered. Consider using a different label!')
             self._cases[case.id] = case
             return case
 
@@ -338,7 +338,7 @@ class NotebookTest:
 
                 # store copy of notebook
                 logger.debug('dump copy of original notebook')
-                with open(f'notebook.ipynb', mode='wb') as f:
+                with open('notebook.ipynb', mode='wb') as f:
                     f.write(nb_data)
 
                 # prepare context and execute notebook
