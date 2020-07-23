@@ -19,8 +19,7 @@
                             <th style="text-align: right">Reached Score</th>
                             <th style="text-align: right">Max Score</th>
                             <th>Message(s)</th>
-                            <th>STDOUT</th>
-                            <th>STDERR</th>
+                            <th>Output</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,8 +59,12 @@
                                 </label>
                                 {% endif %}
                             </td>
-                            <td><pre>{{ r.stdout|e }}</pre></td>
-                            <td><pre>{{ r.stderr|e }}</pre></td>
+                            <td>
+                                <span class="cls-description">stdout</span>
+                                <pre>{{ r.stdout|e }}</pre>
+                                <span class="cls-description">stdout</span>
+                                <pre>{{ r.stderr|e }}</pre>
+                            </td>
                         </tr>
                         {% endif %}
                         {% endfor%}

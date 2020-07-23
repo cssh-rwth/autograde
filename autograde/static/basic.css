@@ -227,6 +227,12 @@ section > section {
 
 /* Classes */
 
+.cls-description {
+    font-size: 0.75em;
+    font-style: italic;
+    opacity: 0.8;
+}
+
 .cls-neutral {
     color: var(--c4);
     background-color: var(--c7);
