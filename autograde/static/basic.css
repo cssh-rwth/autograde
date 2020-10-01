@@ -1,4 +1,4 @@
-/* Basic.css  */
+/* Basic.css, stolen from https://vladocar.github.io/Basic.css */
 
 * {
     box-sizing: border-box
@@ -150,12 +150,12 @@ thead, tfoot {
     background: var(--c7)
 }
 
-td>pre {
+td > pre {
     font-size: 0.8em;
     max-width: 80ch;
 }
 
-td>img, td>blockquote {
+td > img, td > blockquote {
     min-width: 40ch;
 }
 
@@ -209,7 +209,7 @@ article {
     background: var(--c2);
     border-radius: var(--rc);
     padding: 1em;
-    box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
     justify-content: left;
     text-align: left;
 }
