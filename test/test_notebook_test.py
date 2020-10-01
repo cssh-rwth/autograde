@@ -204,7 +204,7 @@ class TestNotebookTest(TestCase):
         def test(foo):
             self.assertEqual(42, foo)
 
-        decorator = nbt.register(target='foo', label='bar', score=2, timeout_=1)
+        decorator = nbt.register(target='foo', label='bar', score=2, timeout=1)
         self.assertEqual(0, len(nbt))
 
         case = decorator(test)
@@ -223,7 +223,7 @@ class TestNotebookTest(TestCase):
         nbt = NotebookTest('')
         self.assertEqual(0, len(nbt))
 
-        @nbt.register(target='foo', label='bar', score=2, timeout_=1)
+        @nbt.register(target='foo', label='bar', score=2, timeout=1)
         def test(foo):
             self.assertEqual(42, foo)
 
