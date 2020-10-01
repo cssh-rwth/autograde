@@ -240,7 +240,7 @@ class NotebookTest:
     def register_figure(self, target: Union[str, Path], label: str, score: float = 1,):
         """
         Register a special test case that loads an base64 encoded PNG or SVG image from artifacts.
-        If the image does not exist, the test fails. In all other cases, the image isincluded into
+        If the image does not exist, the test fails. In all other cases, the image is included into
         the report. NOTE: a "passed" test is scored with NaN (not a number) as its output is
         intended for further, manual inspection.
 

@@ -125,7 +125,7 @@ class TestUtil(TestCase):
     def test_tar_mount(self):
         path = Path('fnord.tar')
 
-        with TemporaryDirectory() as dir, cd(dir):
+        with TemporaryDirectory() as dir_, cd(dir_):
             # reading non existing archive fails
             with self.assertRaises(FileNotFoundError):
                 with mount_tar(path):

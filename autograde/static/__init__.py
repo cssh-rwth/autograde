@@ -1,9 +1,4 @@
-# Standard library modules.
 import pathlib
-
-# Third party modules.
-
-# Local modules
 
 
 def _load(*args, mode='rt'):
