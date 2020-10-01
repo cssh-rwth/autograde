@@ -9,26 +9,19 @@ autograde
    :alt: autograde test
    :target: https://github.com/cssh-rwth/autograde/actions
 
-*autograde* is a tool that lets you run unit tests on *Jupyter notebooks* and creates both, human and machine readable reports.
-Optionally, containers are used for isolated test execution.
-
+*autograde* is a tool for testing *Jupyter* notebooks. Its features include execution of notebooks (optionally isolated via docker/podman) with consecutive unit testing of the final notebook state. On top of that, an audit mode allows for refining results (e.g. grading plots by hand). Eventually, *autograde* can summarize these results in human and machine readable formats.
 
 setup
 -----
 
-Before installing *autograde* and in case you want to use it with a container backend, ensure `docker <https://www.docker.com/>`_ or `podman <https://podman.io/>`_ is available on your system.
+Before installing *autograde* and in case you want to use it with a container backend, ensure `docker <https://www.docker.com/>`_ **or** `podman <https://podman.io/>`_ is available on your system.
 We recommend podman as it runs rootless.
 
 Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
 Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .`
 within it (or :code:`pip install -e .[develop]` if you're a developer).
 
-Eventually build the respective container image: :code:`python -m autograde build`
-
-.. NOTE::
-    When installing *autograde* via *PyPI*, *containers* are not yet supported.
-    If you want to use containers, clone this repository and install the package from source.
-
+Eventually, build the respective container image: :code:`python -m autograde build`
 
 usage
 -----
@@ -61,19 +54,19 @@ The output is a compressed archive that is named something like :code:`results_[
 reports
 ```````
 
-*autograde* is capable of creating human readable HTML reports from test results which is done by
+The :code:`report` sub command creates human readable HTML reports from test results:
 
 ::
 
     python -m autograde report path/to/result(s)
 
-The respective report is injected into the results archive.
+The respective report is added to the results archive inplace.
 
 
 patching
 ````````
 
-Results from multiple test runs can be merged via the :code:`patch` sub command
+Results from multiple test runs can be merged via the :code:`patch` sub command:
 
 ::
 
@@ -89,7 +82,7 @@ In a typical scenario, test cases are not just applied to one notebook but many 
 
     python -m autograde summary path/to/results
 
-Three new files will appear in the result directory:
+Two new files will appear in the result directory:
 
 * :code:`summary.csv`: aggregated results
 * :code:`summary.html`: human readable summary report
