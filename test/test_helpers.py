@@ -62,6 +62,8 @@ class TestHelpers(TestCase):
 
         with import_hook(count):
             import importlib
+            import types as _
+            from types import SimpleNamespace as _
             __import__('types')
             __import__('types', dict())
             __import__('types', dict(), dict())
