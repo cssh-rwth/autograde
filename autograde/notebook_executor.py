@@ -1,36 +1,39 @@
 # Standard library modules.
 import io
 import sys
-import warnings
 import traceback
-from pathlib import Path
-from copy import deepcopy
-from typing import Dict, TextIO
-from tempfile import NamedTemporaryFile
+import warnings
 from contextlib import contextmanager, ExitStack
+from copy import deepcopy
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Dict, TextIO
 
 # Third party modules.
-from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
+from nbformat import read
 
 # Local modules
 from autograde.helpers import import_filter
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, capture_output, timeout
+from autograde.util import logger, capture_output, timeout, StopWatch
+
 
 # Globals and constants variables.
 
 
-def as_py_comment(s: str):
+def as_py_comment(s: str, indentation=0):
     """
     Escape string as python comment
 
     :param s: any string
+    :param indentation: spaces to ident, default is 0
     :return: escaped string
     """
+    indentation = ' ' * indentation
     if not s:
         return ''
-    return '\n'.join(f'# {line}' for line in s.strip().split('\n'))
+    return '\n'.join(f'# {indentation}{line}' for line in s.strip().split('\n'))
 
 
 class ArtifactLoader:
@@ -104,7 +107,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                 # render code
                 source = shell.input_transformer_manager.transform_cell(cell.source)
                 yield (
-                    f'code cell {i+1}',
+                    f'nb-{i+1}',
                     f'{source.strip()}\n\n# injected by test\ndump_figure()',
                     cell_timeout
                 )
@@ -130,6 +133,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
+                stopwatch = StopWatch()
 
                 try:
                     with capture_output(stdout, stderr):
@@ -138,6 +142,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                             if if_regex is not None and i > 1:
                                 es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
                             es.enter_context(timeout(timeout_))
+                            es.enter_context(stopwatch)
 
                             shadow_stack.enter_context(shadowed_exec(code, state))
 
@@ -155,15 +160,17 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                         print(f'# {_label:-^78}')
                         print(str(code).strip())
 
+                        print(f"\n# EXECUTED IN {stopwatch.duration_rel()[-1]:.3}s")
+
                         stdout_s = stdout.getvalue()
                         if stdout_s:
-                            print('\n# STDOUT')
-                            print(as_py_comment(stdout_s))
+                            print('# STDOUT')
+                            print(as_py_comment(stdout_s, 4))
 
                         stderr_s = stderr.getvalue()
                         if stderr_s:
-                            print('\n# STDERR')
-                            print(as_py_comment(stderr_s))
+                            print('# STDERR')
+                            print(as_py_comment(stderr_s, 4))
 
                         print('\n')
 

@@ -50,6 +50,7 @@ class TestFunctions(TestCase):
         self.assertEqual('', as_py_comment(''))
         self.assertEqual('# foo', as_py_comment('foo'))
         self.assertEqual('# foo\n# bar', as_py_comment('foo\nbar').strip())
+        self.assertEqual('#     foo', as_py_comment('foo', 4))
 
     def test_shadowed_exec(self):
         state = dict()
