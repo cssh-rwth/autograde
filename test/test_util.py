@@ -167,25 +167,25 @@ class TestUtil(TestCase):
                 self.assertTrue(Path('bar').exists())
 
     def test_stopwatch(self):
-        assert_list_eq = partial(assert_iter_eqal, comp=lambda a, b: math.isclose(a, b, abs_tol=5e-4))
+        assert_list_eq = partial(assert_iter_eqal, comp=lambda a, b: math.isclose(a, b, abs_tol=5e-3))
 
         sw = StopWatch()
 
         assert_list_eq([0.], sw.duration_abs())
         assert_list_eq([0.], sw.duration_rel())
 
-        time.sleep(1e-3)
+        time.sleep(1e-2)
         self.assertEqual(1, sw.capture())
 
-        time.sleep(2e-3)
+        time.sleep(2e-2)
         with sw:
-            time.sleep(3e-3)
+            time.sleep(3e-2)
 
-        time.sleep(4e-3)
+        time.sleep(4e-2)
         self.assertEqual(4, sw.capture())
 
-        assert_list_eq([0., 1e-3, 3e-3, 6e-3, 1e-2], sw.duration_abs())
-        assert_list_eq([0., 1e-3, 2e-3, 3e-3, 4e-3], sw.duration_rel())
+        assert_list_eq([0., 1e-2, 3e-2, 6e-2, 1e-1], sw.duration_abs())
+        assert_list_eq([0., 1e-2, 2e-2, 3e-2, 4e-2], sw.duration_rel())
 
     def test_timeout(self):
         self.assertIsNone(sys.gettrace())
