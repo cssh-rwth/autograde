@@ -1,19 +1,23 @@
 # Standard library modules.
 import io
+import math
+import string
 import sys
 import time
-import string
-from pathlib import Path
-from unittest import TestCase
 from collections import Counter
+from functools import partial
 from itertools import combinations
+from pathlib import Path
 from tempfile import TemporaryDirectory
-
-# Third party modules.
+from unittest import TestCase
 
 # Local modules
-from autograde.util import parse_bool, loglevel, project_root, snake_case,\
-    camel_case, prune_join, capture_output, cd, mount_tar, timeout
+from autograde.helpers import assert_iter_eqal
+from autograde.util import parse_bool, loglevel, project_root, snake_case, \
+    camel_case, prune_join, capture_output, cd, mount_tar, StopWatch, timeout
+
+
+# Third party modules.
 
 # Globals and constants variables.
 
@@ -161,6 +165,27 @@ class TestUtil(TestCase):
             with mount_tar(path) as tar, cd(tar):
                 self.assertFalse(Path('foo').exists())
                 self.assertTrue(Path('bar').exists())
+
+    def test_stopwatch(self):
+        assert_list_eq = partial(assert_iter_eqal, comp=lambda a, b: math.isclose(a, b, abs_tol=5e-4))
+
+        sw = StopWatch()
+
+        assert_list_eq([0.], sw.duration_abs())
+        assert_list_eq([0.], sw.duration_rel())
+
+        time.sleep(1e-3)
+        self.assertEqual(1, sw.capture())
+
+        time.sleep(2e-3)
+        with sw:
+            time.sleep(3e-3)
+
+        time.sleep(4e-3)
+        self.assertEqual(4, sw.capture())
+
+        assert_list_eq([0., 1e-3, 3e-3, 6e-3, 1e-2], sw.duration_abs())
+        assert_list_eq([0., 1e-3, 2e-3, 3e-3, 4e-3], sw.duration_rel())
 
     def test_timeout(self):
         self.assertIsNone(sys.gettrace())

@@ -1,23 +1,18 @@
-# Standard library modules.
+import datetime
+import logging
+import math
 import os
 import re
 import sys
-import math
-import pytz
-import time
-import logging
 import tarfile
-import datetime
-from pathlib import Path
-from typing import Iterable, Union
+import time
 from contextlib import contextmanager
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Callable, Iterable, Union, List
 
-# Third party modules.
+import pytz
 
-# Local modules
-
-# Globals and constants variables.
 ALPHA_NUMERIC = re.compile(r'[^\w]')
 
 
@@ -149,6 +144,36 @@ def mount_tar(path, mode='r'):
                 logger.debug(f'write changes to {path}')
                 with tarfile.open(path, mode='w'+mode[1:]) as tar:
                     tar.add(tempdir, arcname='')
+
+
+class StopWatch:
+    """Measure durations"""
+    def __init__(self):
+        self._captures = [time.time()]
+
+    def capture(self) -> int:
+        """Store current time and return index of capture"""
+        self._captures.append(time.time())
+        return len(self._captures) - 1
+
+    def __enter__(self):
+        self.capture()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.capture()
+
+    @property
+    def captures(self):
+        return self._captures
+
+    def duration_abs(self) -> List[float]:
+        """Compute absolute durations with respect to stop watch instantiation"""
+        return list(map(lambda t: t - self.captures[0], self.captures))
+
+    def duration_rel(self) -> List[float]:
+        """Compute relative durations with respect to previous capture"""
+        return list(map(lambda ts: ts[1] - ts[0], zip([self.captures[0]] + self.captures, self.captures)))
 
 
 @contextmanager
