@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-# Standard library modules.
 import re
 from pathlib import Path
 
-# Third party modules.
 from setuptools import setup, find_packages
 
-# Local modules.
-
-# Globals and constants variables.
 BASEDIR = Path(__file__).parent
 
 with open(BASEDIR.joinpath('autograde', '__init__.py'), 'r') as f:

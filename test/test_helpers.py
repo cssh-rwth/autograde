@@ -1,16 +1,10 @@
-# Standard library modules.
-import re
 import builtins
-from unittest import TestCase
+import re
 from collections import defaultdict
+from unittest import TestCase
 
-# Third party modules.
-
-# Local modules
 from autograde.helpers import assert_equal, assert_iter_eqal, assert_is, assert_isclose, \
     assert_raises, import_hook, import_filter
-
-# Globals and constants variables.
 
 
 class TestHelpers(TestCase):
@@ -68,8 +62,6 @@ class TestHelpers(TestCase):
 
         with import_hook(count):
             import importlib
-            import types as _
-            from types import SimpleNamespace as _
             __import__('types')
             __import__('types', dict())
             __import__('types', dict(), dict())

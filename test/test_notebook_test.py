@@ -1,27 +1,22 @@
-# Standard library modules.
+import importlib.util as import_util
+import math
 import os
 import re
-import math
-import time
 import tarfile
-from pathlib import Path
-from hashlib import sha256
-from functools import partial
-from unittest import TestCase
+import time
 from dataclasses import astuple
-import importlib.util as import_util
+from functools import partial
+from hashlib import sha256
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import TestCase
 
-# Third party modules.
-
-# Local modules
 import autograde
 from autograde.helpers import assert_iter_eqal
-from autograde.util import project_root, cd, capture_output
 from autograde.notebook_test import Result, Results, NotebookTestCase, \
     NotebookTest
+from autograde.util import project_root, cd, capture_output
 
-# Globals and constants variables.
 PROJECT_ROOT = project_root()
 
 

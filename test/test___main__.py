@@ -1,20 +1,16 @@
-# Standard library modules.{{ results.timestamp }}
 import os
 import tarfile
 import warnings
 from pathlib import Path
-from unittest import TestCase
 from tempfile import TemporaryDirectory
+from unittest import TestCase
 
-# Third party modules.
 import pandas as pd
 
-# Local modules
-from autograde.util import project_root, cd
-from autograde.helpers import assert_isclose
 from autograde.__main__ import list_results, cli
+from autograde.helpers import assert_isclose
+from autograde.util import project_root, cd
 
-# Globals and constants variables.
 PROJECT_ROOT = project_root()
 EXAMPLES = PROJECT_ROOT.joinpath('test').joinpath('examples')
 

@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 # Standard library modules.
-import sys
 import inspect
+import sys
 
-# Third party modules.
-
-# Local modules
 from autograde import NotebookTest
 from autograde.helpers import assert_raises
 
-# Globals and constants variables.
 nbt = NotebookTest('demo notebook test', cell_timeout=4., test_timeout=.1)
 
 nbt.set_import_filter(r'networkx|requests', blacklist=True)

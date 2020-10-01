@@ -1,35 +1,31 @@
 from __future__ import annotations
 
-# Standard library modules.
+import argparse
+import base64
 import io
-import os
-import re
-import sys
 import json
 import math
-import base64
+import os
+import re
 import shutil
-import argparse
+import sys
 import traceback
-from pathlib import Path
-from copy import deepcopy
-from hashlib import sha256
-from contextlib import ExitStack
 from collections import OrderedDict
+from contextlib import ExitStack
+from copy import deepcopy
 from dataclasses import dataclass, field
-from dataclasses_json import dataclass_json
+from hashlib import sha256
+from pathlib import Path
 from typing import Dict, List, Tuple, Union, Iterable
 
-# Third party modules.
+from dataclasses_json import dataclass_json
 
-# Local modules
 import autograde
 from autograde.helpers import import_filter
+from autograde.notebook_executor import exec_notebook
 from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
     prune_join, capture_output, cd, mount_tar, timeout
-from autograde.notebook_executor import exec_notebook
 
-# Globals and constants variables.
 T_TARGET = Union[str, Iterable[str]]
 
 

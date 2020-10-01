@@ -3,39 +3,36 @@
 import matplotlib as mpl
 mpl.use('Agg')
 
-# Standard library modules.
+import argparse
+import base64
 import io
-import os
-import re
-import sys
 import json
 import math
-import base64
+import os
+import re
 import shutil
-import argparse
 import subprocess
-from pathlib import Path
-from copy import deepcopy
-from contextlib import ExitStack
-from itertools import combinations
-from difflib import SequenceMatcher
+import sys
 from collections import OrderedDict
-from typing import List, Dict, Iterable
+from contextlib import ExitStack
+from copy import deepcopy
+from difflib import SequenceMatcher
+from itertools import combinations
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import List, Dict, Iterable
 
-# Third party modules.
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.stats import norm
-import matplotlib.pyplot as plt
-from scipy.linalg import LinAlgError
 from jinja2 import Environment, PackageLoader, select_autoescape
+from scipy.linalg import LinAlgError
+from scipy.stats import norm
 
-# Local modules
 import autograde
-from autograde.static import CSS, FAVICON
 from autograde.notebook_test import Result, Results
+from autograde.static import CSS, FAVICON
 from autograde.util import logger, parse_bool, timestamp_utc_iso, loglevel, cd, \
     mount_tar
 
@@ -70,7 +67,7 @@ def inject_patch(results: Results, path='.', prefix: str = 'results') -> Path:
     ct = len(list(path.glob(f'{prefix}_patch*.json')))
 
     with cd(path):
-        with open(f'{prefix}_patch_{ct+1:02d}.json', mode='wt') as f:
+        with open(f'{prefix}_patch_{ct + 1:02d}.json', mode='wt') as f:
             json.dump(results.to_dict(), f, indent=4)
 
         # update report if it exists
@@ -249,7 +246,7 @@ def merge_results(results) -> pd.DataFrame:
 
 def summarize_results(results) -> pd.DataFrame:
     logger.debug(f'summarize {len(results)} results')
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score',  'patches', 'checksum']
+    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
 
     def row_factory():
         for r in results:

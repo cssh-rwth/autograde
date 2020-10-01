@@ -9,7 +9,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, Iterable, Union, List
+from typing import Iterable, Union, List
 
 import pytz
 

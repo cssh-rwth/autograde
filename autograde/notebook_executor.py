@@ -1,4 +1,3 @@
-# Standard library modules.
 import io
 import sys
 import traceback
@@ -9,11 +8,9 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, TextIO
 
-# Third party modules.
 from IPython.core.interactiveshell import InteractiveShell
 from nbformat import read
 
-# Local modules
 from autograde.helpers import import_filter
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
 from autograde.util import logger, capture_output, timeout, StopWatch

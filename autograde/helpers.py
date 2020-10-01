@@ -1,15 +1,8 @@
-# Standard library modules.
-import re
-import math
 import builtins
-from unittest import mock
+import math
+import re
 from contextlib import contextmanager, ExitStack
-
-# Third party modules.
-
-# Local modules
-
-# Globals and constants variables.
+from unittest import mock
 
 
 def _msg(x, exp):

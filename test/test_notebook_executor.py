@@ -1,19 +1,14 @@
-# Standard library modules.
+import inspect
 import io
 import os
 import shutil
-import inspect
 from pathlib import Path
-from unittest import TestCase
 from tempfile import TemporaryDirectory
+from unittest import TestCase
 
-# Third party modules.
-
-# Local modules
-from autograde.util import project_root, cd
 from autograde.notebook_executor import as_py_comment, shadowed_exec, ArtifactLoader, exec_notebook
+from autograde.util import project_root, cd
 
-# Globals and constants variables.
 PROJECT_ROOT = project_root()
 
 

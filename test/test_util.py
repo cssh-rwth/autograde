@@ -1,4 +1,3 @@
-# Standard library modules.
 import io
 import math
 import string
@@ -11,15 +10,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-# Local modules
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
     camel_case, prune_join, capture_output, cd, mount_tar, StopWatch, timeout
-
-
-# Third party modules.
-
-# Globals and constants variables.
 
 
 class TestUtil(TestCase):
