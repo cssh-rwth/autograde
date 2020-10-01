@@ -24,7 +24,7 @@ import autograde
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
-    prune_join, capture_output, cd, mount_tar, timeout
+    prune_join, capture_output, cd, mount_tar, timeout as timeout_context
 
 T_TARGET = Union[str, Iterable[str]]
 
@@ -146,7 +146,7 @@ class NotebookTestCase:
                 raise NameError(err)
 
             # apply actual test
-            with timeout(self._timeout):
+            with timeout_context(self._timeout):
                 result = self._test_func(*targets, *args, **kwargs)
 
             # interpret results
@@ -162,9 +162,9 @@ class NotebookTestCase:
             return 0, f'{type(err).__name__}: "{err}"'
 
     def __str__(self):
-        timeout_ = f'{self._timeout:.2f}s' if self._timeout is not None else '∞'
+        timeout = f'{self._timeout:.2f}s' if self._timeout is not None else '∞'
         return f'{self.__class__.__name__}(target={self.targets}, score={self.score}, ' \
-               f'timeout={timeout_}, label="{self.label}")'
+               f'timeout={timeout}, label="{self.label}")'
 
     id = property(fget=lambda self: self._id)
     targets = property(fget=lambda self: self._targets)
@@ -190,7 +190,7 @@ class NotebookTest:
     def __repr__(self):
         return f'{type(self).__name__}({self._cases})'
 
-    def register(self, target: T_TARGET, label: str, score: float = 1., timeout_: float = 0.):
+    def register(self, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
         """
         Decorator for registering a new test case for given target.
 
@@ -198,11 +198,11 @@ class NotebookTest:
             or module
         :param label: label for identification of the test case
         :param score: the weight for the test case, default is 1.0
-        :param timeout_: how many seconds to wait before aborting the test
+        :param timeout: how many seconds to wait before aborting the test
         :return: decorator wrapping the original function
         """
         def decorator(func):
-            case = NotebookTestCase(func, target, label, score, timeout_ or self._test_timeout)
+            case = NotebookTestCase(func, target, label, score, timeout or self._test_timeout)
             if case.id in self._cases:
                 raise ValueError('A case with same id was already registered. Consider using a different label!')
             self._cases[case.id] = case

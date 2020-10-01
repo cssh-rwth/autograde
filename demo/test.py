@@ -12,37 +12,42 @@ nbt.set_import_filter(r'networkx|requests', blacklist=True)
 
 
 # this test will succeed
-@nbt.register(target='foo', label='test foo')
-def test_foo(foo):
-    print('F' + ('O' * 80))
+@nbt.register(target='square', label='test square')
+def test_square(square):
+    # Everything you print to stdout is included into the report
+    print('F' + ('O' * 77))
     for i in range(-5, 5):
-        assert i ** 2 == foo(i)
+        assert i ** 2 == square(i)
 
 
 # as well as this one (note the optional return message)
-@nbt.register(target='bar', label='test bar', score=2.5)
-def test_bar(bar):
-    print('bar', file=sys.stderr)
+@nbt.register(target='cube', label='test cube', score=2.5)
+def test_cube(cube):
+    # Everything you print to stderr is included into the report
+    print('cube', file=sys.stderr)
     for i in range(-5, 5):
-        assert i ** 2 / 2 == bar(i)
+        assert i ** 3 == cube(i)
 
     return 'well done'
 
 
 # multiple targets? no problem!
-@nbt.register(target=('foo', 'bar'), label='test foo & bar')
-def test_foo_bar(foo, bar):
-    assert foo(0) == bar(0)
+@nbt.register(target=('square', 'cube'), label='test square & cube')
+def test_square_cube(square, cube):
+    assert square(-1) != cube(-1)
+    assert square(0) == cube(0)
+    assert square(1) == cube(1)
+    assert square(2) != cube(2)
 
 
 # but this test fails
-@nbt.register(target='fnord', label='test fnord', score=1.5)
-def test_fnord(fnord):
-    assert fnord() == 42
+@nbt.register(target='failure', label='test failure', score=1.5)
+def test_failure(failure):
+    assert failure() == 42
 
 
 # see if the import restrictions defined above work
-@nbt.register(target='illegal_import', label='test import filter', score=.5, timeout_=1.)
+@nbt.register(target='illegal_import', label='test import filter', score=.5, timeout=1.)
 def test_illegal_import(illegal_import):
     with assert_raises(ImportError):
         illegal_import()
@@ -54,21 +59,21 @@ def test_sleep_1(sleep):
     sleep(.2)
 
 
-# specifying timeout here will overwrite global settings
-@nbt.register(target='sleep', label='test local timeout', score=1, timeout_=.06)
+# specifying locally will overwrite global settings
+@nbt.register(target='sleep', label='test local timeout', score=1, timeout=.06)
 def test_sleep_2(sleep):
     sleep(.08)
 
 
 # this test will succeed
-@nbt.register(target='foo', label='inspect source')
-def test_inspect_source(foo):
-    print(inspect.getsource(foo))
+@nbt.register(target='square', label='inspect source')
+def test_inspect_source(square):
+    print(inspect.getsource(square))
 
 
 # Sometimes, the textual cells of a notebook are also of interest and should be included into the
-# report. However, other than regular test cases, textual tests cannot be passed and scored with NaN
-# by default. This feature is intended to support manual inspection.
+# report. However, other than regular test cases, textual tests cannot be passed directly and are
+# scored with NaN by default. Instead, scores are assigned manually in audit mode.
 nbt.register_comment(target=r'\*A1:\*', label='Bob', score=4)
 nbt.register_comment(target=r'\*A2:\*', label='Douglas', score=1)
 nbt.register_comment(target=r'\*A3:\*', label='???', score=2.5)
