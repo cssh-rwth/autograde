@@ -18,4 +18,4 @@ RUN pip install -e src
 RUN touch notebook.ipynb && cp src/dummy.py test.py
 
 # run test
-ENTRYPOINT ["python", "test.py", "notebook.ipynb", "-c", "./context", "-t", "./target"]
+ENTRYPOINT ["python", "test.py", "notebook.ipynb", "--context", "./context", "--target", "./target"]
