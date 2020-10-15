@@ -16,7 +16,7 @@ EXAMPLES = PROJECT_ROOT.joinpath('test').joinpath('examples')
 
 
 class TestWorkflow(TestCase):
-    def test_scenatio_1(self):
+    def test_scenario_1(self):
         with TemporaryDirectory() as temp, cd(temp), warnings.catch_warnings():
             warnings.simplefilter('ignore')
 
