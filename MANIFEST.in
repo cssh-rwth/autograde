@@ -1,4 +1,5 @@
 include autograde/templates/*
+include autograde/static/*
 include demo/*
 include demo/context/*
 include Dockerfile
