@@ -7,7 +7,8 @@ from unittest import TestCase
 
 import pandas as pd
 
-from autograde.__main__ import list_results, cli
+from autograde.cli.__main__ import cli
+from autograde.cli.util import list_results
 from autograde.helpers import assert_isclose
 from autograde.util import project_root, cd
 

@@ -162,10 +162,10 @@ def cmd_test(args):
     def run(path_nb_):
         if args.backend is None:
             cmd = [
-                'python', f"'{path_tst}'",
-                f"'{path_nb_}'",
-                '-t', f"'{path_tgt}'",
-                *(('-c', f"'{path_cxt}'") if path_cxt else ()),
+                'python', f'"{path_tst}"',
+                f'"{path_nb_}"',
+                '-t', f'"{path_tgt}"',
+                *(('-c', f'"{path_cxt}"') if path_cxt else ()),
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
         elif 'docker' in args.backend:

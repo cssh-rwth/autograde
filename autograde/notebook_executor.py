@@ -19,7 +19,7 @@ from autograde.util import logger, capture_output, timeout, StopWatch
 # Globals and constants variables.
 
 
-def as_py_comment(s: str, indentation=0):
+def as_py_comment(s: str, indentation: int = 0):
     """
     Escape string as python comment
 

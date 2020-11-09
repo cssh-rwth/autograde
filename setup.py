@@ -20,7 +20,7 @@ with BASEDIR.joinpath('requirements.txt').open(mode='rt') as f:
 EXTRAS_REQUIRE = {'develop': ['nose', 'setuptools', 'wheel', 'twine', 'flake8']}
 
 ENTRY_POINTS = {
-    'console_scripts': ['autograde=autograde.__main__:cli'],
+    'console_scripts': ['autograde=autograde.cli.__main__:cli'],
 }
 
 setup(
