@@ -1,10 +1,12 @@
 import os
 import subprocess
 from pathlib import Path
+from unittest import skip
 
 from autograde.util import logger
 
 
+@skip  # the nose testing framework thinks this is a test case
 def cmd_test(args):
     """Run autograde test script on jupyter notebook(s)"""
     path_tst = Path(args.test).expanduser().absolute()
