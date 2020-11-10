@@ -10,7 +10,7 @@ from autograde.cli.build import cmd_build
 from autograde.cli.patch import cmd_patch
 from autograde.cli.report import cmd_report
 from autograde.cli.summary import cmd_summary
-from autograde.cli.test import cmd_test
+from autograde.cli.test import cmd_tst
 from autograde.cli.version import cmd_version
 from autograde.util import logger, loglevel
 
@@ -48,12 +48,12 @@ def cli(args=None):
     bld_parser.set_defaults(func=cmd_build)
 
     # test sub command
-    tst_parser = subparsers.add_parser('test', help=cmd_test.__doc__)
+    tst_parser = subparsers.add_parser('test', help=cmd_tst.__doc__)
     tst_parser.add_argument('test', type=str, help='autograde test script')
     tst_parser.add_argument('notebook', type=str, help='the jupyter notebook(s) to be tested')
     tst_parser.add_argument('-t', '--target', type=str, metavar='', help='where to store results')
     tst_parser.add_argument('-c', '--context', type=str, metavar='', help='context directory')
-    tst_parser.set_defaults(func=cmd_test)
+    tst_parser.set_defaults(func=cmd_tst)
 
     # patch sub command
     ptc_parser = subparsers.add_parser('patch', help=cmd_patch.__doc__)

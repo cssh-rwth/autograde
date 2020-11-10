@@ -1,13 +1,12 @@
 import os
 import subprocess
 from pathlib import Path
-from unittest import skip
 
 from autograde.util import logger
 
 
-@skip  # the nose testing framework thinks this is a test case
-def cmd_test(args):
+# no typo, the word "test" caused some confusion at the test framework
+def cmd_tst(args):
     """Run autograde test script on jupyter notebook(s)"""
     path_tst = Path(args.test).expanduser().absolute()
     path_nbk = Path(args.notebook).expanduser().absolute()
@@ -39,10 +38,10 @@ def cmd_test(args):
         elif 'docker' in args.backend:
             cmd = [
                 'docker', 'run',
-                '-v', f'{path_tst}:/autograde/test.py',
-                '-v', f'{path_nb_}:/autograde/notebook.ipynb',
-                '-v', f'{path_tgt}:/autograde/target',
-                *(('-v', f'{path_cxt}:/autograde/context:ro') if path_cxt else ()),
+                '-v', f'"{path_tst}:/autograde/test.py"',
+                '-v', f'"{path_nb_}:/autograde/notebook.ipynb"',
+                '-v', f'"{path_tgt}:/autograde/target"',
+                *(('-v', f'"{path_cxt}:/autograde/context:ro"') if path_cxt else ()),
                 *(('-u', str(os.geteuid())) if 'rootless' not in args.backend else ()),
                 args.tag,
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
@@ -50,10 +49,10 @@ def cmd_test(args):
         elif args.backend == 'podman':
             cmd = [
                 'podman', 'run',
-                '-v', f'{path_tst}:/autograde/test.py:Z',
-                '-v', f'{path_nb_}:/autograde/notebook.ipynb:Z',
-                '-v', f'{path_tgt}:/autograde/target:Z',
-                *(('-v', f'{path_cxt}:/autograde/context:Z') if path_cxt else ()),
+                '-v', f'"{path_tst}:/autograde/test.py:Z"',
+                '-v', f'"{path_nb_}:/autograde/notebook.ipynb:Z"',
+                '-v', f'"{path_tgt}:/autograde/target:Z"',
+                *(('-v', f'"{path_cxt}:/autograde/context:Z"') if path_cxt else ()),
                 args.tag,
                 *(('-' + 'v' * args.verbose,) if args.verbose > 0 else ())
             ]
