@@ -2,7 +2,7 @@
 
 import sys
 
-from autograde.cli.__main__ import cli
+from autograde.cli import cli
 
 if __name__ == '__main__':
     sys.exit(cli())
