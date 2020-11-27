@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Standard library modules.
 import inspect
 import sys
 
