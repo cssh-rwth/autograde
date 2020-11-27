@@ -3,6 +3,7 @@ import re
 from collections import OrderedDict
 from contextlib import ExitStack
 from copy import deepcopy
+from getpass import getuser
 from pathlib import Path
 from typing import Iterable
 
@@ -17,7 +18,7 @@ class AuditSettings:
 
     def update(self, selector=None, auditor=None):
         self.selector = re.compile(selector or '')
-        self.auditor = auditor or ''
+        self.auditor = auditor or str(getuser())
 
     def select(self, result: Result) -> bool:
         return bool(self.selector.search(result.label))
