@@ -1,4 +1,4 @@
-FROM python:3.8-buster
+FROM python:3.9-buster
 
 # install requirements
 RUN apt-get --assume-yes update && apt-get --assume-yes upgrade
