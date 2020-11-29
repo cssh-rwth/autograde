@@ -3,6 +3,7 @@ import re
 from collections import OrderedDict
 from contextlib import ExitStack
 from copy import deepcopy
+from dataclasses import dataclass
 from getpass import getuser
 from pathlib import Path
 from typing import Iterable
@@ -12,13 +13,16 @@ from autograde.cli.util import load_patched, render, list_results, summarize_res
 from autograde.notebook_test import Result
 
 
+@dataclass
 class AuditSettings:
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
+    selector: re.Pattern = re.compile('')
+    auditor: str = str(getuser())
+    show_identities: bool = False
 
-    def update(self, selector=None, auditor=None):
+    def update(self, selector=None, auditor=None, show_identities=False):
         self.selector = re.compile(selector or '')
         self.auditor = auditor or str(getuser())
+        self.show_identities = bool(show_identities)
 
     def select(self, result: Result) -> bool:
         return bool(self.selector.search(result.label))
@@ -50,13 +54,13 @@ def cmd_audit(args):
         sources = dict()
         results = dict()
         for path in list_results(args.result):
-            mount = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
+            mount_path = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
 
-            r = load_patched(mount)
+            r = load_patched(mount_path)
             results[r.checksum] = r
-            mounts[r.checksum] = mount
+            mounts[r.checksum] = mount_path
 
-            with mount.joinpath('code.py').open(mode='rt') as f:
+            with mount_path.joinpath('code.py').open(mode='rt') as f:
                 sources[r.checksum] = f.read()
 
         patched = set()
@@ -73,7 +77,7 @@ def cmd_audit(args):
 
         @app.errorhandler(Exception)
         def handle_error(error):
-            logger.warning(type(error), error)
+            logger.warning(f'{type(error)}: {error}')
             error = error if isinstance(error, HTTPException) else InternalServerError()
             return render('error.html', title='Oooops', error=error), error.code
 
@@ -84,6 +88,7 @@ def cmd_audit(args):
         @app.route('/settings', methods=('POST',))
         def route_settings():
             settings.update(**request.form)
+            logger.debug(f'update settings: {settings}')
             return redirect(request.referrer)
 
         @app.route('/audit', strict_slashes=False)
@@ -95,10 +100,10 @@ def cmd_audit(args):
 
         @app.route('/patch', methods=('POST',))
         def route_patch():
-            if (id := request.form.get('id')) and (mount := mounts.get(id)):
+            if (rid := request.form.get('id')) and (mount := mounts.get(rid)):
                 scores = dict()
                 comments = dict()
-                r = deepcopy(results[id])
+                r = deepcopy(results[rid])
 
                 r.title = 'manual audit'
                 r.timestamp = timestamp_utc_iso()
@@ -128,12 +133,12 @@ def cmd_audit(args):
                 if modification_flag:
                     # update state & persist patch
                     inject_patch(r, mount)
-                    results[id] = results[id].patch(r)
-                    patched.add(id)
+                    results[rid] = results[rid].patch(r)
+                    patched.add(rid)
                 else:
                     logger.debug('no modifications were made')
 
-                if next_id := next_ids.get(id):
+                if next_id := next_ids.get(rid):
                     return redirect(f'/audit/{next_id}#edit')
 
             return redirect('/audit')
