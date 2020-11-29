@@ -1,10 +1,11 @@
 [flake8]
 max-line-length = 120
 per-file-ignores =
-    autograde/__main__.py: E402,
+    autograde/cli/util.py: E402,
     test/test_helpers.py: F811, F401
 exclude =
     build,
     .git,
     *playground*,
     autograde/__init__.py
+    autograde/cli/__init__.py
