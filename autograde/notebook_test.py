@@ -15,6 +15,7 @@ from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import dataclass, field
 from hashlib import sha256
+from math import isclose
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Iterable
 
@@ -49,14 +50,17 @@ class Result:
     stdout: str
     stderr: str
 
-    def passed(self) -> bool:
-        return math.isclose(self.score, self.score_max)
-
-    def failed(self) -> bool:
-        return (not math.isnan(self.score)) and (not math.isclose(self.score, self.score_max))
-
     def pending(self) -> bool:
         return math.isnan(self.score)
+
+    def failed(self) -> bool:
+        return math.isclose(self.score, 0.)
+
+    def partially_passed(self) -> bool:
+        return not self.pending() and not self.failed() and not self.passed()
+
+    def passed(self) -> bool:
+        return math.isclose(self.score, self.score_max)
 
 
 @dataclass_json
@@ -150,16 +154,17 @@ class NotebookTestCase:
                 result = self._test_func(*targets, *args, **kwargs)
 
             # interpret results
-            msg = result if isinstance(result, str) else 'ok'
-            score = result if isinstance(result, (int, float)) else self.score
+            score = min(float(result), self.score) if isinstance(result, (int, float)) else self.score
+            msg = result if isinstance(result, str) else (
+                '✅ passed' if isclose(score, self.score) else '¯\\_(ツ)_/¯ partially passed')
             score, msg = result if isinstance(result, tuple) else (score, msg)
 
-            return float(score), str(msg)
+            return score, str(msg)
 
         except Exception as err:
             print('Test failed:', file=sys.stderr)
             traceback.print_exception(type(err), err, err.__traceback__, file=sys.stderr)
-            return 0, f'{type(err).__name__}: "{err}"'
+            return 0, f'❌ {type(err).__name__}: "{err}"'
 
     def __str__(self):
         timeout = f'{self._timeout:.2f}s' if self._timeout is not None else '∞'
@@ -201,6 +206,7 @@ class NotebookTest:
         :param timeout: how many seconds to wait before aborting the test
         :return: decorator wrapping the original function
         """
+
         def decorator(func):
             case = NotebookTestCase(func, target, label, score, timeout or self._test_timeout)
             if case.id in self._cases:
@@ -237,7 +243,7 @@ class NotebookTest:
 
         self.register('__COMMENTS__', label, score)(search_comment)
 
-    def register_figure(self, target: Union[str, Path], label: str, score: float = 1,):
+    def register_figure(self, target: Union[str, Path], label: str, score: float = 1, ):
         """
         Register a special test case that loads an base64 encoded PNG or SVG image from artifacts.
         If the image does not exist, the test fails. In all other cases, the image is included into

@@ -2,10 +2,12 @@
 {% macro status_class(result) -%}
     {%- if result.passed() -%}
         cls-success
+    {%- elif result.partially_passed() -%}
+        cls-warning
     {%- elif result.failed() -%}
         cls-danger
-    {%- else -%}
-        cls-warning
+    {%- elif result.pending() -%}
+        cls-link
     {%- endif -%}
 {%- endmacro %}
 {% macro display_results(results, edit_mode) -%}
@@ -62,7 +64,7 @@
                             <td>
                                 <span class="cls-description">stdout</span>
                                 <pre>{{ r.stdout|e }}</pre>
-                                <span class="cls-description">stdout</span>
+                                <span class="cls-description">stderr</span>
                                 <pre>{{ r.stderr|e }}</pre>
                             </td>
                         </tr>

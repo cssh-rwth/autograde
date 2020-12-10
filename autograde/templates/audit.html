@@ -40,7 +40,7 @@
                 <article style="flex: none; min-width: 16em">
                     <h3 style="margin: 0">{{ hash(h) }} {% if h in patched %}✔{% endif %}</h3>
                     <span class="cls-description">{% if settings.show_identities %}{{ r.format_members(separator='/', max_width=32) }}{% else %}●●●●●{% endif %}</span><br>
-                    <a href="/audit/{{ h }}#edit"><button class="{% if results[h].summary().pending %}cls-warning{% else %}cls-neutral{% endif %}">edit</button></a>
+                    <a href="/audit/{{ h }}#edit"><button class="{% if results[h].summary().pending %}cls-link{% else %}cls-neutral{% endif %}">edit</button></a>
                     <a href="/report/{{ h }}" target="_blank"><button class="cls-neutral">preview</button></a>
                     <a href="/source/{{ h }}" target="_blank"><button class="cls-neutral">code</button></a>
                 </article>
