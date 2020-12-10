@@ -1,11 +1,8 @@
-import pathlib
+from pathlib import Path
 
 
 def _load(*args, mode='rt'):
-    with open(
-            pathlib.Path(__file__).parent.joinpath(*args),
-            mode=mode if mode.startswith('r') else f'r{mode}'
-    ) as f:
+    with Path(__file__).parent.joinpath(*args).open(mode=mode if mode.startswith('r') else f'r{mode}') as f:
         return f.read().strip() + '\n' if mode.endswith('t') else f.read()
 
 
