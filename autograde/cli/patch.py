@@ -1,4 +1,6 @@
-from autograde.util import logger, cd, mount_tar
+from zipfile import ZipFile
+
+from autograde.util import logger
 
 
 def cmd_patch(args):
@@ -9,16 +11,16 @@ def cmd_patch(args):
     # load & index all patches
     patches = dict()
     for path in list_results(args.patch):
-        with mount_tar(path) as tar:
-            patch = load_patched(tar)
+        with ZipFile(path) as zipf:
+            patch = load_patched(zipf)
             patches[patch.checksum] = patch
 
     # inject patches
     for path in list_results(args.result):
-        with mount_tar(path, mode='a') as tar, cd(tar):
-            result = load_patched()
+        with ZipFile(path, mode='a') as zipf:
+            result = load_patched(zipf)
             if result.checksum in patches:
-                inject_patch(patches[result.checksum])
+                inject_patch(patches[result.checksum], zipf)
             else:
                 logger.warn(f'no patch for {path} found')
 

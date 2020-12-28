@@ -1,6 +1,7 @@
 from pathlib import Path
+from zipfile import ZipFile
 
-from autograde.util import logger, cd, mount_tar
+from autograde.util import logger
 
 
 def cmd_summary(args):
@@ -17,12 +18,12 @@ def cmd_summary(args):
     for path_ in list_results(path):
         logger.debug(f'read {path_}')
 
-        with mount_tar(path_) as tar, cd(tar):
-            r = load_patched()
+        with ZipFile(path_, mode='r') as zipf:
+            r = load_patched(zipf)
             results.append(r)
 
-            with open('code.py', mode='rt') as f:
-                sources[r.checksum] = f.read()
+            with zipf.open('code.py', mode='r') as f:
+                sources[r.checksum] = f.read().decode('utf-8')
 
     # merge results
     results_df = merge_results(results)

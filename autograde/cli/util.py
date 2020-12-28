@@ -8,10 +8,12 @@ import base64
 import io
 import json
 import math
+import re
 from difflib import SequenceMatcher
 from itertools import combinations
 from pathlib import Path
 from typing import List, Dict
+from zipfile import ZipFile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +26,7 @@ from scipy.stats import norm
 import autograde
 from autograde.notebook_test import Results
 from autograde.static import CSS, FAVICON
-from autograde.util import logger, timestamp_utc_iso, cd
+from autograde.util import logger, timestamp_utc_iso
 
 # Globals and constants variables.
 FAVICON = base64.b64encode(FAVICON).decode('utf-8')
@@ -48,38 +50,38 @@ def list_results(path='.', prefix='results') -> List[Path]:
     if path.is_file():
         return [path]
 
-    return list(path.rglob(f'{prefix}_*.tar.xz'))
+    return sorted(path.rglob(f'{prefix}_*.zip'))
 
 
-def inject_patch(results: Results, path='.', prefix: str = 'results') -> Path:
+def inject_patch(results: Results, zipf: ZipFile, prefix: str = 'results'):
     """Store results as patch in mounted results archive"""
-    path = Path(path)
-    ct = len(list(path.glob(f'{prefix}_patch*.json')))
+    patch_re = re.compile(re.escape(prefix) + r'_.*json')
+    ct = len(list(filter(patch_re.match, zipf.namelist())))
 
-    with cd(path):
-        with open(f'{prefix}_patch_{ct + 1:02d}.json', mode='wt') as f:
-            json.dump(results.to_dict(), f, indent=4)
+    with zipf.open(f'{prefix}_patch_{ct + 1:02d}.json', mode='w') as f:
+        f.write(json.dumps(results.to_dict(), indent=4).encode('utf-8'))
 
-        # update report if it exists
-        if Path('report.html').exists():
-            results = load_patched()
-            logger.debug(f'update report for {results.checksum}')
-            with open('report.html', mode='wt') as f:
-                f.write(render('report.html', title='report', id=results.checksum,
-                               results={results.checksum: results}, summary=results.summary()))
+    # update report if it exists
+    if 'report.html' in zipf.namelist():
+        results = load_patched(zipf)
+        logger.debug(f'update report for {results.checksum}')
+        with open('report.html', mode='w') as f:
+            f.write(render(
+                'report.html',
+                title='report',
+                id=results.checksum,
+                results={results.checksum: results}, summary=results.summary()
+            ).encode('utf-8'))
 
-    return path
 
-
-def load_patched(path='.', prefix: str = 'results') -> Results:
+def load_patched(zipf: ZipFile, prefix: str = 'results') -> Results:
     """Load results and apply patches from mounted results archive"""
-    path = Path(path)
-
-    with path.joinpath(f'{prefix}.json').open(mode='rt') as f:
+    with zipf.open(f'{prefix}.json', mode='r') as f:
         results = Results.from_json(f.read())
 
-    for patch_path in sorted(path.glob(f'{prefix}_patch*.json')):
-        with patch_path.open(mode='rt') as f:
+    patch_re = re.compile(re.escape(prefix) + r'_.*json')
+    for patch_path in sorted(filter(patch_re.match, zipf.namelist())):
+        with zipf.open(patch_path, mode='r') as f:
             results = results.patch(Results.from_json(f.read()))
 
     return results

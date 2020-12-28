@@ -5,7 +5,6 @@ from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import dataclass
 from getpass import getuser
-from pathlib import Path
 from typing import Iterable
 
 from autograde.cli.util import load_patched, render, list_results, summarize_results, b64str, plot_fraud_matrix, \
@@ -42,8 +41,9 @@ def cmd_audit(args):
     from flask import Flask, redirect, request
     import flask.cli as flask_cli
     from werkzeug.exceptions import HTTPException, InternalServerError
+    from zipfile import ZipFile
 
-    from autograde.util import logger, parse_bool, timestamp_utc_iso, mount_tar
+    from autograde.util import logger, parse_bool, timestamp_utc_iso
 
     with ExitStack() as exit_stack:
         # settings
@@ -54,14 +54,14 @@ def cmd_audit(args):
         sources = dict()
         results = dict()
         for path in list_results(args.result):
-            mount_path = Path(exit_stack.enter_context(mount_tar(path, mode='a')))
+            zipf = exit_stack.enter_context(ZipFile(path, mode='a'))
 
-            r = load_patched(mount_path)
+            r = load_patched(zipf)
             results[r.checksum] = r
-            mounts[r.checksum] = mount_path
+            mounts[r.checksum] = zipf
 
-            with mount_path.joinpath('code.py').open(mode='rt') as f:
-                sources[r.checksum] = f.read()
+            with zipf.open('code.py', mode='r') as f:
+                sources[r.checksum] = f.read().decode('utf-8')
 
         patched = set()
         next_ids = dict(zip(mounts, list(mounts)[1:]))
@@ -170,7 +170,7 @@ def cmd_audit(args):
         @app.route('/stop')
         def route_stop():
             if func := request.environ.get('werkzeug.server.shutdown'):
-                logger.debug('shutdown werkzeug server')
+                logger.debug('stop werkzeug server')
                 func()
             else:
                 logger.debug('not running with werkzeug server')

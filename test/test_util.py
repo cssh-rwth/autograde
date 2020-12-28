@@ -9,10 +9,11 @@ from itertools import combinations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from zipfile import ZipFile
 
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
-    camel_case, prune_join, capture_output, cd, mount_tar, StopWatch, timeout
+    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, timeout
 
 
 class TestUtil(TestCase):
@@ -122,42 +123,45 @@ class TestUtil(TestCase):
 
         self.assertEqual(Path('.'), cwd)
 
-    def test_tar_mount(self):
-        path = Path('fnord.tar')
+    def test_cd_zip(self):
+        path = Path('fnord.zip')
 
         with TemporaryDirectory() as dir_, cd(dir_):
-            # reading non existing archive fails
-            with self.assertRaises(FileNotFoundError):
-                with mount_tar(path):
-                    pass
-
-            self.assertFalse(path.exists())
-
             # write empty archive
-            with mount_tar(path, mode='w'):
+            with cd_zip(path):
                 pass
 
             self.assertTrue(path.exists())
 
-            # append some contents
-            with mount_tar(path, mode='a') as tar, cd(tar):
+            # read only mode is not supported
+            with self.assertRaises(ValueError), cd_zip(path, mode='r'):
+                pass
+
+            # create some contents
+            with cd_zip(path):
                 with open('foo', mode='wt') as f:
                     f.write('FOO')
 
             # see if changes persisted
-            with mount_tar(path) as tar, cd(tar):
-                self.assertTrue(Path('foo').exists())
-                self.assertFalse(Path('bar').exists())
+            with ZipFile(path) as zipf:
+                self.assertSetEqual(set(zipf.namelist()), {'foo'})
+
+            # extend archive
+            with cd_zip(path, mode='a'):
+                with open('bar', mode='wb') as f:
+                    f.write(b'BAR')
+
+            with ZipFile(path) as zipf:
+                self.assertSetEqual(set(zipf.namelist()), {'foo', 'bar'})
 
             # overwrite archive
-            with mount_tar(path, mode='w') as tar, cd(tar):
+            with cd_zip(path, mode='w'):
                 with open('bar', mode='wb') as f:
                     f.write(b'BAR')
 
             # see if changes persisted
-            with mount_tar(path) as tar, cd(tar):
-                self.assertFalse(Path('foo').exists())
-                self.assertTrue(Path('bar').exists())
+            with ZipFile(path) as zipf:
+                self.assertSetEqual(set(zipf.namelist()), {'bar'})
 
     def test_stopwatch(self):
         assert_list_eq = partial(assert_iter_eqal, comp=lambda a, b: math.isclose(a, b, abs_tol=5e-3))

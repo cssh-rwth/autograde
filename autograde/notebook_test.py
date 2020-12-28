@@ -25,7 +25,7 @@ import autograde
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
-    prune_join, capture_output, cd, mount_tar, timeout as timeout_context
+    prune_join, capture_output, cd, cd_zip, timeout as timeout_context
 
 T_TARGET = Union[str, Iterable[str]]
 
@@ -328,15 +328,14 @@ class NotebookTest:
         nb_hash_short = nb_hash[:8]
 
         with cd(target_dir):
-            archive = Path(f'results_{nb_hash_short}.tar.xz')
+            archive = Path(f'results_{nb_hash_short}.zip')
 
             if archive.exists():
                 logger.debug(f'remove existing {archive}')
                 archive.unlink()
 
             with ExitStack() as exec_test_stack:
-                tar = exec_test_stack.enter_context(mount_tar(archive, mode='w:xz'))
-                exec_test_stack.enter_context(cd(tar))
+                exec_test_stack.enter_context(cd_zip(archive))
 
                 # store copy of notebook
                 logger.debug('dump copy of original notebook')
@@ -412,7 +411,7 @@ class NotebookTest:
 
                 # infer new, more readable name
                 names = results.format_members(separator=',')
-                archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.tar.xz')
+                archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.zip')
 
             if archive_name_new.exists():
                 logger.debug(f'remove existing {archive_name_new}')

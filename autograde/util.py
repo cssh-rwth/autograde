@@ -4,17 +4,16 @@ import math
 import os
 import re
 import sys
-import tarfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Iterable, Union, List
+from typing import ContextManager, Iterable, Union, List
+from zipfile import ZipFile
 
 import pytz
 
 ALPHA_NUMERIC = re.compile(r'[^\w]')
-
 
 _formatter = logging.Formatter(
     '{asctime} [{levelname}] {processName}:  {message}',
@@ -103,8 +102,10 @@ def capture_output(tmp_stdout=None, tmp_stderr=None):
 
 
 @contextmanager
-def cd(path, mkdir=False):
-    cwd = os.getcwd()
+def cd(path: Union[Path, str], mkdir: bool = False) -> ContextManager[Path]:
+    """Change directory"""
+    path = Path(path)
+    cwd = Path(os.getcwd())
 
     if mkdir:
         logger.debug(f'create directories: {path}')
@@ -122,38 +123,29 @@ def cd(path, mkdir=False):
 
 
 @contextmanager
-def mount_tar(path, mode='r'):
-    prefix = mode[0]
+def cd_zip(path: Union[Path, str], mode: str = 'w') -> ContextManager[ZipFile]:
+    """Change to a temporary directory and write all files to zip file when context is left"""
+    if mode not in set('wax'):
+        raise ValueError('supported modes: "w", "a", "x"')
 
-    # TODO use ValueError instead
-    assert prefix in ['r', 'w', 'a'], f'unknown prefix {prefix}'
-    assert '|' not in mode, 'streaming is not supported'
+    with ZipFile(Path(path), mode=mode) as zipf, TemporaryDirectory() as tmp, cd(tmp):
+        tmp = Path(tmp)
+        yield zipf
 
-    with TemporaryDirectory() as tempdir:
-        logger.debug(f'create mount point at {tempdir} in mode "{mode}"')
-        try:
-            if prefix in ['r', 'a']:
-                logger.debug(f'extract files from {path}')
-                with tarfile.open(path, mode='r'+mode[1:]) as tar:
-                    tar.extractall(tempdir)
-
-            yield tempdir
-
-        finally:
-            if prefix in ['w', 'a']:
-                logger.debug(f'write changes to {path}')
-                with tarfile.open(path, mode='w'+mode[1:]) as tar:
-                    tar.add(tempdir, arcname='')
+        # add all files in temporary directory to zipfile
+        for file in filter(Path.is_file, tmp.rglob('*')):
+            zipf.write(file, file.relative_to(tmp))
 
 
 class StopWatch:
     """Measure durations"""
+
     def __init__(self):
-        self._captures = [time.time()]
+        self._captures = [time.monotonic()]
 
     def capture(self) -> int:
         """Store current time and return index of capture"""
-        self._captures.append(time.time())
+        self._captures.append(time.monotonic())
         return len(self._captures) - 1
 
     def __enter__(self):

@@ -1,4 +1,6 @@
-from autograde.util import logger, cd, mount_tar
+from zipfile import ZipFile
+
+from autograde.util import logger
 
 
 def cmd_report(args):
@@ -7,10 +9,14 @@ def cmd_report(args):
 
     for path in list_results(args.result):
         logger.info(f'render report for {path}')
-        with mount_tar(path, mode='a') as tar, cd(tar):
-            results = load_patched()
-            with open('report.html', mode='wt') as f:
-                f.write(render('report.html', title='report', id=results.checksum,
-                               results={results.checksum: results}, summary=results.summary()))
+        with ZipFile(path, mode='a') as zipf:
+            results = load_patched(zipf)
+            with zipf.open('report.html', mode='w') as f:
+                f.write(render(
+                    'report.html',
+                    title='report',
+                    id=results.checksum,
+                    results={results.checksum: results}, summary=results.summary()
+                ).encode('utf-8'))
 
     return

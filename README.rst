@@ -44,7 +44,7 @@ What happened? Let's first have a look at the arguments of *autograde*:
 * The optional flag :code:`--context` specifies a directory that is mounted into the sandbox and may contain arbitrary files or subdirectories.
   This is useful when the notebook expects some external files to be present such as data sets.
 
-The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.tar.xz` and which has the following contents:
+The output is a compressed archive that is named something like :code:`results_[Lastname1,Lastname2,...]_XXXXXXXX.zip` and which has the following contents:
 
 * :code:`artifacts/`: directory with all files that where created or modified by the tested notebook as well as rendered matplotlib plots.
 * :code:`code.py`: code extracted from the notebook including :code:`stdout`/:code:`stderr` as comments

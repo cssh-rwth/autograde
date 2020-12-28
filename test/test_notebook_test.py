@@ -2,7 +2,6 @@ import importlib.util as import_util
 import math
 import os
 import re
-import tarfile
 import time
 from dataclasses import astuple
 from functools import partial
@@ -10,6 +9,7 @@ from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from zipfile import ZipFile
 
 import autograde
 from autograde.helpers import assert_iter_eqal
@@ -277,13 +277,11 @@ class TestNotebookTest(TestCase):
         with TemporaryDirectory() as path, cd(path):
             nbtest.nbt._grade_notebook(nb_path, context=c_path)
 
-            rpath, *_ = Path(path).glob('results_*.tar.xz')
+            rpath, *_ = Path(path).glob('results_*.zip')
 
-            with tarfile.open(rpath, mode='r') as tar:
-                self.assertListEqual(sorted(tar.getnames())[1:], [
-                    'artifacts',
+            with ZipFile(rpath, mode='r') as zipf:
+                self.assertListEqual(sorted(zipf.namelist()), [
                     'artifacts/bar.txt',
-                    'artifacts/figures',
                     'artifacts/figures/fig_nb_3_1.png',
                     'artifacts/figures/fig_nb_8_1.png',
                     'artifacts/figures/fig_nb_8_2.png',
@@ -295,7 +293,7 @@ class TestNotebookTest(TestCase):
                     'results.json'
                 ])
 
-                results = Results.from_json(tar.extractfile(tar.getmember('results.json')).read())
+                results = Results.from_json(zipf.open('results.json').read())
 
         self.assertEqual(results.version, autograde.__version__)
 

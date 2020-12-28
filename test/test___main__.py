@@ -1,9 +1,9 @@
 import os
-import tarfile
 import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from zipfile import ZipFile
 
 import pandas as pd
 
@@ -29,9 +29,8 @@ class TestWorkflow(TestCase):
             cli(['test', str(EXAMPLES.joinpath('test_2.py')), str(EXAMPLES), '-t', 'results_2'])
 
             for path in list_results():
-                with tarfile.open(path, mode='r') as tar:
-                    self.assertListEqual(sorted(tar.getnames())[1:], [
-                        'artifacts',
+                with ZipFile(path, mode='r') as zipf:
+                    self.assertListEqual(sorted(zipf.namelist()), [
                         'code.py',
                         'notebook.ipynb',
                         'results.json'
@@ -41,8 +40,8 @@ class TestWorkflow(TestCase):
             cli(['report', 'results_2'])
 
             for path in list_results('results_2'):
-                with tarfile.open(path, mode='r') as tar:
-                    self.assertTrue('report.html' in tar.getnames())
+                with ZipFile(path, mode='r') as zipf:
+                    self.assertTrue('report.html' in zipf.namelist())
 
             # create test summaries
             cli(['summary', 'results_1'])
@@ -64,8 +63,8 @@ class TestWorkflow(TestCase):
             cli(['summary', 'results_1'])
 
             for path in list_results('results_1'):
-                with tarfile.open(path, mode='r') as tar:
-                    self.assertTrue('report.html' in tar.getnames())
+                with ZipFile(path, mode='r') as zipf:
+                    self.assertTrue('report.html' in zipf.namelist())
 
             summary_1 = pd.read_csv(Path('results_1', 'summary.csv'))
 
