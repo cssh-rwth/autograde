@@ -56,7 +56,7 @@
                     <tr>
                         <th>Title</th>
                         <th>Timestamp</th>
-                        <th>Changed Results</th>
+                        <th>Modified Unit Test Results</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -82,33 +82,6 @@
                 </table>
             </article>
         </section>
-        <section>
-            <article>
-                <h2>Artifacts</h2>
-                <p>While the jupyter notebook is executed, <i>autograde</i> watches the current working directory for
-                    files being created or modified:</p>
-                {% if results.artifacts %}
-                    <ul>
-                        {% for file in results.artifacts %}
-                            <li><code>{{ file }}</code></li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <b>None</b>
-                {% endif %}
-                <p>All files listed above can be found in the <code>/artifacts</code> directory of your results archive.
-                </p>
-                <p>The following files have been excluded from results as they haven't changed during execution:</p>
-                {% if results.artifacts %}
-                    <ul>
-                        {% for file in results.excluded_artifacts %}
-                            <li><code>{{ file }}</code></li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <b>None</b>
-                {% endif %}
-            </article>
-        </section>
+        {{ list_artifacts(results, False) }}
     </section>
 {% endblock %}

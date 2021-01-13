@@ -45,7 +45,8 @@
                 <article style="flex: none; min-width: 16em">
                     <h3 style="margin: 0">{{ hash(aid) }} {% if aid in state.patched %}✔{% endif %}</h3>
                     <span class="cls-description">{% if state.settings.show_identities %}
-                        {{ archive.results.format_members(separator='/', max_width=32) }}{% else %}●●●●●{% endif %}</span><br>
+                        {{ archive.results.format_members(separator='/', max_width=32) }}{% else %}
+                        ●●●●●{% endif %}</span><br>
                     <a href="/audit/{{ aid }}#edit">
                         <button class="{% if archive.results.summarize().pending %}cls-link{% else %}cls-neutral{% endif %}">
                             edit
@@ -54,7 +55,7 @@
                     <a href="/report/{{ aid }}" target="_blank">
                         <button class="cls-neutral">preview</button>
                     </a>
-                    <a href="/source/{{ aid }}" target="_blank">
+                    <a href="/download/{{ aid }}/code.py">
                         <button class="cls-neutral">code</button>
                     </a>
                 </article>
@@ -86,6 +87,10 @@
                     <input type="reset" value="Reset" style="float: right" class="cls-danger"/>
                 </form>
             </section>
+        </section>
+        <h2>Meta</h2>
+        <section>
+            {{ list_artifacts(state.archives[id].results, True) }}
         </section>
     {% endif %}
 {% endblock %}

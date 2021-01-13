@@ -1,4 +1,5 @@
 import math
+import io
 import re
 from contextlib import ExitStack
 from copy import deepcopy
@@ -76,6 +77,8 @@ class AuditState:
 
         patch.title = 'manual audit'
         patch.timestamp = timestamp_utc_iso()
+        if auditor := self.settings.auditor:
+            patch.title += f' by {auditor}'
 
         # extract form data
         for key, value in kwargs.items():
@@ -114,7 +117,7 @@ class AuditState:
 def cmd_audit(args):
     """Launch a web interface for manually auditing test archives"""
     import logging
-    from flask import Flask, redirect, request
+    from flask import Flask, redirect, request, send_file
     import flask.cli as flask_cli
     from werkzeug.exceptions import HTTPException, InternalServerError
 
@@ -158,9 +161,11 @@ def cmd_audit(args):
         def route_report(id):
             return state.archives[id].report
 
-        @app.route('/source/<string:id>')
-        def route_source(id):
-            return render('source_view.html', title='source view', archive=state.archives[id])
+        @app.route('/download/<string:id>/<path:path>')
+        def route_download(id, path):
+            file_name = str(path).split('/')[-1]
+            with state.archives[id].open(path) as f:
+                return send_file(io.BytesIO(f.read()), attachment_filename=file_name, as_attachment=True)
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
