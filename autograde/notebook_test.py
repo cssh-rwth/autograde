@@ -15,12 +15,12 @@ from contextlib import ExitStack
 from hashlib import sha256
 from math import isclose
 from pathlib import Path
-from typing import Dict, List, Union, Iterable, Generator
+from typing import Dict, Union, Iterable, Generator
 
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
-from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline
+from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline, WatchDog
 
 T_TARGET = Union[str, Iterable[str]]
 
@@ -241,11 +241,7 @@ class NotebookTest:
                         shutil.copytree(context, '.', dirs_exist_ok=True)
 
                     # build index of all files known before execution
-                    index = set()
-                    for path in Path('.').glob('**/*'):
-                        if path.is_file():
-                            with path.open(mode='rb') as f:
-                                index.add(sha256(f.read()).hexdigest())
+                    wd = WatchDog(Path('.'))
 
                     # actual notebook execution
                     try:
@@ -261,21 +257,12 @@ class NotebookTest:
                     except ValueError:
                         state = {}
 
-                    # remove files that haven't changed
-                    artifacts = []
-                    artifacts_excluded = []
-                    for path in Path('.').glob('**/*'):
-                        if path.is_file():
-                            delete_flag = False
-                            with path.open(mode='rb') as f:
-                                if sha256(f.read()).hexdigest() in index:
-                                    artifacts_excluded.append(str(path))
-                                    delete_flag = True
-                                else:
-                                    artifacts.append(str(path))
+                    # collect artifacts and remove files that haven't changed
+                    artifacts = list(wd.list_changed())
+                    excluded_artifacts = list(wd.list_not_changed())
 
-                            if delete_flag:
-                                path.unlink()
+                    for path in excluded_artifacts:
+                        path.unlink()
 
                 # infer meta information
                 try:
@@ -286,15 +273,15 @@ class NotebookTest:
                 if not group:
                     logger.warning(f'Couldn\'t find valid information about members in "{nb_path}"')
 
-                # execute tests
-                logger.debug('execute tests')
+                # apply unit tests tests
+                logger.debug('apply unit tests')
                 results = NotebookTestResult(
                     title=self._title,
                     notebook=str(nb_path),
                     checksum=nb_hash,
                     team_members=group,
-                    artifacts=sorted(artifacts),
-                    excluded_artifacts=sorted(artifacts_excluded),
+                    artifacts=sorted(map(str, artifacts)),
+                    excluded_artifacts=sorted(map(str, excluded_artifacts)),
                     unit_test_results=list(self._apply_unit_tests(state)),
                 )
 

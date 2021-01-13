@@ -13,12 +13,13 @@ from zipfile import ZipFile
 
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
-    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, deadline
+    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, deadline, \
+    WatchDog
 
 
 class TestUtil(TestCase):
     def test_parse_bool(self):
-        for v in (False, 0, 'F', 'f', 'false', 'FALSE',  'FalsE', 'nO', 'n'):
+        for v in (False, 0, 'F', 'f', 'false', 'FALSE', 'FalsE', 'nO', 'n'):
             self.assertFalse(parse_bool(v))
 
         for v in (True, 1, 'T', 't', 'true', 'TRUE', 'TruE', 'yEs', 'y'):
@@ -52,7 +53,7 @@ class TestUtil(TestCase):
         self.assertEqual('HeinBlöd', camel_case(' hein blöd'))
 
     def test_prune_join(self):
-        dictionary = [string.ascii_uppercase[i-1] * i for i in range(1, 9)]
+        dictionary = [string.ascii_uppercase[i - 1] * i for i in range(1, 9)]
 
         for words in combinations(dictionary, 3):
             for mw in range(15):
@@ -199,3 +200,59 @@ class TestUtil(TestCase):
                 time.sleep(.02)
 
         self.assertIsNone(sys.gettrace())
+
+
+class TestWatchDog(TestCase):
+
+    def test_init(self):
+        with TemporaryDirectory() as tmp:
+            f_1 = Path(tmp).joinpath('foo')
+            f_1.touch()
+
+            with self.assertRaises(ValueError):
+                WatchDog(f_1)
+
+    def test_file_presence(self):
+        with TemporaryDirectory() as tmp:
+            f_1 = Path(tmp).joinpath('foo')
+            f_2 = Path(tmp).joinpath('bar', 'foo')
+
+            wd = WatchDog(tmp)
+            self.assertSetEqual(set(wd.list_changed()), set())
+            self.assertSetEqual(set(wd.list_not_changed()), set())
+
+            f_1.touch()
+            self.assertSetEqual(set(wd.list_changed()), {f_1})
+            self.assertSetEqual(set(wd.list_not_changed()), set())
+
+            wd.reload()
+            self.assertSetEqual(set(wd.list_changed()), set())
+            self.assertSetEqual(set(wd.list_not_changed()), {f_1})
+
+            f_2.touch()
+            self.assertSetEqual(set(wd.list_changed()), {f_2})
+            self.assertSetEqual(set(wd.list_not_changed()), {f_1})
+
+    def test_file_access(self):
+        with TemporaryDirectory() as tmp:
+            f_1 = Path(tmp).joinpath('foo')
+            f_2 = Path(tmp).joinpath('bar', 'foo')
+
+            f_1.touch()
+            f_2.touch()
+
+            wd = WatchDog(tmp)
+
+            self.assertSetEqual(set(wd.list_changed()), set())
+            self.assertSetEqual(set(wd.list_not_changed()), {f_1, f_2})
+
+            f_1.open(mode='r').close()
+
+            self.assertSetEqual(set(wd.list_changed()), set())
+            self.assertSetEqual(set(wd.list_not_changed()), {f_1, f_2})
+
+            with f_1.open(mode='w') as f:
+                f.write('hello world')
+
+            self.assertSetEqual(set(wd.list_changed()), {f_1})
+            self.assertSetEqual(set(wd.list_not_changed()), {f_2})

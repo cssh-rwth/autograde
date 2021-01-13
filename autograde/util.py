@@ -8,7 +8,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ContextManager, Iterable, Union, List
+from typing import ContextManager, Generator, Iterable, Union, List
 from zipfile import ZipFile
 
 import pytz
@@ -190,3 +190,35 @@ def deadline(timeout):
 
     finally:
         sys.settrace(None)
+
+
+class WatchDog:
+    """Observe directory for file changes without looking into files"""
+
+    @staticmethod
+    def _hash_stat(stat: os.stat_result) -> int:
+        return hash(stat.st_ctime) ^ hash(stat.st_mtime_ns) ^ hash(stat.st_size)
+
+    def __init__(self, path: Union[Path, str]):
+        self._path = Path(path)
+
+        if not self._path.is_dir():
+            raise ValueError(f'{self._path} is no valid directory')
+
+        self._index = dict()
+        self.reload()
+
+    def _list(self):
+        yield from ((p, self._hash_stat(p.stat())) for p in self._path.rglob('*') if p.is_file())
+
+    def reload(self):
+        """Re-build index (discards all changes that have been registered)"""
+        self._index = dict(self._list())
+
+    def list_changed(self) -> Generator[Path, None, None]:
+        """List files that have been modified since the index was built"""
+        yield from (path for path, hsh in self._list() if hsh != self._index.get(path))
+
+    def list_not_changed(self) -> Generator[Path, None, None]:
+        """List files that have NOT been modified since the index was built"""
+        yield from (path for path, hsh in self._list() if hsh == self._index.get(path))
