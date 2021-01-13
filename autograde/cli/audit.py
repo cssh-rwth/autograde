@@ -9,7 +9,7 @@ from typing import Iterable
 
 from autograde.cli.util import load_patched, render, list_results, summarize_results, b64str, plot_fraud_matrix, \
     plot_score_distribution, inject_patch
-from autograde.notebook_test import Result
+from autograde.test_result import UnitTestResult
 
 
 @dataclass
@@ -23,10 +23,10 @@ class AuditSettings:
         self.auditor = auditor or str(getuser())
         self.show_identities = bool(show_identities)
 
-    def select(self, result: Result) -> bool:
+    def select(self, result: UnitTestResult) -> bool:
         return bool(self.selector.search(result.label))
 
-    def filter_results(self, results: Iterable[Result]) -> Iterable[Result]:
+    def filter_results(self, results: Iterable[UnitTestResult]) -> Iterable[UnitTestResult]:
         return filter(self.select, results)
 
     def format_comment(self, comment):
@@ -117,7 +117,7 @@ def cmd_audit(args):
 
                 # update results
                 modification_flag = False
-                for result in r.results:
+                for result in r.unit_test_results:
                     score = scores.get(result.id)
                     if score is not None and not math.isclose(score, result.score):
                         logger.debug(f'update score of result {result.id[:8]}')
@@ -146,7 +146,7 @@ def cmd_audit(args):
         @app.route('/report/<string:id>')
         def route_report(id):
             return render('report.html', title='report (preview)', id=id, results=results,
-                          summary=results[id].summary())
+                          summary=results[id].summarize())
 
         @app.route('/source/<string:id>')
         def route_source(id):

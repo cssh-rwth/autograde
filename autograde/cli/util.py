@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# ensure matplotlib uses the right backend (this has to be done before import of pyplot!)
-import matplotlib as mpl
-
-mpl.use('Agg')
-
 import base64
 import io
 import json
@@ -15,6 +10,11 @@ from pathlib import Path
 from typing import List, Dict
 from zipfile import ZipFile
 
+# ensure matplotlib uses the right backend (this has to be done BEFORE import of pyplot!)
+import matplotlib as mpl
+
+mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -24,7 +24,7 @@ from scipy.linalg import LinAlgError
 from scipy.stats import norm
 
 import autograde
-from autograde.notebook_test import Results
+from autograde.test_result import NotebookTestResult
 from autograde.static import CSS, FAVICON
 from autograde.util import logger, timestamp_utc_iso
 
@@ -53,7 +53,7 @@ def list_results(path='.', prefix='results') -> List[Path]:
     return sorted(path.rglob(f'{prefix}_*.zip'))
 
 
-def inject_patch(results: Results, zipf: ZipFile, prefix: str = 'results'):
+def inject_patch(results: NotebookTestResult, zipf: ZipFile, prefix: str = 'results'):
     """Store results as patch in mounted results archive"""
     patch_re = re.compile(re.escape(prefix) + r'_.*json')
     ct = len(list(filter(patch_re.match, zipf.namelist())))
@@ -70,19 +70,19 @@ def inject_patch(results: Results, zipf: ZipFile, prefix: str = 'results'):
                 'report.html',
                 title='report',
                 id=results.checksum,
-                results={results.checksum: results}, summary=results.summary()
+                results={results.checksum: results}, summary=results.summarize()
             ).encode('utf-8'))
 
 
-def load_patched(zipf: ZipFile, prefix: str = 'results') -> Results:
+def load_patched(zipf: ZipFile, prefix: str = 'results') -> NotebookTestResult:
     """Load results and apply patches from mounted results archive"""
     with zipf.open(f'{prefix}.json', mode='r') as f:
-        results = Results.from_json(f.read())
+        results = NotebookTestResult.from_json(f.read())
 
     patch_re = re.compile(re.escape(prefix) + r'_.*json')
     for patch_path in sorted(filter(patch_re.match, zipf.namelist())):
         with zipf.open(patch_path, mode='r') as f:
-            results = results.patch(Results.from_json(f.read()))
+            results = results.patch(NotebookTestResult.from_json(f.read()))
 
     return results
 
@@ -125,7 +125,7 @@ def summarize_results(results) -> pd.DataFrame:
     def row_factory():
         for r in results:
             for member in r.team_members:
-                s = r.summary()
+                s = r.summarize()
                 yield (
                     member.student_id,
                     member.last_name,

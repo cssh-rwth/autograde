@@ -16,7 +16,7 @@ def cmd_report(args):
                     'report.html',
                     title='report',
                     id=results.checksum,
-                    results={results.checksum: results}, summary=results.summary()
+                    results={results.checksum: results}, summary=results.summarize()
                 ).encode('utf-8'))
 
     return

@@ -13,7 +13,7 @@ from autograde.helpers import assert_isclose
 from autograde.util import project_root, cd
 
 PROJECT_ROOT = project_root()
-EXAMPLES = PROJECT_ROOT.joinpath('test').joinpath('examples')
+EXAMPLES = PROJECT_ROOT.joinpath('autograde_test').joinpath('examples')
 
 
 class TestWorkflow(TestCase):

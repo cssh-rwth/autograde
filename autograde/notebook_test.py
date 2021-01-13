@@ -12,127 +12,20 @@ import sys
 import traceback
 from collections import OrderedDict
 from contextlib import ExitStack
-from copy import deepcopy
-from dataclasses import dataclass, field
 from hashlib import sha256
 from math import isclose
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Iterable
+from typing import Dict, List, Union, Iterable, Generator
 
-from dataclasses_json import dataclass_json
-
-import autograde
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
-from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
-    prune_join, capture_output, cd, cd_zip, deadline as timeout_context
+from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
+from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline
 
 T_TARGET = Union[str, Iterable[str]]
 
 
-@dataclass_json
-@dataclass
-class TeamMember:
-    first_name: str
-    last_name: str
-    student_id: str
-
-
-@dataclass_json
-@dataclass
-class Result:
-    id: str
-    label: str
-    target: List[str]
-    score: float
-    score_max: float
-    messages: List[str]
-    stdout: str
-    stderr: str
-
-    def pending(self) -> bool:
-        return math.isnan(self.score)
-
-    def failed(self) -> bool:
-        return math.isclose(self.score, 0.)
-
-    def partially_passed(self) -> bool:
-        return not self.pending() and not self.failed() and not self.passed()
-
-    def passed(self) -> bool:
-        return math.isclose(self.score, self.score_max)
-
-
-@dataclass_json
-@dataclass
-class Results:
-    title: str
-    notebook: str
-    checksum: str
-    team_members: List[TeamMember]
-    artifacts: List[str]
-    excluded_artifacts: List[str]
-    results: List[Result]
-    applied_patches: List[Tuple[str, str, List[str]]] = field(default_factory=lambda: [])
-    version: str = field(default_factory=lambda: autograde.__version__)
-    timestamp: str = field(default_factory=timestamp_utc_iso)
-
-    def __iter__(self):
-        return iter(self.results)
-
-    def format_members(self, *args, **kwargs):
-        last_names = sorted((m.last_name for m in self.team_members))
-        return prune_join(map(camel_case, last_names), *args, **kwargs)
-
-    def patch(self, patch: Results) -> Results:
-        """
-        Create a copy of self and patch results of given results object into it. NOTE that pending
-        results are ignored.
-
-        :param patch: results to be patched into self
-        :return: patched copy
-        """
-        patched = deepcopy(self)
-        results = {r.id: r for r in self.results}
-
-        if not patched.checksum == patch.checksum:
-            raise ValueError('patch must not have a different origin aka checksum!')
-
-        change_list = []
-        for result in patch.results:
-            if result != results.get(result.id) and not result.pending():
-                results[result.id] = result
-                change_list.append(result.id)
-
-        patched.results = list(results.values())
-        patched.applied_patches.append((patch.title, patch.timestamp, change_list))
-
-        return patched
-
-    def summary(self) -> ResultSummary:
-        return ResultSummary(self)
-
-
-@dataclass_json
-@dataclass(init=False)
-class ResultSummary:
-    tests: int
-    failed: int
-    passed: int
-    pending: int
-    score: float
-    score_max: float
-
-    def __init__(self, results: Results):
-        self.tests = len(results.results)
-        self.failed = sum(r.failed() for r in results.results)
-        self.passed = sum(r.passed() for r in results.results)
-        self.pending = sum(r.pending() for r in results.results)
-        self.score = sum(r.score for r in results.results)
-        self.score_max = sum(r.score_max for r in results.results)
-
-
-class NotebookTestCase:
+class UnitTest:
     def __init__(self, test_function, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
         self._id = sha256(label.lower().strip().encode('utf-8')).hexdigest()
         self._test_func = test_function
@@ -150,7 +43,7 @@ class NotebookTestCase:
                 raise NameError(err)
 
             # apply actual test
-            with timeout_context(self._timeout):
+            with deadline(self._timeout):
                 result = self._test_func(*targets, *args, **kwargs)
 
             # interpret results
@@ -181,51 +74,51 @@ class NotebookTestCase:
 class NotebookTest:
     def __init__(self, title, cell_timeout: float = 0., test_timeout: float = 0.):
         self._title = title
-        self._cases = OrderedDict()
+        self._unit_tests = OrderedDict()
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
         self._variables = OrderedDict()
 
     def __len__(self):
-        return len(self._cases)
+        return len(self._unit_tests)
 
     def __str__(self):
-        return f'{type(self).__name__}({len(self._cases)} cases)'
+        return f'{type(self).__name__}({len(self._unit_tests)} unit tests)'
 
     def __repr__(self):
-        return f'{type(self).__name__}({self._cases})'
+        return f'{type(self).__name__}({self._unit_tests})'
 
     def register(self, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
         """
-        Decorator for registering a new test case for given target.
+        Decorator for registering a new unit test for given target.
 
         :param target: can be anything from the notebooks scope, be it a variable, function, class
             or module
-        :param label: label for identification of the test case
-        :param score: the weight for the test case, default is 1.0
+        :param label: label for identification of the unit test
+        :param score: the weight for the unit test, default is 1.0
         :param timeout: how many seconds to wait before aborting the test
         :return: decorator wrapping the original function
         """
 
         def decorator(func):
-            case = NotebookTestCase(func, target, label, score, timeout or self._test_timeout)
-            if case.id in self._cases:
-                raise ValueError('A case with same id was already registered. Consider using a different label!')
-            self._cases[case.id] = case
-            return case
+            unit_test = UnitTest(func, target, label, score, timeout or self._test_timeout)
+            if unit_test.id in self._unit_tests:
+                raise ValueError('A unit test with same id was already registered. Consider using a different label!')
+            self._unit_tests[unit_test.id] = unit_test
+            return unit_test
 
         return decorator
 
     def register_comment(self, target: Union[str, re.Pattern], label: str, score: float = 1.):
         """
-        Register a special test case that looks for markdown comments in the notebook by a given
+        Register a special unit test that looks for markdown comments in the notebook by a given
         regular expression. If no such comment is found, the test fails. In all other cases,
         the comment texts are included into the report. NOTE: a "passed" test is scored with NaN
         (not a number) as its output is intended for further, manual inspection.
 
         :param target: (compiled) regular expression that is searched for in markdown comments
-        :param label: label for identification of the test case
-        :param score: the weight for the test case, default is 1.0
+        :param label: label for identification of the unit test
+        :param score: the weight for the unit test, default is 1.0
         """
         pattern = re.compile(target) if isinstance(target, str) else target
 
@@ -245,14 +138,14 @@ class NotebookTest:
 
     def register_figure(self, target: Union[str, Path], label: str, score: float = 1, ):
         """
-        Register a special test case that loads an base64 encoded PNG or SVG image from artifacts.
+        Register a special unit test that loads an base64 encoded PNG or SVG image from artifacts.
         If the image does not exist, the test fails. In all other cases, the image is included into
         the report. NOTE: a "passed" test is scored with NaN (not a number) as its output is
         intended for further, manual inspection.
 
         :param target: name or (relative) path of figure to load
-        :param label: label for identification of the test case
-        :param score: the weight for the test case, default is 1.0
+        :param label: label for identification of the unit test
+        :param score: the weight for the unit test, default is 1.0
         """
         target = Path(target)
         prefixes = {
@@ -285,15 +178,14 @@ class NotebookTest:
             bool(blacklist)
         )
 
-    def _apply_cases(self, state: Dict) -> List[Result]:
+    def _apply_unit_tests(self, state: Dict) -> Generator[UnitTestResult, None, None]:
         state = state.copy()
-        results = []
 
         # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
 
-        for i, case in enumerate(self._cases.values(), start=1):
-            logger.debug(f'[{i}/{len(self._cases)}] execute {case}')
+        for i, unit_test in enumerate(self._unit_tests.values(), start=1):
+            logger.debug(f'[{i}/{len(self._unit_tests)}] execute {unit_test}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 with ExitStack() as es:
@@ -301,21 +193,20 @@ class NotebookTest:
                         es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
                     es.enter_context(capture_output(stdout, stderr))
 
-                    achieved, msg = case(state)
+                    achieved, msg = unit_test(state)
 
-                results.append(Result(
-                    id=case.id,
-                    label=case.label,
-                    target=case.targets,
+                yield UnitTestResult(
+                    id=unit_test.id,
+                    label=unit_test.label,
+                    target=unit_test.targets,
                     score=achieved,
-                    score_max=case.score,
+                    score_max=unit_test.score,
                     messages=[msg],
                     stdout=stdout.getvalue(),
                     stderr=stderr.getvalue()
-                ))
+                )
 
         logger.debug('testing completed')
-        return results
 
     def _grade_notebook(self, nb_path, target_dir=None, context=None):
         target_dir = target_dir or os.getcwd()
@@ -387,21 +278,24 @@ class NotebookTest:
                                 path.unlink()
 
                 # infer meta information
-                group = list(map(lambda m: TeamMember(**m), state.get('team_members', [])))
+                try:
+                    group = list(map(lambda m: TeamMember(**m), state.get('team_members', [])))
+                except TypeError:
+                    group = []
 
                 if not group:
-                    logger.warning(f'Couldn\'t find valid information about team members in "{nb_path}"')
+                    logger.warning(f'Couldn\'t find valid information about members in "{nb_path}"')
 
                 # execute tests
                 logger.debug('execute tests')
-                results = Results(
+                results = NotebookTestResult(
                     title=self._title,
                     notebook=str(nb_path),
                     checksum=nb_hash,
                     team_members=group,
                     artifacts=sorted(artifacts),
                     excluded_artifacts=sorted(artifacts_excluded),
-                    results=self._apply_cases(state)
+                    unit_test_results=list(self._apply_unit_tests(state)),
                 )
 
                 # store results as json
@@ -446,4 +340,4 @@ class NotebookTest:
             context=Path(args.context).absolute() if args.context else None
         )
 
-        return results.summary().failed
+        return results.summarize().failed
