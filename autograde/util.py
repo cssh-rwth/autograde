@@ -1,3 +1,4 @@
+import base64
 import datetime
 import logging
 import math
@@ -12,8 +13,19 @@ from typing import ContextManager, Generator, Iterable, Union, List
 from zipfile import ZipFile
 
 import pytz
+from jinja2 import Environment, PackageLoader, select_autoescape
+
+import autograde
+from autograde.static import CSS, FAVICON
 
 ALPHA_NUMERIC = re.compile(r'[^\w]')
+FAVICON = base64.b64encode(FAVICON).decode('utf-8')
+JINJA_ENV = Environment(
+    loader=PackageLoader('autograde', 'templates'),
+    autoescape=select_autoescape(['html', 'xml']),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
 
 _formatter = logging.Formatter(
     '{asctime} [{levelname}] {processName}:  {message}',
@@ -222,3 +234,14 @@ class WatchDog:
     def list_not_changed(self) -> Generator[Path, None, None]:
         """List files that have NOT been modified since the index was built"""
         yield from (path for path, hsh in self._list() if hsh == self._index.get(path))
+
+
+def render(template, **kwargs):
+    """Render template with default values set"""
+    return JINJA_ENV.get_template(template).render(
+        autograde=autograde,
+        css=CSS,
+        favicon=FAVICON,
+        timestamp=timestamp_utc_iso(),
+        **kwargs
+    )

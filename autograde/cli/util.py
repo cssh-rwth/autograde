@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 import base64
 import io
-import json
 import math
-import re
 from difflib import SequenceMatcher
 from itertools import combinations
 from pathlib import Path
-from typing import List, Dict
-from zipfile import ZipFile
+from typing import List, Dict, Iterable
 
 # ensure matplotlib uses the right backend (this has to be done BEFORE import of pyplot!)
 import matplotlib as mpl
@@ -19,23 +16,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from jinja2 import Environment, PackageLoader, select_autoescape
 from scipy.linalg import LinAlgError
-from scipy.stats import norm
 
-import autograde
-from autograde.test_result import NotebookTestResult
-from autograde.static import CSS, FAVICON
-from autograde.util import logger, timestamp_utc_iso
+from autograde.notebook_test import NotebookTestResult
+from autograde.util import logger
+
 
 # Globals and constants variables.
-FAVICON = base64.b64encode(FAVICON).decode('utf-8')
-JINJA_ENV = Environment(
-    loader=PackageLoader('autograde', 'templates'),
-    autoescape=select_autoescape(['html', 'xml']),
-    trim_blocks=True,
-    lstrip_blocks=True
-)
 
 
 def b64str(data) -> str:
@@ -51,51 +38,6 @@ def list_results(path='.', prefix='results') -> List[Path]:
         return [path]
 
     return sorted(path.rglob(f'{prefix}_*.zip'))
-
-
-def inject_patch(results: NotebookTestResult, zipf: ZipFile, prefix: str = 'results'):
-    """Store results as patch in mounted results archive"""
-    patch_re = re.compile(re.escape(prefix) + r'_.*json')
-    ct = len(list(filter(patch_re.match, zipf.namelist())))
-
-    with zipf.open(f'{prefix}_patch_{ct + 1:02d}.json', mode='w') as f:
-        f.write(json.dumps(results.to_dict(), indent=4).encode('utf-8'))
-
-    # update report if it exists
-    if 'report.html' in zipf.namelist():
-        results = load_patched(zipf)
-        logger.debug(f'update report for {results.checksum}')
-        with open('report.html', mode='w') as f:
-            f.write(render(
-                'report.html',
-                title='report',
-                id=results.checksum,
-                results={results.checksum: results}, summary=results.summarize()
-            ).encode('utf-8'))
-
-
-def load_patched(zipf: ZipFile, prefix: str = 'results') -> NotebookTestResult:
-    """Load results and apply patches from mounted results archive"""
-    with zipf.open(f'{prefix}.json', mode='r') as f:
-        results = NotebookTestResult.from_json(f.read())
-
-    patch_re = re.compile(re.escape(prefix) + r'_.*json')
-    for patch_path in sorted(filter(patch_re.match, zipf.namelist())):
-        with zipf.open(patch_path, mode='r') as f:
-            results = results.patch(NotebookTestResult.from_json(f.read()))
-
-    return results
-
-
-def render(template, **kwargs):
-    """Render template with default values set"""
-    return JINJA_ENV.get_template(template).render(
-        autograde=autograde,
-        css=CSS,
-        favicon=FAVICON,
-        timestamp=timestamp_utc_iso(),
-        **kwargs
-    )
 
 
 def merge_results(results) -> pd.DataFrame:
@@ -118,7 +60,9 @@ def merge_results(results) -> pd.DataFrame:
     return pd.DataFrame(row_factory(), columns=header)
 
 
-def summarize_results(results) -> pd.DataFrame:
+def summarize_results(results: Iterable[NotebookTestResult]) -> pd.DataFrame:
+    results = list(results)
+
     logger.debug(f'summarize {len(results)} results')
     header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
 
@@ -150,13 +94,12 @@ def plot_score_distribution(summary_df: pd.DataFrame):
 
     summary_df = summary_df.sort_values(by='score')
     max_score = summary_df['max_score'].max()
+    _, ax = plt.subplots(figsize=(8, 5))
 
-    plt.clf()
-    ax = plt.gca()
     try:
-        sns.distplot(
-            summary_df[~summary_df['student_id'].duplicated(keep='first')]['score'], rug=True, fit=norm,
-            bins=int(max_score), ax=ax
+        sns.histplot(
+            summary_df[~summary_df['student_id'].duplicated(keep='first')]['score'],
+            kde=True, bins=int(max_score), ax=ax,
         )
     except LinAlgError as error:
         logger.warning(f'unable to plot score distribution: {error}')

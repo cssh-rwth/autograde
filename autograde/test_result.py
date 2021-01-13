@@ -1,12 +1,19 @@
+import io
+import json
 import math
+import re
+import warnings
 from copy import deepcopy
 from dataclasses import dataclass, field
+from functools import lru_cache
+from functools import wraps
 from typing import List, Tuple
+from zipfile import ZipFile
 
 from dataclasses_json import dataclass_json
 
 import autograde
-from autograde.util import timestamp_utc_iso, prune_join, camel_case
+from autograde.util import timestamp_utc_iso, prune_join, camel_case, render
 
 
 @dataclass_json
@@ -75,7 +82,7 @@ class NotebookTestResult:
         results = {r.id: r for r in self.unit_test_results}
 
         if not patched.checksum == patch.checksum:
-            raise ValueError('patch must not have a different origin aka checksum!')
+            raise ValueError('patch must not have a different origin, i.e. checksum')
 
         change_list = []
         for result in patch.unit_test_results:
@@ -109,3 +116,87 @@ class NotebookTestSummary:
         self.pending = sum(r.pending() for r in results.unit_test_results)
         self.score = sum(r.score for r in results.unit_test_results)
         self.score_max = sum(r.score_max for r in results.unit_test_results)
+
+
+class NotebookTestResultArchive(ZipFile):
+    _id_results = 'results.json'
+    _re_patches = re.compile(r'results_.*\.json')
+    _required_files = ['code.py', 'notebook.ipynb', _id_results]
+    _cache_size = 256
+
+    @wraps(ZipFile.__init__)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        files = self.namelist()
+        for f in self._required_files:
+            if f not in files:
+                raise FileNotFoundError(f'Archive does not cointain {f}')
+
+        self._modifications = 0
+
+    def __repr__(self):
+        return f'{type(self).__name__}(filename={self.filename}, modifications={self._modifications})'
+
+    def __hash__(self):
+        return hash(super()) ^ hash(self._modifications)
+
+    @property
+    @lru_cache(_cache_size)
+    def patch_count(self) -> int:
+        return len(list(filter(self._re_patches.match, self.namelist())))
+
+    def inject_patch(self, patch: NotebookTestResult):
+        """Store results as patch in mounted results archive"""
+
+        with self.open(f'results_patch_{self.patch_count + 1:02d}.json', mode='w') as f:
+            f.write(json.dumps(patch.to_dict(), indent=4).encode('utf-8'))
+
+        self._modifications += 1
+
+        # update report if it exists
+        if 'report.html' in self.namelist():
+            self._render_report()
+
+    def _render_report(self) -> str:
+        report = render('report.html', title='report', archive=self)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
+            with self.open('report.html', mode='w') as f:
+                f.write(report.encode('utf-8'))
+        return report
+
+    @property
+    @lru_cache(_cache_size)
+    def results(self) -> NotebookTestResult:
+        """Load results and apply patches from archive"""
+        with self.open('results.json', mode='r') as f:
+            results = NotebookTestResult.from_json(f.read())
+
+        # apply patches
+        for patch_path in sorted(filter(self._re_patches.match, self.namelist())):
+            with self.open(patch_path, mode='r') as f:
+                results = results.patch(NotebookTestResult.from_json(f.read()))
+
+        return results
+
+    @property
+    @lru_cache(_cache_size)
+    def code(self) -> str:
+        with self.open('code.py', mode='r') as f, io.TextIOWrapper(f) as t:
+            return t.read()
+
+    @property
+    @lru_cache(_cache_size)
+    def notebook(self) -> str:
+        with self.open('notebook.ipynb', mode='r') as f, io.TextIOWrapper(f) as t:
+            return t.read()
+
+    @property
+    @lru_cache(_cache_size)
+    def report(self) -> str:
+        if 'report.html' not in self.namelist():
+            return self._render_report()
+
+        with self.open('report.html') as f:
+            return f.read().decode('utf-8')

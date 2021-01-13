@@ -1,15 +1,16 @@
 import math
 import re
-from collections import OrderedDict
 from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import dataclass
 from getpass import getuser
-from typing import Iterable
+from pathlib import Path
+from typing import Dict, Iterable, Optional, Set
 
-from autograde.cli.util import load_patched, render, list_results, summarize_results, b64str, plot_fraud_matrix, \
-    plot_score_distribution, inject_patch
-from autograde.test_result import UnitTestResult
+from autograde.cli.util import logger, summarize_results, b64str, plot_score_distribution, \
+    list_results
+from autograde.test_result import UnitTestResult, NotebookTestResultArchive
+from autograde.util import parse_bool, render, timestamp_utc_iso
 
 
 @dataclass
@@ -35,38 +36,89 @@ class AuditSettings:
         return comment.strip()
 
 
+class AuditState:
+    def __init__(self, path: Path):
+        self._exit_stack = ExitStack().__enter__()
+
+        self.settings: AuditSettings = AuditSettings()
+        self.archives: Dict[str, NotebookTestResultArchive] = dict()
+
+        # load archives
+        for path in list_results(path):
+            archive = self._exit_stack.enter_context(NotebookTestResultArchive(path, mode='a'))
+            self.archives[archive.results.checksum] = archive
+
+        # build index
+        self._next_ids = dict(zip(self.archives, list(self.archives)[1:]))
+        self._prev_ids = dict(((b, a) for a, b in self._next_ids.items()))
+
+        self.patched: Set[str] = set()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._exit_stack.__exit__(exc_type, exc_val, exc_tb)
+
+    def prev_id(self, aid: str) -> Optional[str]:
+        return self._prev_ids.get(aid)
+
+    def next_id(self, aid: str) -> Optional[str]:
+        return self._next_ids.get(aid)
+
+    def patch(self, id: str, **kwargs):
+        aid = id
+        scores = dict()
+        comments = dict()
+
+        archive = self.archives[aid]
+        patch = deepcopy(archive.results)
+
+        patch.title = 'manual audit'
+        patch.timestamp = timestamp_utc_iso()
+
+        # extract form data
+        for key, value in kwargs.items():
+            if key.startswith('score:'):
+                scores[key.split(':')[-1]] = math.nan if value == '' else float(value)
+            elif key.startswith('comment:'):
+                comments[key.split(':')[-1]] = value
+            else:
+                logger.warning(f'unknown form item: "{key}" (ignore)')
+
+        # update archives
+        modification_flag = False
+        for result in patch.unit_test_results:
+            score = scores.get(result.id)
+            if score is not None and not math.isclose(score, result.score):
+                logger.debug(f'update score of unit test result {result.id}')
+                result.score = score
+                modification_flag = True
+
+            if comment := comments.get(result.id):
+                logger.debug(f'update messages of unit test result {result.id}')
+                result.messages.append(self.settings.format_comment(comment))
+                modification_flag = True
+
+        # patch archives back
+        if modification_flag:
+            # update state & persist patch
+            archive.inject_patch(patch)
+            self.patched.add(aid)
+        else:
+            logger.debug('no modifications were made')
+
+        return self.next_id(aid)
+
+
 def cmd_audit(args):
-    """Launch a web interface for manually auditing test results"""
+    """Launch a web interface for manually auditing test archives"""
     import logging
     from flask import Flask, redirect, request
     import flask.cli as flask_cli
     from werkzeug.exceptions import HTTPException, InternalServerError
-    from zipfile import ZipFile
 
-    from autograde.util import logger, parse_bool, timestamp_utc_iso
-
-    with ExitStack() as exit_stack:
-        # settings
-        settings = AuditSettings()
-
-        # mount & index all results
-        mounts = OrderedDict()
-        sources = dict()
-        results = dict()
-        for path in list_results(args.result):
-            zipf = exit_stack.enter_context(ZipFile(path, mode='a'))
-
-            r = load_patched(zipf)
-            results[r.checksum] = r
-            mounts[r.checksum] = zipf
-
-            with zipf.open('code.py', mode='r') as f:
-                sources[r.checksum] = f.read().decode('utf-8')
-
-        patched = set()
-        next_ids = dict(zip(mounts, list(mounts)[1:]))
-        prev_ids = dict(((b, a) for a, b in next_ids.items()))
-
+    with AuditState(args.result) as state:
         # create actual flask application
         app = Flask('autograde - audit')
 
@@ -87,85 +139,40 @@ def cmd_audit(args):
 
         @app.route('/settings', methods=('POST',))
         def route_settings():
-            settings.update(**request.form)
-            logger.debug(f'update settings: {settings}')
+            state.settings.update(**request.form)
+            logger.debug(f'update settings: {state.settings}')
             return redirect(request.referrer)
 
         @app.route('/audit', strict_slashes=False)
         @app.route('/audit/<string:id>')
-        def route_audit(id=None):
-            return render('audit.html', title='audit', settings=settings, results=results, id=id,
-                          prev_id=prev_ids.get(id), next_id=next_ids.get(id), patched=patched,
-                          mounts=mounts)
+        def route_audit(id: Optional[str] = None):
+            return render('audit.html', title='audit', state=state, id=id)
 
         @app.route('/patch', methods=('POST',))
         def route_patch():
-            if (rid := request.form.get('id')) and (mount := mounts.get(rid)):
-                scores = dict()
-                comments = dict()
-                r = deepcopy(results[rid])
-
-                r.title = 'manual audit'
-                r.timestamp = timestamp_utc_iso()
-
-                # extract form data
-                for key, value in request.form.items():
-                    if key.startswith('score:'):
-                        scores[key.split(':')[-1]] = math.nan if value == '' else float(value)
-                    elif key.startswith('comment:'):
-                        comments[key.split(':')[-1]] = value
-
-                # update results
-                modification_flag = False
-                for result in r.unit_test_results:
-                    score = scores.get(result.id)
-                    if score is not None and not math.isclose(score, result.score):
-                        logger.debug(f'update score of result {result.id[:8]}')
-                        result.score = score
-                        modification_flag = True
-
-                    if comment := comments.get(result.id):
-                        logger.debug(f'update messages of result {result.id[:8]}')
-                        result.messages.append(settings.format_comment(comment))
-                        modification_flag = True
-
-                # patch results back
-                if modification_flag:
-                    # update state & persist patch
-                    inject_patch(r, mount)
-                    results[rid] = results[rid].patch(r)
-                    patched.add(rid)
-                else:
-                    logger.debug('no modifications were made')
-
-                if next_id := next_ids.get(rid):
-                    return redirect(f'/audit/{next_id}#edit')
-
+            if next_id := state.patch(**request.form):
+                return redirect(f'/audit/{next_id}')
             return redirect('/audit')
 
         @app.route('/report/<string:id>')
         def route_report(id):
-            return render('report.html', title='report (preview)', id=id, results=results,
-                          summary=results[id].summarize())
+            return state.archives[id].report
 
         @app.route('/source/<string:id>')
         def route_source(id):
-            return render('source_view.html', title='source view', source=sources.get(id, 'None'),
-                          id=id)
+            return render('source_view.html', title='source view', archive=state.archives[id])
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
-            summary_df = summarize_results(results.values())
-
-            plot_distribution = parse_bool(request.args.get('distribution', 'f')) and 2 < len(summary_df)
-            plot_similarities = parse_bool(request.args.get('similarities', 'f')) and 1 < len(summary_df)
-
-            plots = dict(
-                distribution=b64str(plot_score_distribution(summary_df)) if plot_distribution else None,
-                similarities=b64str(plot_fraud_matrix(sources)) if plot_similarities else None
-            )
-
-            return render('summary.html', title='summary', summary=summary_df, plots=plots)
+            summary = summarize_results(a.results for a in state.archives.values())
+            plot_distribution = parse_bool(request.args.get('distribution', 'f')) and 2 < len(summary)
+            plots = [
+                dict(
+                    title='Score Distribution',
+                    data=b64str(plot_score_distribution(summary)) if plot_distribution else None
+                ),
+            ]
+            return render('summary.html', title='summary', summary=summary, plots=plots)
 
         @app.route('/stop')
         def route_stop():

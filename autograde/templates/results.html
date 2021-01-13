@@ -10,79 +10,81 @@
         cls-link
     {%- endif -%}
 {%- endmacro %}
-{% macro display_results(results, edit_mode) -%}
-                <table style="width: 100%">
-                    <thead>
-                        <tr>
-                            <th><i>i</i></th>
-                            <th>ID</th>
-                            <th>Label</th>
-                            <th>Target(s)</th>
-                            <th style="text-align: right">Reached Score</th>
-                            <th style="text-align: right">Max Score</th>
-                            <th>Message(s)</th>
-                            <th>Output</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in results %}
-                        {% if settings is undefined or settings.select(r) %}
-                        <tr>
-                            <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c4)">
-                                <span class="{{ status_class(r) }}">{{ loop.index }}</span>
-                            </td>
-                            <td>{{ hash(r.id) }}<br></td>
-                            <td><i>{{ r.label|e }}</i></td>
-                            <td>
-                                {{ r.target|join(', ') }}
-                            </td>
-                            <td style="text-align: right">
-                                {% if edit_mode %}
-                                <label>
-                                    <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.05" value="{{ r.score }}" style="text-align: center; width: 5rem">
-                                </label>
-                                {% else %}
-                                {{ r.score  }}
-                                {% endif %}
-                            </td>
-                            <td style="text-align: right">{{ r.score_max }}</td>
-                            <td>
-                                {% for m in r.messages %}
-                                {% if m.startswith('data:image') %}
-                                <img src="{{ m }}" alt="{{ r.target }}" /><br />
-                                {% else %}
+{% macro display_results(results, edit_mode, summarize) -%}
+    <table style="width: 100%">
+        <thead>
+        <tr>
+            <th><i>i</i></th>
+            <th>ID</th>
+            <th>Label</th>
+            <th>Target(s)</th>
+            <th style="text-align: right">Reached Score</th>
+            <th style="text-align: right">Max Score</th>
+            <th>Message(s)</th>
+            <th>Output</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for r in results %}
+            {% if settings is undefined or state.settings.select(r) %}
+                <tr>
+                    <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c4)">
+                        <span class="{{ status_class(r) }}">{{ loop.index }}</span>
+                    </td>
+                    <td>{{ hash(r.id) }}<br></td>
+                    <td><i>{{ r.label|e }}</i></td>
+                    <td>
+                        {{ r.target|join(', ') }}
+                    </td>
+                    <td style="text-align: right">
+                        {% if edit_mode %}
+                            <label>
+                                <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.05"
+                                       value="{{ r.score }}" style="text-align: center; width: 5rem">
+                            </label>
+                        {% else %}
+                            {{ r.score }}
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right">{{ r.score_max }}</td>
+                    <td>
+                        {% for m in r.messages %}
+                            {% if m.startswith('data:image') %}
+                                <img src="{{ m }}" alt="{{ r.target }}"/><br/>
+                            {% else %}
                                 <blockquote><i>{{ m|e }}</i></blockquote>
-                                {% endif %}
-                                {% endfor %}
-                                {% if edit_mode %}
-                                <label>
-                                    Add a comment: <br />
-                                    <textarea name="comment:{{ r.id }}" style="width: 100%"></textarea>
-                                </label>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="cls-description">stdout</span>
-                                <pre>{{ r.stdout|e }}</pre>
-                                <span class="cls-description">stderr</span>
-                                <pre>{{ r.stderr|e }}</pre>
-                            </td>
-                        </tr>
+                            {% endif %}
+                        {% endfor %}
+                        {% if edit_mode %}
+                            <label>
+                                Add a comment: <br/>
+                                <textarea name="comment:{{ r.id }}" style="width: 100%"></textarea>
+                            </label>
                         {% endif %}
-                        {% endfor%}
-                        {% if summary is defined %}
-                        <tr style="background-color: var(--c7)">
-                            <td><b>{{ summary.tests }}</b></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td style="text-align: right"><b>{{ summary.score }}</b></td>
-                            <td style="text-align: right"><b>{{ summary.score_max }}</b></td>
-                            <td><b>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</b></td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        {% endif %}
-                    <tbody>
-                </table>
+                    </td>
+                    <td>
+                        <span class="cls-description">stdout</span>
+                        <pre>{{ r.stdout|e }}</pre>
+                        <span class="cls-description">stderr</span>
+                        <pre>{{ r.stderr|e }}</pre>
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+        {% if summarize %}
+            {% set summary = results.summarize() %}
+            <tr style="background-color: var(--c7)">
+                <td><b>{{ summary.tests }}</b></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td style="text-align: right"><b>{{ summary.score }}</b></td>
+                <td style="text-align: right"><b>{{ summary.score_max }}</b></td>
+                <td><b>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</b></td>
+                <td></td>
+                <td></td>
+            </tr>
+        {% endif %}
+        <tbody>
+    </table>
 {%- endmacro %}

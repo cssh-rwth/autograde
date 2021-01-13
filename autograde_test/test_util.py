@@ -229,6 +229,7 @@ class TestWatchDog(TestCase):
             self.assertSetEqual(set(wd.list_changed()), set())
             self.assertSetEqual(set(wd.list_not_changed()), {f_1})
 
+            f_2.parent.mkdir()
             f_2.touch()
             self.assertSetEqual(set(wd.list_changed()), {f_2})
             self.assertSetEqual(set(wd.list_not_changed()), {f_1})
@@ -239,6 +240,7 @@ class TestWatchDog(TestCase):
             f_2 = Path(tmp).joinpath('bar', 'foo')
 
             f_1.touch()
+            f_2.parent.mkdir()
             f_2.touch()
 
             wd = WatchDog(tmp)
