@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from autograde.notebook_executor import as_py_comment, shadowed_exec, ArtifactLoader, exec_notebook
+from autograde.notebook_executor import as_py_comment, shadow_exec, ArtifactLoader, exec_notebook
 from autograde.util import project_root, cd
 
 PROJECT_ROOT = project_root()
@@ -50,7 +50,7 @@ class TestFunctions(TestCase):
     def test_shadowed_exec(self):
         state = dict()
         source = 'def foo():\n\treturn 42'
-        with shadowed_exec(source, state) as path:
+        with shadow_exec(source, state) as path:
             with open(path, mode='rt') as f:
                 shadow_source = f.read()
 
@@ -62,7 +62,7 @@ class TestFunctions(TestCase):
         with self.assertRaises(OSError):
             inspect.getsource(state['foo'])
 
-        with shadowed_exec('def bar():\n\tassert False', state):
+        with shadow_exec('def bar():\n\tassert False', state):
             pass
 
         with self.assertRaises(AssertionError):

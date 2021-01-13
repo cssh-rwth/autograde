@@ -13,10 +13,7 @@ from nbformat import read
 
 from autograde.helpers import import_filter
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, capture_output, timeout, StopWatch
-
-
-# Globals and constants variables.
+from autograde.util import logger, capture_output, deadline, StopWatch
 
 
 def as_py_comment(s: str, indentation: int = 0):
@@ -35,6 +32,7 @@ def as_py_comment(s: str, indentation: int = 0):
 
 class ArtifactLoader:
     """Helper class that provides a dict like interface for accessing artifact files"""
+
     def __init__(self, root='artifacts'):
         self._root = Path(root)
 
@@ -44,7 +42,7 @@ class ArtifactLoader:
 
 
 @contextmanager
-def shadowed_exec(source: str, *args, **kwargs):
+def shadow_exec(source: str, *args, **kwargs):
     """
     Wrapper for builtin `exec` that accepts source code as input and executes it while preserving
     a copy of it in the file system. That's particularly useful when inspecting the state created
@@ -56,7 +54,7 @@ def shadowed_exec(source: str, *args, **kwargs):
     :return: path of the source file
     """
     source = f'{source}\n'
-    with NamedTemporaryFile(mode='wt') as shadow_copy:
+    with NamedTemporaryFile(mode='wt', encoding='utf-8') as shadow_copy:
         shadow_copy.write(source)
         shadow_copy.flush()
 
@@ -104,7 +102,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                 # render code
                 source = shell.input_transformer_manager.transform_cell(cell.source)
                 yield (
-                    f'nb-{i+1}',
+                    f'nb-{i + 1}',
                     f'{source.strip()}\n\n# injected by test\ndump_figure()',
                     cell_timeout
                 )
@@ -125,7 +123,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
     # actual code execution
     with ExitStack() as shadow_stack:
-        for i, (label, code, timeout_) in enumerate(code_cells, start=1):
+        for i, (label, code, timeout) in enumerate(code_cells, start=1):
             state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
@@ -138,10 +136,10 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                         with ExitStack() as es:
                             if if_regex is not None and i > 1:
                                 es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                            es.enter_context(timeout(timeout_))
+                            es.enter_context(deadline(timeout))
                             es.enter_context(stopwatch)
 
-                            shadow_stack.enter_context(shadowed_exec(code, state))
+                            shadow_stack.enter_context(shadow_exec(code, state))
 
                 except Exception as error:
                     # extend log with some meaningful error message

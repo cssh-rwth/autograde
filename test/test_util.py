@@ -13,7 +13,7 @@ from zipfile import ZipFile
 
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
-    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, timeout
+    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, deadline
 
 
 class TestUtil(TestCase):
@@ -184,17 +184,17 @@ class TestUtil(TestCase):
         assert_list_eq([0., 1e-2, 3e-2, 6e-2, 1e-1], sw.duration_abs())
         assert_list_eq([0., 1e-2, 2e-2, 3e-2, 4e-2], sw.duration_rel())
 
-    def test_timeout(self):
+    def test_deadline(self):
         self.assertIsNone(sys.gettrace())
 
-        with timeout(0):
+        with deadline(0):
             self.assertIsNone(sys.gettrace())
             time.sleep(.01)
 
         self.assertIsNone(sys.gettrace())
 
         with self.assertRaises(TimeoutError):
-            with timeout(.01):
+            with deadline(.01):
                 self.assertIsNotNone(sys.gettrace())
                 time.sleep(.02)
 

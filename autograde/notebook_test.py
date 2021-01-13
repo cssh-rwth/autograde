@@ -25,7 +25,7 @@ import autograde
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.util import logger, timestamp_utc_iso, loglevel, camel_case, \
-    prune_join, capture_output, cd, cd_zip, timeout as timeout_context
+    prune_join, capture_output, cd, cd_zip, deadline as timeout_context
 
 T_TARGET = Union[str, Iterable[str]]
 
@@ -343,7 +343,7 @@ class NotebookTest:
                     f.write(nb_data)
 
                 # prepare context and execute notebook
-                with open('code.py', mode='wt') as c, cd('artifacts', mkdir=True):
+                with open('code.py', mode='wt') as code, cd('artifacts', mkdir=True):
                     # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')
@@ -361,7 +361,7 @@ class NotebookTest:
                         logger.debug('execute notebook')
                         state = exec_test_stack.enter_context(exec_notebook(
                             io.StringIO(nb_data.decode('utf-8')),
-                            file=c,
+                            file=code,
                             ignore_errors=True,
                             cell_timeout=self._cell_timeout,
                             variables=self._variables
