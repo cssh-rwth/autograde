@@ -9,3 +9,4 @@ jupyter
 jinja2
 flask
 pytz
+django-htmlmin

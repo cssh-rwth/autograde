@@ -13,6 +13,7 @@ from typing import ContextManager, Generator, Iterable, Union, List
 from zipfile import ZipFile
 
 import pytz
+from htmlmin.minify import html_minify
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 import autograde
@@ -236,12 +237,17 @@ class WatchDog:
         yield from (path for path, hsh in self._list() if hsh == self._index.get(path))
 
 
-def render(template, **kwargs):
+def render(template: str, minify: bool = True, **kwargs):
     """Render template with default values set"""
-    return JINJA_ENV.get_template(template).render(
+    html = JINJA_ENV.get_template(template).render(
         autograde=autograde,
         css=CSS,
         favicon=FAVICON,
         timestamp=timestamp_utc_iso(),
         **kwargs
     )
+
+    if minify:
+        return html_minify(html)
+
+    return html
