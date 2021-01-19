@@ -60,6 +60,11 @@ class NotebookTestResult:
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: str = field(default_factory=timestamp_utc_iso)
 
+    def __post_init__(self):
+        if self.version != autograde.__version__:
+            logger.debug(f'autograde has version {autograde.__version__} '
+                         f'but this notebook test result was created by version {self.version}')
+
     def __iter__(self):
         return iter(self.unit_test_results)
 
