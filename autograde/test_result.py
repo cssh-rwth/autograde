@@ -153,6 +153,10 @@ class NotebookTestResultArchive:
         return hash(self._zipfile) ^ hash(self._modifications)
 
     @property
+    def filename(self):
+        return self._zipfile.filename
+
+    @property
     @lru_cache(_cache_size)
     def files(self) -> List[str]:
         return sorted(self._zipfile.namelist())

@@ -181,6 +181,15 @@ class TestNotebookTestResultArchive(TestCase):
             h_3 = hash(archive)
             self.assertNotEqual(h_2, h_3)
 
+    def test_filename(self):
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            self.assertEqual(archive.filename, 'archive.zip')
+
+        Path('archive.zip').rename('foobar.zip')
+
+        with NotebookTestResultArchive('foobar.zip', mode='a') as archive:
+            self.assertEqual(archive.filename, 'foobar.zip')
+
     def test_files(self):
         with NotebookTestResultArchive('archive.zip', mode='a') as archive:
             hsh = hash(archive)
