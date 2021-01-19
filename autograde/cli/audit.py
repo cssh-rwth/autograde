@@ -163,9 +163,11 @@ def cmd_audit(args):
 
         @app.route('/download/<string:id>/<path:path>')
         def route_download(id, path):
-            file_name = str(path).split('/')[-1]
-            with state.archives[id].open(path) as f:
-                return send_file(io.BytesIO(f.read()), attachment_filename=file_name, as_attachment=True)
+            return send_file(
+                io.BytesIO(state.archives[id].load_file(path)),
+                attachment_filename=str(path).split('/')[-1],
+                as_attachment=True
+            )
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():

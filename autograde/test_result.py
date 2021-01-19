@@ -1,19 +1,16 @@
-import io
 import json
 import math
 import re
-import warnings
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from functools import wraps
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 from dataclasses_json import dataclass_json
 
 import autograde
-from autograde.util import timestamp_utc_iso, prune_join, camel_case, render
+from autograde.util import logger, timestamp_utc_iso, prune_join, camel_case, render
 
 
 @dataclass_json
@@ -118,85 +115,113 @@ class NotebookTestSummary:
         self.score_max = sum(r.score_max for r in results.unit_test_results)
 
 
-class NotebookTestResultArchive(ZipFile):
-    _id_results = 'results.json'
+class NotebookTestResultArchive:
+    _supported_modes = {'r', 'a'}
     _re_patches = re.compile(r'results_.*\.json')
-    _required_files = ['code.py', 'notebook.ipynb', _id_results]
+    _re_reports = re.compile(r'report(_rev_\d+)?\.html')
+    _required_files = ['code.py', 'notebook.ipynb', 'results.json']
     _cache_size = 256
 
-    @wraps(ZipFile.__init__)
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        files = self.namelist()
-        for f in self._required_files:
-            if f not in files:
-                raise FileNotFoundError(f'Archive does not cointain {f}')
+    def __init__(self, file, mode: str = 'r'):
+        if mode not in self._supported_modes:
+            raise ValueError(f'mode "{mode}" is not supported, chose one from {self._supported_modes}')
 
         self._modifications = 0
+        self._zipfile = ZipFile(file, mode)
+
+        # check contents are complete
+        files = self._zipfile.namelist()
+        for f in self._required_files:
+            if f not in files:
+                raise KeyError(f'Archive does not cointain {f}')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._zipfile.close()
 
     def __repr__(self):
-        return f'{type(self).__name__}(filename={self.filename}, modifications={self._modifications})'
+        return f'{type(self).__name__}(filename={self._zipfile.filename}, modifications={self._modifications})'
 
     def __hash__(self):
-        return hash(super()) ^ hash(self._modifications)
+        return hash(self._zipfile) ^ hash(self._modifications)
+
+    @property
+    @lru_cache(_cache_size)
+    def files(self) -> List[str]:
+        return sorted(self._zipfile.namelist())
+
+    @lru_cache(_cache_size)
+    def load_file(self, path: str, encoding: Optional[str] = None) -> Union[bytes, str]:
+        with self._zipfile.open(name=path, mode='r') as f:
+            if enc := encoding:
+                return f.read().decode(enc)
+            return f.read()
 
     @property
     @lru_cache(_cache_size)
     def patch_count(self) -> int:
-        return len(list(filter(self._re_patches.match, self.namelist())))
+        return len(list(filter(self._re_patches.match, self.files)))
+
+    @property
+    @lru_cache(_cache_size)
+    def report_count(self) -> int:
+        return len(list(filter(self._re_reports.match, self.files)))
 
     def inject_patch(self, patch: NotebookTestResult):
         """Store results as patch in mounted results archive"""
-
-        with self.open(f'results_patch_{self.patch_count + 1:02d}.json', mode='w') as f:
+        # add patch
+        patch_name = f'results_patch_{self.patch_count + 1:02d}.json'
+        with self._zipfile.open(patch_name, mode='w') as f:
+            logger.debug(f'add {patch_name} to {self._zipfile.filename}')
             f.write(json.dumps(patch.to_dict(), indent=4).encode('utf-8'))
+
+        # add report revision
+        if 'report.html' in self.files:
+            self.inject_report()
 
         self._modifications += 1
 
-        # update report if it exists
-        if 'report.html' in self.namelist():
-            self._render_report()
+    def inject_report(self):
+        """Store results as patch in mounted results archive"""
+        revision_name = 'report.html'
+        if revision_name in self.files:
+            revision_name = f'report_rev_{self.report_count:02d}.html'
 
-    def _render_report(self) -> str:
-        report = render('report.html', title='report', archive=self)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
-            with self.open('report.html', mode='w') as f:
-                f.write(report.encode('utf-8'))
-        return report
+        report = self._render_report()
+        with self._zipfile.open(revision_name, mode='w') as f:
+            logger.debug(f'add {revision_name} to {self._zipfile.filename}')
+            f.write(report.encode('utf-8'))
+
+        self._modifications += 1
 
     @property
     @lru_cache(_cache_size)
     def results(self) -> NotebookTestResult:
         """Load results and apply patches from archive"""
-        with self.open('results.json', mode='r') as f:
-            results = NotebookTestResult.from_json(f.read())
+        results = NotebookTestResult.from_json(self.load_file('results.json'))
 
         # apply patches
-        for patch_path in sorted(filter(self._re_patches.match, self.namelist())):
-            with self.open(patch_path, mode='r') as f:
-                results = results.patch(NotebookTestResult.from_json(f.read()))
+        for patch_path in sorted(filter(self._re_patches.match, self.files)):
+            results = results.patch(NotebookTestResult.from_json(self.load_file(patch_path)))
 
         return results
 
     @property
     @lru_cache(_cache_size)
     def code(self) -> str:
-        with self.open('code.py', mode='r') as f, io.TextIOWrapper(f) as t:
-            return t.read()
+        return self.load_file('code.py', encoding='utf-8')
 
     @property
     @lru_cache(_cache_size)
     def notebook(self) -> str:
-        with self.open('notebook.ipynb', mode='r') as f, io.TextIOWrapper(f) as t:
-            return t.read()
+        return self.load_file('notebook.ipynb', encoding='utf-8')
+
+    def _render_report(self) -> str:
+        return render('report.html', title='report', archive=self)
 
     @property
     @lru_cache(_cache_size)
     def report(self) -> str:
-        if 'report.html' not in self.namelist():
-            return self._render_report()
-
-        with self.open('report.html') as f:
-            return f.read().decode('utf-8')
+        return self._render_report()

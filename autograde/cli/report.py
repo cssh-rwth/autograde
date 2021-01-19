@@ -10,6 +10,6 @@ def cmd_report(args):
         logger.info(f'render report for {path}')
         with NotebookTestResultArchive(path, mode='a') as archive:
             # rendering happens implicitly
-            _ = archive.report
+            archive.inject_report()
 
     return 0

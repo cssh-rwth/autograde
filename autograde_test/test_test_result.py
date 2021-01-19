@@ -6,6 +6,7 @@ from dataclasses import astuple
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.case import TestCase
+from zipfile import ZipFile
 
 import nbformat
 
@@ -133,16 +134,42 @@ class TestNotebookTestResultArchive(TestCase):
         with Path(tmp).joinpath('archive.zip').open(mode='wb') as f:
             f.write(load_demo_archive())
 
+        self.file_list = {
+            'artifacts/bar.txt',
+            'artifacts/figures/fig_nb_3_1.png',
+            'artifacts/figures/fig_nb_8_1.png',
+            'artifacts/figures/fig_nb_8_2.png',
+            'artifacts/figures/fig_nb_9_1.png',
+            'artifacts/fnord.txt',
+            'artifacts/plot.png',
+            'code.py',
+            'notebook.ipynb',
+            'results.json'
+        }
+
     def tearDown(self) -> None:
         self._exit_stack.close()
+
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            with NotebookTestResultArchive('', mode='ö'):
+                pass
+
+        with NotebookTestResultArchive('archive.zip'):
+            pass
+
+        with ZipFile('archive.zip', mode='w'):
+            pass
+
+        with self.assertRaises(KeyError):
+            with NotebookTestResultArchive('archive.zip'):
+                pass
 
     def test_hash(self):
         with NotebookTestResultArchive('archive.zip', mode='a') as archive:
             h_0 = hash(archive)
 
-            patch = deepcopy(archive.results)
-            patch.unit_test_results[-1].score -= .1
-            archive.inject_patch(patch)
+            archive.inject_patch(deepcopy(archive.results))
 
             h_1 = hash(archive)
             self.assertNotEqual(h_0, h_1)
@@ -154,25 +181,148 @@ class TestNotebookTestResultArchive(TestCase):
             h_3 = hash(archive)
             self.assertNotEqual(h_2, h_3)
 
+    def test_files(self):
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            hsh = hash(archive)
+            _ = archive.files
+            self.assertEqual(hsh, hash(archive))
+
+            self.assertSetEqual(set(archive.files), self.file_list)
+            archive.inject_report()
+            self.assertNotEqual(set(archive.files), self.file_list)
+
+    def test_load_file(self):
+        for m in ['a', 'r']:
+            with NotebookTestResultArchive('archive.zip', mode=m) as archive:
+                hsh = hash(archive)
+
+                self.assertIsInstance(archive.load_file('code.py'), bytes)
+                self.assertIsInstance(archive.load_file('code.py', encoding='utf-8'), str)
+
+                archive.load_file('code.py', encoding='utf-8').startswith('__IB_FLAG__')
+
+                with self.assertRaises(KeyError):
+                    archive.load_file('foo')
+
+                with self.assertRaises(ValueError):
+                    archive.load_file('artifacts/plot.png', encoding='utf-8')
+
+                self.assertEqual(hsh, hash(archive))
+
     def test_patch_count(self):
         with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            hsh = hash(archive)
+            _ = archive.patch_count
+            self.assertEqual(hsh, hash(archive))
+
             for i in range(3):
                 self.assertEqual(i, archive.patch_count)
-
-                patch = deepcopy(archive.results)
-                patch.unit_test_results[-1].score -= .1
-                archive.inject_patch(patch)
+                archive.inject_patch(deepcopy(archive.results))
 
             for i in range(3):
                 self.assertEqual(i + 3, archive.patch_count)
+                archive.inject_patch(deepcopy(archive.results))
 
-                patch = deepcopy(archive.results)
-                patch.unit_test_results[-1].score += .1
-                archive.inject_patch(patch)
-
-    def test_patch_results(self):
+    def test_report_count(self):
         with NotebookTestResultArchive('archive.zip', mode='a') as archive:
-            report_hash = hash(archive.report)
+            hsh = hash(archive)
+            _ = archive.report_count
+            self.assertEqual(hsh, hash(archive))
+
+            for i in range(3):
+                self.assertEqual(i, archive.report_count)
+                archive.inject_report()
+
+            for i in range(3):
+                self.assertEqual(i + 3, archive.report_count)
+                archive.inject_report()
+
+    def test_inject_patch(self):
+        with self.assertRaises(ValueError):
+            with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+                archive.inject_patch(deepcopy(archive.results))
+
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            self.assertSetEqual(set(archive.files) - self.file_list, set())
+
+            hsh = hash(archive)
+            archive.inject_patch(deepcopy(archive.results))
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'results_patch_01.json'}
+            )
+
+            hsh = hash(archive)
+            archive.inject_patch(deepcopy(archive.results))
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'results_patch_01.json', 'results_patch_02.json'}
+            )
+
+            hsh = hash(archive)
+            archive.inject_report()
+            archive.inject_patch(deepcopy(archive.results))
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'results_patch_01.json', 'results_patch_02.json', 'results_patch_03.json',
+                 'report.html', 'report_rev_01.html'}
+            )
+
+        # check if changes persist
+        with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'results_patch_01.json', 'results_patch_02.json', 'results_patch_03.json',
+                 'report.html', 'report_rev_01.html'}
+            )
+
+    def test_inject_report(self):
+        with self.assertRaises(ValueError):
+            with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+                archive.inject_report()
+
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            self.assertSetEqual(set(archive.files) - self.file_list, set())
+
+            hsh = hash(archive)
+            archive.inject_report()
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'report.html'}
+            )
+
+            hsh = hash(archive)
+            archive.inject_report()
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'report.html', 'report_rev_01.html'}
+            )
+
+            hsh = hash(archive)
+            archive.inject_report()
+            self.assertNotEqual(hash(archive), hsh)
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'report.html', 'report_rev_01.html', 'report_rev_02.html'}
+            )
+
+        # check if changes persist
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            self.assertSetEqual(
+                set(archive.files) - self.file_list,
+                {'report.html', 'report_rev_01.html', 'report_rev_02.html'}
+            )
+
+    def test_results(self):
+        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+            hsh = hash(archive)
+            _ = archive.results
+            self.assertEqual(hsh, hash(archive))
 
             patch = deepcopy(archive.results)
             for result in patch.unit_test_results:
@@ -181,24 +331,24 @@ class TestNotebookTestResultArchive(TestCase):
             archive.inject_patch(patch)
             summary = archive.results.summarize()
 
-            self.assertAlmostEqual(summary.score, summary.score_max / 2)
-            self.assertNotEqual(report_hash, hash(archive.report))
-
-        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
-            summary = archive.results.summarize()
+            self.assertSetEqual(set(archive.files) - self.file_list, {'results_patch_01.json'})
             self.assertAlmostEqual(summary.score, summary.score_max / 2)
 
     def test_code(self):
-        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+        with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+            hsh = hash(archive)
             self.assertIn('__IB_FLAG__', archive.code)
+            self.assertEqual(hsh, hash(archive))
 
     def test_notebook(self):
-        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
+        with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+            hsh = hash(archive)
             with io.StringIO(archive.notebook) as f:
                 nbformat.read(f, 4)
+            self.assertEqual(hsh, hash(archive))
 
     def test_report(self):
-        with NotebookTestResultArchive('archive.zip', mode='a') as archive:
-            self.assertNotIn('report.html', archive.namelist())
+        with NotebookTestResultArchive('archive.zip', mode='r') as archive:
+            hsh = hash(archive)
             self.assertIn('<!DOCTYPE html>', archive.report)
-            self.assertIn('report.html', archive.namelist())
+            self.assertEqual(hsh, hash(archive))
