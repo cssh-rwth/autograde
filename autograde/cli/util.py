@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
 import base64
 import io
 import math
-from difflib import SequenceMatcher
-from itertools import combinations
 from pathlib import Path
-from typing import List, Dict, Iterable
+from typing import List, Iterable
 
 # ensure matplotlib uses the right backend (this has to be done BEFORE import of pyplot!)
 import matplotlib as mpl
@@ -13,16 +10,12 @@ import matplotlib as mpl
 mpl.use('Agg')
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.linalg import LinAlgError
 
-from autograde.notebook_test import NotebookTestResult
+from autograde.test_result import NotebookTestResultArchive
 from autograde.util import logger
-
-
-# Globals and constants variables.
 
 
 def b64str(data) -> str:
@@ -40,48 +33,31 @@ def list_results(path='.', prefix='results') -> List[Path]:
     return sorted(path.rglob(f'{prefix}_*.zip'))
 
 
-def merge_results(results) -> pd.DataFrame:
-    header = ['student_id', 'last_name', 'first_name', 'notebook_id', 'task_id', 'score', 'max_score']
-
+def merge_results(archives: Iterable[NotebookTestResultArchive]) -> pd.DataFrame:
     def row_factory():
-        for r in results:
-            for member in r.team_members:
-                for t in r:
+        for archive in archives:
+            for member in archive.results.team_members:
+                for result in archive.results:
                     yield (
                         member.student_id,
                         member.last_name,
                         member.first_name,
-                        r.checksum,
-                        t.id,
-                        t.score,
-                        t.score_max
+                        archive.results.checksum[:8],
+                        result.id[:8],
+                        result.score,
+                        result.score_max,
+                        Path(archive.filename).name,
                     )
 
-    return pd.DataFrame(row_factory(), columns=header)
+    return pd.DataFrame(
+        row_factory(),
+        columns=['student_id', 'last_name', 'first_name', 'notebook_id', 'test_id', 'score', 'max_score', 'archive']
+    )
 
 
-def summarize_results(results: Iterable[NotebookTestResult]) -> pd.DataFrame:
-    results = list(results)
-
-    logger.debug(f'summarize {len(results)} results')
-    header = ['student_id', 'last_name', 'first_name', 'score', 'max_score', 'patches', 'checksum']
-
-    def row_factory():
-        for r in results:
-            for member in r.team_members:
-                s = r.summarize()
-                yield (
-                    member.student_id,
-                    member.last_name,
-                    member.first_name,
-                    s.score,
-                    s.score_max,
-                    len(r.applied_patches),
-                    r.checksum
-                )
-
-    summary_df = pd.DataFrame(row_factory(), columns=header).sort_values(by='score')
-    summary_df['duplicate'] = summary_df['student_id'].duplicated(keep=False)
+def summarize_results(raw_results: pd.DataFrame) -> pd.DataFrame:
+    summary_df = raw_results.sort_values(by='score')
+    summary_df['duplicate'] = summary_df.duplicated(['student_id', 'test_id'], keep=False)
 
     if not math.isclose(summary_df['max_score'].std(), 0):
         logger.warning('max scores seem not to be consistent!')
@@ -109,26 +85,6 @@ def plot_score_distribution(summary_df: pd.DataFrame):
     ax.set_ylabel('share')
     ax.set_title('score distribution without duplicates (takes lower score)')
     plt.tight_layout()
-
-    with io.BytesIO() as buffer:
-        plt.savefig(buffer, format='svg', transparent=False)
-        return buffer.getvalue()
-
-
-def plot_fraud_matrix(sources: Dict[str, str]) -> bytes:
-    logger.debug('apply fraud detection')
-    hashes = sorted(sources)
-    diffs = pd.DataFrame(np.NaN, index=hashes, columns=hashes)
-
-    for h in hashes:
-        diffs.loc[h][h] = 1.
-
-    for (ha, ca), (hb, cb) in combinations(sources.items(), 2):
-        diffs.loc[ha][hb] = diffs.loc[hb][ha] = SequenceMatcher(a=ca, b=cb).ratio()
-
-    plt.clf()
-    ax = sns.heatmap(diffs, vmin=0., vmax=1., xticklabels=True, yticklabels=True)
-    ax.set_title('similarity of notebook code')
 
     with io.BytesIO() as buffer:
         plt.savefig(buffer, format='svg', transparent=False)

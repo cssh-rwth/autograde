@@ -11,6 +11,7 @@
                 <th style="text-align: right">Max Score</th>
                 <th style="text-align: right">Patches</th>
                 <th>Checksum</th>
+                <th>Archive</th>
             </tr>
             </thead>
             <tbody>
@@ -28,7 +29,8 @@
                     <td style="text-align: right">{{ r['score'] }}</td>
                     <td style="text-align: right">{{ r['max_score'] }}</td>
                     <td style="text-align: right">{{ r['patches'] }}</td>
-                    <td>{{ hash(r['checksum']) }}</td>
+                    <td>{{ hash(r['notebook_id']) }}</td>
+                    <td>{{ r['archive'] }}</td>
                 </tr>
             {% endfor %}
             <tbody>

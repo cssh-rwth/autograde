@@ -12,20 +12,20 @@ def cmd_summary(args):
     path = Path(args.result or Path.cwd()).expanduser().absolute()
     assert path.is_dir(), f'{path} is no regular directory'
 
-    results = list()
-    for path_ in list_results(path):
-        logger.debug(f'read {path_}')
+    def reader():
+        for archive_path in list_results(path):
+            logger.debug(f'read {archive_path}')
 
-        with NotebookTestResultArchive(path_, mode='r') as archive:
-            results.append(archive.results)
+            with NotebookTestResultArchive(archive_path, mode='r') as archive:
+                yield archive
 
     # merge results
-    results_df = merge_results(results)
+    results_df = merge_results(reader())
     logger.debug('store raw.csv')
     results_df.to_csv(path.joinpath('raw.csv'), index=False)
 
     # summarize results
-    summary = summarize_results(results)
+    summary = summarize_results(results_df)
     logger.debug('store summary.csv')
     summary.to_csv(path.joinpath('summary.csv'), index=False)
 

@@ -1,5 +1,5 @@
-import math
 import io
+import math
 import re
 from contextlib import ExitStack
 from copy import deepcopy
@@ -8,10 +8,9 @@ from getpass import getuser
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set
 
-from autograde.cli.util import logger, summarize_results, b64str, plot_score_distribution, \
-    list_results
+from autograde.cli.util import merge_results, summarize_results, b64str, plot_score_distribution, list_results
 from autograde.test_result import UnitTestResult, NotebookTestResultArchive
-from autograde.util import parse_bool, render, timestamp_utc_iso
+from autograde.util import logger, parse_bool, render, timestamp_utc_iso
 
 
 @dataclass
@@ -171,7 +170,7 @@ def cmd_audit(args):
 
         @app.route('/summary', strict_slashes=False)
         def route_summary():
-            summary = summarize_results(a.results for a in state.archives.values())
+            summary = summarize_results(merge_results(state.archives.values()))
             plot_distribution = parse_bool(request.args.get('distribution', 'f')) and 2 < len(summary)
             plots = [
                 dict(

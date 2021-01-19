@@ -54,8 +54,8 @@ class TestWorkflow(TestCase):
             assert_isclose(8., summary_2['score'].sum())
             assert_isclose(12., summary_1['max_score'].sum())
             assert_isclose(12., summary_2['max_score'].sum())
-            self.assertEqual(2, sum(summary_1['duplicate']))
-            self.assertEqual(2, sum(summary_2['duplicate']))
+            self.assertEqual(6, sum(summary_1['duplicate']))
+            self.assertEqual(6, sum(summary_2['duplicate']))
 
             # patch test 1 results and re-compute report + summary
             cli(['patch', 'results_1', 'results_2'])
@@ -70,7 +70,7 @@ class TestWorkflow(TestCase):
 
             assert_isclose(8., summary_1['score'].sum())
             assert_isclose(12., summary_1['max_score'].sum())
-            self.assertEqual(2, sum(summary_1['duplicate']))
+            self.assertEqual(6, sum(summary_1['duplicate']))
 
             # compute global summary
             cli(['summary', '.'])
