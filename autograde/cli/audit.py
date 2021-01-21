@@ -1,4 +1,5 @@
 import io
+import logging
 import math
 import re
 from contextlib import ExitStack
@@ -8,7 +9,12 @@ from getpass import getuser
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set
 
-from autograde.cli.util import merge_results, summarize_results, b64str, plot_score_distribution, list_results
+import flask.cli as flask_cli
+from flask import Flask, redirect, request, send_file
+from werkzeug.exceptions import HTTPException, InternalServerError
+
+from autograde.cli.util import namespace_args, merge_results, summarize_results, b64str, plot_score_distribution, \
+    list_results
 from autograde.test_result import UnitTestResult, NotebookTestResultArchive
 from autograde.util import logger, parse_bool, render, timestamp_utc_iso
 
@@ -113,14 +119,11 @@ class AuditState:
         return self.next_id(aid)
 
 
-def cmd_audit(args):
+@namespace_args
+def cmd_audit(result: str, bind: str, port: str, **_) -> int:
     """Launch a web interface for manually auditing test archives"""
-    import logging
-    from flask import Flask, redirect, request, send_file
-    import flask.cli as flask_cli
-    from werkzeug.exceptions import HTTPException, InternalServerError
 
-    with AuditState(args.result) as state:
+    with AuditState(Path(result)) as state:
         # create actual flask application
         app = Flask('autograde - audit')
 
@@ -191,4 +194,5 @@ def cmd_audit(args):
 
             return render('message.html', title='stop server', message='ciao kakao :)')
 
-        app.run(host=args.bind, port=args.port)
+        app.run(host=bind, port=port)
+        return 0

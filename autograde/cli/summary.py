@@ -1,15 +1,18 @@
 from pathlib import Path
+from typing import Optional
 
+from autograde.cli.util import namespace_args
 from autograde.test_result import NotebookTestResultArchive
 from autograde.util import logger, render
 
 
-def cmd_summary(args):
+@namespace_args
+def cmd_summary(result: Optional[str] = None, **_) -> int:
     """Generate human & machine readable summary of results"""
 
     from autograde.cli.util import list_results, merge_results, b64str, plot_score_distribution, summarize_results
 
-    path = Path(args.result or Path.cwd()).expanduser().absolute()
+    path = Path(result or Path.cwd()).expanduser().absolute()
     assert path.is_dir(), f'{path} is no regular directory'
 
     def reader():

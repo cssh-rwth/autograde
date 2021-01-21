@@ -12,7 +12,7 @@ from autograde.cli.report import cmd_report
 from autograde.cli.summary import cmd_summary
 from autograde.cli.test import cmd_tst
 from autograde.cli.version import cmd_version
-from autograde.util import logger, loglevel
+from autograde.util import logger, loglevel, project_root
 
 
 def cli(args=None):
@@ -86,6 +86,7 @@ def cli(args=None):
 
     logger.setLevel(loglevel(args.verbose))
     logger.debug(f'default encoding: {sys.getdefaultencoding()}')
+    logger.debug(f'autograde instance: {project_root()}')
     logger.debug(f'args: {args}')
 
     return args.func(args)
