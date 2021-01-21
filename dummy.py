@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-# Standard library modules.
-import sys
 import subprocess
+import sys
 
-# Third party modules.
-
-# Local modules
 import autograde
-
-# Globals and constants variables.
-
 
 if __name__ == '__main__':
     print(sys.version)
