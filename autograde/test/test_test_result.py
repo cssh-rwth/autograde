@@ -12,7 +12,7 @@ import nbformat
 
 from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
 from autograde.util import cd
-from autograde_test.util import assert_floats_equal, load_demo_archive
+from autograde.test.util import assert_floats_equal, load_demo_archive
 
 
 class TestUnitTestResult(TestCase):

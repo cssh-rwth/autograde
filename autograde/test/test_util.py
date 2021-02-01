@@ -38,7 +38,7 @@ class TestUtil(TestCase):
         self.assertEqual(10, loglevel(4))
 
     def test_project_root(self):
-        self.assertEqual(project_root(), Path(__file__).parent.parent)
+        self.assertEqual(project_root(), Path(__file__).parent.parent.parent)
 
     def test_snake_case(self):
         self.assertEqual('', snake_case(''))
@@ -117,12 +117,12 @@ class TestUtil(TestCase):
         sys.stderr = stderr
 
     def test_cd(self):
-        cwd = Path('.')
+        cwd = Path('')
 
         with cd(cwd.parent):
-            self.assertEqual(Path('.'), cwd.parent)
+            self.assertEqual(Path(''), cwd.parent)
 
-        self.assertEqual(Path('.'), cwd)
+        self.assertEqual(Path(''), cwd)
 
     def test_cd_zip(self):
         path = Path('fnord.zip')
