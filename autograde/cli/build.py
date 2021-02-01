@@ -16,7 +16,7 @@ def cmd_build(tag: str, quiet: bool, backend: Optional[str] = None, requirements
         return 1
 
     if requirements:
-        with Path(requirements).open(mode='rt') as f:
+        with Path(requirements).open(mode='rt', encoding='utf-8') as f:
             requirements = list(filter(lambda s: s, map(str.strip, f.readlines())))
     else:
         requirements = []
@@ -27,7 +27,7 @@ def cmd_build(tag: str, quiet: bool, backend: Optional[str] = None, requirements
 
         if requirements:
             logger.info(f'add additional requirements: {requirements}')
-            with Path(tmp).joinpath('requirements.txt').open(mode='wt') as f:
+            with Path(tmp).joinpath('requirements.txt').open(mode='wt', encoding='utf-8') as f:
                 logger.debug('add additional requirements: ' + ', '.join(requirements))
                 f.write('\n'.join(requirements))
 

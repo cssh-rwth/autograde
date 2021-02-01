@@ -234,7 +234,7 @@ class NotebookTest:
                     f.write(nb_data)
 
                 # prepare context and execute notebook
-                with open('code.py', mode='wt') as code, cd('artifacts', mkdir=True):
+                with open('code.py', mode='wt', encoding='utf-8') as code, cd('artifacts', mkdir=True):
                     # prepare execution context in file system
                     if context is not None:
                         logger.debug(f'copy context files from: {context}')
@@ -288,7 +288,7 @@ class NotebookTest:
 
                 # store results as json
                 logger.debug('dump results as json')
-                with open('results.json', mode='wt') as f:
+                with open('results.json', mode='wt', encoding='utf-8') as f:
                     json.dump(results.to_dict(), fp=f, indent=4)
 
                 # infer new, more readable name

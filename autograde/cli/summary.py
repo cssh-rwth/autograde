@@ -40,7 +40,7 @@ def cmd_summary(result: Optional[str] = None, **_) -> int:
     ]
 
     logger.info('render summary.html')
-    with open(path.joinpath('summary.html'), mode='wt') as f:
+    with path.joinpath('summary.html').open(mode='wt', encoding='utf-8') as f:
         f.write(render('summary.html', title='summary', summary=summary, plots=plots))
 
     return 0
