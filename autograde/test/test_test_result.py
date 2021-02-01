@@ -3,6 +3,7 @@ import math
 from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import astuple
+from itertools import count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.case import TestCase
@@ -10,36 +11,67 @@ from zipfile import ZipFile
 
 import nbformat
 
-from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
-from autograde.util import cd
+from autograde import __version__
 from autograde.test.util import assert_floats_equal, load_demo_archive
+from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
+from autograde.util import cd, now
+
+ID_FACTORY = count()
+
+
+def utr_dummy(*, id=None, label=None, target=None, score=None, score_max=None, messages=None, stdout=None,
+              stderr=None) -> UnitTestResult:
+    return UnitTestResult(
+        id=id or next(ID_FACTORY),
+        label=label or '',
+        target=target or [],
+        score=score if score is not None else 0.0,
+        score_max=score_max if score_max is not None else 1.0,
+        messages=messages or [],
+        stdout=stdout or '',
+        stderr=stderr or ''
+    )
+
+
+def ntr_dummy(*, title=None, checksum=None, team_members=None, artifacts=None, excluded_artifacts=None,
+              unit_test_results=None, applied_patches=None, version=None, timestamp=None) -> NotebookTestResult:
+    return NotebookTestResult(
+        title=title or '',
+        checksum=checksum or '0' * 64,
+        team_members=team_members or [],
+        artifacts=artifacts or [],
+        excluded_artifacts=excluded_artifacts or [],
+        unit_test_results=unit_test_results or [],
+        applied_patches=applied_patches or [],
+        version=version or __version__,
+        timestamp=timestamp or now()
+    )
 
 
 class TestUnitTestResult(TestCase):
     def test_passed(self):
-        for r in [UnitTestResult('1', '', [], 1., 1., [], '', ''), UnitTestResult('1', '', [], 2., 2., [], '', '')]:
+        for r in [utr_dummy(score=1., score_max=1.), utr_dummy(score=2., score_max=2.)]:
             self.assertTrue(r.passed())
             self.assertFalse(r.partially_passed())
             self.assertFalse(r.failed())
             self.assertFalse(r.pending())
 
     def test_partially_passed(self):
-        for r in [UnitTestResult('1', '', [], .5, 1., [], '', ''), UnitTestResult('1', '', [], 1., 2., [], '', '')]:
+        for r in [utr_dummy(score=.5, score_max=1.), utr_dummy(score=1., score_max=2.)]:
             self.assertFalse(r.passed())
             self.assertTrue(r.partially_passed())
             self.assertFalse(r.failed())
             self.assertFalse(r.pending())
 
     def test_failed(self):
-        for r in [UnitTestResult('1', '', [], 0., 1., [], '', ''), UnitTestResult('1', '', [], 0., 2., [], '', '')]:
+        for r in [utr_dummy(score=0., score_max=1.), utr_dummy(score=0., score_max=2.)]:
             self.assertFalse(r.passed())
             self.assertFalse(r.partially_passed())
             self.assertTrue(r.failed())
             self.assertFalse(r.pending())
 
     def test_pending(self):
-        for r in [UnitTestResult('1', '', [], math.nan, 0., [], '', ''),
-                  UnitTestResult('1', '', [], math.nan, 1., [], '', '')]:
+        for r in [utr_dummy(score=math.nan, score_max=0.), utr_dummy(score=math.nan, score_max=2.)]:
             self.assertFalse(r.passed())
             self.assertFalse(r.partially_passed())
             self.assertFalse(r.failed())
@@ -48,79 +80,81 @@ class TestUnitTestResult(TestCase):
 
 class TestNotebookTestResult(TestCase):
     def test_patch(self):
-        results_a = NotebookTestResult('', '', '', [], [], [], [])
-        results_b = NotebookTestResult('', '', '', [], [], [], [])
+        results_a = ntr_dummy()
+        results_b = ntr_dummy()
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (0, 0, 0, 0, 0., 0.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
+        results_a = ntr_dummy()
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy()])
+        results_b = ntr_dummy()
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('2', '', [], 1., 1., [], '', '')])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='2', score=1., score_max=1.)])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (2, 1, 1, 0, 1., 2.))
         self.assertListEqual([('', results_b.timestamp, ['2'])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 1., 1., [], '', '')])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=1., score_max=1.)])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 0, 1, 0, 1., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', 'foo')])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1., stderr='foo')])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], math.nan, 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=math.nan, score_max=1.)])
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], math.nan, 1., [], '', '')])
+        results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
+        results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=math.nan, score_max=1.)])
         patch_result = results_a.patch(results_b)
         assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
-        results_a = NotebookTestResult('a', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
-        results_b = NotebookTestResult('b', '', '', [], [], [], [UnitTestResult('2', '', [], 1., 1., [], '', '')])
-        results_c = NotebookTestResult('c', '', '', [], [], [], [UnitTestResult('3', '', [], 2., 4., [], '', ''),
-                                                                 UnitTestResult('4', '', [], 4., 8., [], '', '')])
+        results_a = ntr_dummy(title='a', unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
+        results_b = ntr_dummy(title='b', unit_test_results=[utr_dummy(id='2', score=1., score_max=1.)])
+        results_c = ntr_dummy(title='c', unit_test_results=[utr_dummy(id='3', score=2., score_max=4.),
+                                                            utr_dummy(id='4', score=2., score_max=8.)])
         patch_result = results_a.patch(results_b).patch(results_c)
-        assert_floats_equal(astuple(patch_result.summarize()), (4, 1, 1, 0, 7., 14.))
-        self.assertListEqual([('b', results_b.timestamp, ['2']),
-                              ('c', results_c.timestamp, ['3', '4'])], patch_result.applied_patches)
+        assert_floats_equal(astuple(patch_result.summarize()), (4, 1, 1, 0, 5., 14.))
+        self.assertListEqual(
+            [('b', results_b.timestamp, ['2']), ('c', results_c.timestamp, ['3', '4'])],
+            patch_result.applied_patches
+        )
 
         with self.assertRaises(ValueError):
-            results_a = NotebookTestResult('', '', '0' * 64, [], [], [], [])
-            results_b = NotebookTestResult('', '', '1' * 64, [], [], [], [])
+            results_a = ntr_dummy(checksum='0' * 64)
+            results_b = ntr_dummy(checksum='1' * 64)
             results_a.patch(results_b)
 
     def test_summary(self):
-        results = NotebookTestResult('', '', '', [], [], [], [])
+        results = ntr_dummy()
         assert_floats_equal(astuple(results.summarize()), (0, 0, 0, 0, 0, 0))
 
-        results = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('1', '', [], 0., 1., [], '', '')])
+        results = ntr_dummy(unit_test_results=[utr_dummy(score=0., score_max=1.)])
         assert_floats_equal(astuple(results.summarize()), (1, 1, 0, 0, 0., 1.))
 
-        results = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('2', '', [], 1., 1., [], '', '')])
+        results = ntr_dummy(unit_test_results=[utr_dummy(score=1., score_max=1.)])
         assert_floats_equal(astuple(results.summarize()), (1, 0, 1, 0, 1., 1.))
 
-        results = NotebookTestResult('', '', '', [], [], [], [UnitTestResult('3', '', [], math.nan, 1., [], '', '')])
+        results = ntr_dummy(unit_test_results=[utr_dummy(score=math.nan, score_max=1.)])
         assert_floats_equal(astuple(results.summarize()), (1, 0, 0, 1, math.nan, 1.))
 
 

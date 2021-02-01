@@ -16,7 +16,7 @@ from werkzeug.exceptions import HTTPException, InternalServerError
 from autograde.cli.util import namespace_args, merge_results, summarize_results, b64str, plot_score_distribution, \
     list_results
 from autograde.test_result import UnitTestResult, NotebookTestResultArchive
-from autograde.util import logger, parse_bool, render, timestamp_utc_iso
+from autograde.util import now, logger, parse_bool, render
 
 
 @dataclass
@@ -36,7 +36,7 @@ class AuditSettings:
     def filter_results(self, results: Iterable[UnitTestResult]) -> Iterable[UnitTestResult]:
         return filter(self.select, results)
 
-    def format_comment(self, comment):
+    def format_comment(self, comment: str):
         if self.auditor:
             return f'{self.auditor}: {comment.strip()}'
         return comment.strip()
@@ -81,7 +81,7 @@ class AuditState:
         patch = deepcopy(archive.results)
 
         patch.title = 'manual audit'
-        patch.timestamp = timestamp_utc_iso()
+        patch.timestamp = now()
         if auditor := self.settings.auditor:
             patch.title += f' by {auditor}'
 

@@ -1,4 +1,3 @@
-import json
 import math
 import re
 from copy import deepcopy
@@ -7,10 +6,11 @@ from functools import lru_cache
 from typing import List, Optional, Tuple, Union
 from zipfile import ZipFile
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import config, dataclass_json
+from marshmallow import fields
 
 import autograde
-from autograde.util import logger, timestamp_utc_iso, prune_join, camel_case, render
+from autograde.util import logger, prune_join, camel_case, render, DateTime, now
 
 
 @dataclass_json
@@ -50,7 +50,6 @@ class UnitTestResult:
 @dataclass
 class NotebookTestResult:
     title: str
-    notebook: str
     checksum: str
     team_members: List[TeamMember]
     artifacts: List[str]
@@ -58,7 +57,14 @@ class NotebookTestResult:
     unit_test_results: List[UnitTestResult]
     applied_patches: List[Tuple[str, str, List[str]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
-    timestamp: str = field(default_factory=timestamp_utc_iso)
+    timestamp: DateTime = field(
+        default_factory=now,
+        metadata=config(
+            encoder=DateTime.isoformat,
+            decoder=DateTime.fromisoformat,
+            mm_field=fields.DateTime(format='iso')
+        )
+    )
 
     def __post_init__(self):
         if self.version != autograde.__version__:
@@ -184,7 +190,7 @@ class NotebookTestResultArchive:
         patch_name = f'results_patch_{self.patch_count + 1:02d}.json'
         with self._zipfile.open(patch_name, mode='w') as f:
             logger.debug(f'add {patch_name} to {self._zipfile.filename}')
-            f.write(json.dumps(patch.to_dict(), indent=4).encode('utf-8'))
+            f.write(patch.to_json(indent=4).encode('utf-8'))
 
         # add report revision
         if 'report.html' in self.files:

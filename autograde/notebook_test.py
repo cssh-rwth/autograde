@@ -278,7 +278,6 @@ class NotebookTest:
                 logger.debug('apply unit tests')
                 results = NotebookTestResult(
                     title=self._title,
-                    notebook=str(nb_path),
                     checksum=nb_hash,
                     team_members=group,
                     artifacts=sorted(map(str, artifacts)),

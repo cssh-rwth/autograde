@@ -1,5 +1,4 @@
 import base64
-import datetime
 import logging
 import math
 import os
@@ -7,18 +6,19 @@ import re
 import sys
 import time
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import ContextManager, Generator, Iterable, Union, List
 from zipfile import ZipFile
 
-import pytz
 from htmlmin.minify import html_minify
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 import autograde
 from autograde.static import CSS, FAVICON
 
+DateTime = datetime
 ALPHA_NUMERIC = re.compile(r'[^\w]')
 FAVICON = base64.b64encode(FAVICON).decode('utf-8')
 JINJA_ENV = Environment(
@@ -50,8 +50,8 @@ def parse_bool(s):
     raise ValueError(f'cannot parse "{s}" as boolean')
 
 
-def timestamp_utc_iso():
-    return datetime.datetime.now(pytz.utc).replace(microsecond=0).isoformat()
+def now() -> DateTime:
+    return DateTime.now().replace(microsecond=0)
 
 
 def loglevel(x):
@@ -246,7 +246,7 @@ def render(template: str, minify: bool = True, **kwargs):
         autograde=autograde,
         css=CSS,
         favicon=FAVICON,
-        timestamp=timestamp_utc_iso(),
+        timestamp=now().isoformat(),
         **kwargs
     )
 
