@@ -184,15 +184,18 @@ class StopWatch:
 @contextmanager
 def deadline(timeout):
     """Context that fails if not left in time"""
-    start = time.time()
+    start = time.monotonic()
 
     # trace callbacks
     def _globaltrace(frame, event, arg):
         return _localtrace if event == 'call' else None
 
     def _localtrace(frame, event, arg):
-        if time.time() - start >= timeout and event == 'line':
+        if time.monotonic() - start >= timeout and event == 'line':
+            logger.debug('abort execution due to timeout')
             raise TimeoutError(f'code execution took longer than {timeout:.3f}s to terminate')
+
+    trace = sys.gettrace()
 
     # activate tracing only in case timeout was actually set
     if timeout:
@@ -202,7 +205,7 @@ def deadline(timeout):
         yield start
 
     finally:
-        sys.settrace(None)
+        sys.settrace(trace)
 
 
 class WatchDog:
