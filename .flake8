@@ -5,7 +5,7 @@ per-file-ignores =
     # matplotlib forces us to violate best practises for imports
     autograde/cli/util.py: E402,
     # we try all sorts of import methods the linter does not like
-    autograde_test/test_helpers.py: F811, F401
+    autograde/test/test_helpers.py: F811, F401
 exclude =
     build,
     .git,
