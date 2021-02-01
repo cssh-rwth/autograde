@@ -254,7 +254,8 @@ class NotebookTest:
                             variables=self._variables
                         ))
 
-                    except ValueError:
+                    except ValueError as err:
+                        logger.warning(str(err))
                         state = {}
 
                     # collect artifacts and remove files that haven't changed
