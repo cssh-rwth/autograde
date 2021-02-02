@@ -17,7 +17,7 @@ _tmp.cleanup()
 
 DEMO = project_root().joinpath('demo')
 EXAMPLES = project_root().joinpath('autograde', 'test', 'examples')
-cache = partial(lru_cache, maxsize=None)
+cache = lru_cache(maxsize=None)
 
 
 @cache
