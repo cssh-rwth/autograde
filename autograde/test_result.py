@@ -39,20 +39,16 @@ class UnitTestResult:
 
     def __eq__(self, other: 'UnitTestResult'):
         if not isinstance(other, UnitTestResult):
-            print('instance')
             return False
 
         if not float_equal(self.score, other.score):
-            print('score')
             return False
 
         if not float_equal(self.score_max, other.score_max):
-            print('score max')
             return False
 
         for attr in ['id', 'label', 'target', 'messages', 'stdout', 'stderr']:
             if not getattr(self, attr, 0) == getattr(other, attr, 1):
-                print(attr)
                 return False
 
         return True
@@ -102,6 +98,9 @@ class NotebookTestResult:
         last_names = sorted((m.last_name for m in self.team_members))
         return prune_join(map(camel_case, last_names), *args, **kwargs)
 
+    def copy(self):
+        return deepcopy(self)
+
     def patch(self, patch: 'NotebookTestResult') -> 'NotebookTestResult':
         """
         Create a copy of self and patch results of given results object into it. NOTE that pending
@@ -110,7 +109,7 @@ class NotebookTestResult:
         :param patch: results to be patched into self
         :return: patched copy
         """
-        patched = deepcopy(self)
+        patched = self.copy()
         results = {r.id: r for r in self.unit_test_results}
 
         if not patched.checksum == patch.checksum:

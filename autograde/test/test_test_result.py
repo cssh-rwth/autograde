@@ -147,6 +147,13 @@ class TestUnitTestResult(TestCase):
 
 
 class TestNotebookTestResult(TestCase):
+    def test_copy(self):
+        results_a = ntr_dummy(checksum='foo')
+        results_b = results_a.copy()
+
+        self.assertEqual(results_a, results_b)
+        self.assertIsNot(results_a, results_b)
+
     def test_patch_empty_with_empty(self):
         results_a = ntr_dummy()
         results_b = ntr_dummy()
