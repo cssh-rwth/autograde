@@ -10,7 +10,7 @@ from dataclasses_json import config, dataclass_json
 from marshmallow import fields
 
 import autograde
-from autograde.util import logger, prune_join, camel_case, render, DateTime, now
+from autograde.util import logger, float_equal, prune_join, camel_case, render, DateTime, now
 
 
 @dataclass_json
@@ -22,7 +22,7 @@ class TeamMember:
 
 
 @dataclass_json
-@dataclass
+@dataclass(eq=False)
 class UnitTestResult:
     id: str
     label: str
@@ -32,6 +32,30 @@ class UnitTestResult:
     messages: List[str]
     stdout: str
     stderr: str
+
+    def __post_init__(self):
+        if self.score_max < self.score:
+            raise ValueError('score must not be bigger than score_max')
+
+    def __eq__(self, other: 'UnitTestResult'):
+        if not isinstance(other, UnitTestResult):
+            print('instance')
+            return False
+
+        if not float_equal(self.score, other.score):
+            print('score')
+            return False
+
+        if not float_equal(self.score_max, other.score_max):
+            print('score max')
+            return False
+
+        for attr in ['id', 'label', 'target', 'messages', 'stdout', 'stderr']:
+            if not getattr(self, attr, 0) == getattr(other, attr, 1):
+                print(attr)
+                return False
+
+        return True
 
     def pending(self) -> bool:
         return math.isnan(self.score)

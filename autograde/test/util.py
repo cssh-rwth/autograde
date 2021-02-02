@@ -1,26 +1,30 @@
-import math
 import shutil
-from functools import partial
+from collections import defaultdict
+from functools import cache, partial
+from itertools import product
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Dict
 
 from autograde.cli import cli
 from autograde.helpers import assert_iter_eqal
-from autograde.util import project_root
+from autograde.util import project_root, float_equal
 
 _tmp = TemporaryDirectory()
 TMP_ROOT = Path(_tmp.__enter__()).parent
 _tmp.cleanup()
 
 DEMO = project_root().joinpath('demo')
+EXAMPLES = project_root().joinpath('autograde', 'test', 'examples')
 
 
+@cache
 def load_demo_archive() -> bytes:
     """
     Run the demo and load results into memory. The result archive persists over
-    several runs, i.e. should manually be deleted when the demo is modified
+    several runs, i.e. should be manually deleted when the demo is modified.
     """
-    archive = TMP_ROOT.joinpath('demo_result.zip')
+    archive = TMP_ROOT.joinpath('autograde_demo_result.zip')
 
     if not archive.is_file():
         with TemporaryDirectory() as tmp:
@@ -36,8 +40,30 @@ def load_demo_archive() -> bytes:
         return f.read()
 
 
-def float_equal(a, b):
-    return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
+@cache
+def load_example_archives() -> Dict[str, Dict[str, bytes]]:
+    """
+    Run the examples and load results into memory. The result archive persist
+    over several runs, i.e. should be manually deleted when examples are
+    modified.
+    """
+
+    archives = defaultdict(lambda: {})
+
+    for test, notebook in product(EXAMPLES.glob('test_*.py'), EXAMPLES.glob('solution_*.ipynb')):
+        tid, nid = test.stem.split('_')[-1], notebook.stem.split('_')[-1]
+
+        archive = TMP_ROOT.joinpath(f'autograde_example_result_{tid}_{nid}.zip')
+
+        if not archive.is_file():
+            with TemporaryDirectory() as tmp:
+                cli(['test', str(test), str(notebook), '--target', str(tmp)])
+                shutil.move(next(Path(tmp).glob('*.zip')), archive)
+
+        with archive.open(mode='rb') as f:
+            archives[tid][nid] = f.read()
+
+    return dict(archives)
 
 
 assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)

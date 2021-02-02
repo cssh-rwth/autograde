@@ -63,6 +63,10 @@ def project_root():
     return Path(autograde.__file__).parent.parent
 
 
+def float_equal(a, b):
+    return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
+
+
 def _alpha_numeric_split(s):
     for w in ALPHA_NUMERIC.split(s.strip()):
         if w:

@@ -3,7 +3,6 @@ import math
 from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import astuple
-from itertools import count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.case import TestCase
@@ -16,13 +15,11 @@ from autograde.test.util import assert_floats_equal, load_demo_archive
 from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
 from autograde.util import cd, now
 
-ID_FACTORY = count()
-
 
 def utr_dummy(*, id=None, label=None, target=None, score=None, score_max=None, messages=None, stdout=None,
               stderr=None) -> UnitTestResult:
     return UnitTestResult(
-        id=id or next(ID_FACTORY),
+        id=id or '',
         label=label or '',
         target=target or [],
         score=score if score is not None else 0.0,
@@ -49,6 +46,77 @@ def ntr_dummy(*, title=None, checksum=None, team_members=None, artifacts=None, e
 
 
 class TestUnitTestResult(TestCase):
+    def test_sanity_check(self):
+        with self.assertRaises(ValueError):
+            _ = utr_dummy(score=2., score_max=1.)
+
+    def test_eq(self):
+        self.assertEqual(utr_dummy(), utr_dummy())
+
+    def test_eq_id(self):
+        utr_1 = utr_dummy(id='foo')
+        utr_2 = utr_dummy(id='foo')
+        utr_3 = utr_dummy(id='bar')
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_label(self):
+        utr_1 = utr_dummy(label='foo')
+        utr_2 = utr_dummy(label='foo')
+        utr_3 = utr_dummy(label='bar')
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_target(self):
+        utr_1 = utr_dummy(target='foo')
+        utr_2 = utr_dummy(target='foo')
+        utr_3 = utr_dummy(target='bar')
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_score(self):
+        utr_1 = utr_dummy(score_max=2., score=1.)
+        utr_2 = utr_dummy(score_max=2., score=1. + 1e-10)
+        utr_3 = utr_dummy(score_max=2., score=2.)
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_score_max(self):
+        utr_1 = utr_dummy(score_max=1.)
+        utr_2 = utr_dummy(score_max=1. + 1e-10)
+        utr_3 = utr_dummy(score_max=2.)
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_messages(self):
+        utr_1 = utr_dummy(messages=['foo'])
+        utr_2 = utr_dummy(messages=['foo'])
+        utr_3 = utr_dummy(messages=[])
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_stdout(self):
+        utr_1 = utr_dummy(stdout='foo')
+        utr_2 = utr_dummy(stdout='foo')
+        utr_3 = utr_dummy(stdout='bar')
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
+    def test_eq_stderr(self):
+        utr_1 = utr_dummy(stderr='foo')
+        utr_2 = utr_dummy(stderr='foo')
+        utr_3 = utr_dummy(stderr='bar')
+        self.assertEqual(utr_1, utr_1)
+        self.assertEqual(utr_1, utr_2)
+        self.assertNotEqual(utr_1, utr_3)
+
     def test_passed(self):
         for r in [utr_dummy(score=1., score_max=1.), utr_dummy(score=2., score_max=2.)]:
             self.assertTrue(r.passed())
