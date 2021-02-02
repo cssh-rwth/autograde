@@ -15,18 +15,20 @@ from contextlib import ExitStack
 from hashlib import sha256
 from math import isclose
 from pathlib import Path
-from typing import Dict, Union, Iterable, Generator
+from typing import Callable, Dict, Union, Iterable, Generator, Tuple
 
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
 from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline, WatchDog
 
-T_TARGET = Union[str, Iterable[str]]
+Target = Union[str, Iterable[str]]
+TestResult = Union[None, float, str, Tuple[float, str]]
+TestFunction = Callable[..., TestResult]
 
 
 class UnitTest:
-    def __init__(self, test_function, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
+    def __init__(self, test_function: TestFunction, target: Target, label: str, score: float = 1., timeout: float = 0.):
         self._id = sha256(label.lower().strip().encode('utf-8')).hexdigest()
         self._test_func = test_function
         self._targets = (target,) if isinstance(target, str) else tuple(target)
@@ -34,13 +36,13 @@ class UnitTest:
         self._score = score
         self._timeout = timeout
 
-    def __call__(self, state, *args, **kwargs):
+    def __call__(self, state, *args, **kwargs) -> Tuple[float, str]:
         try:
             # extract targets
             try:
                 targets = [state[t] for t in self._targets]
             except KeyError as err:
-                raise NameError(err)
+                raise NameError(err.args[0])
 
             # apply actual test
             with deadline(self._timeout):
@@ -71,8 +73,11 @@ class UnitTest:
     timout = property(fget=lambda self: self._timeout)
 
 
+TestDecorator = Callable[[TestFunction], UnitTest]
+
+
 class NotebookTest:
-    def __init__(self, title, cell_timeout: float = 0., test_timeout: float = 0.):
+    def __init__(self, title: str, cell_timeout: float = 0., test_timeout: float = 0.):
         self._title = title
         self._unit_tests = OrderedDict()
         self._cell_timeout = cell_timeout
@@ -88,7 +93,7 @@ class NotebookTest:
     def __repr__(self):
         return f'{type(self).__name__}({self._unit_tests})'
 
-    def register(self, target: T_TARGET, label: str, score: float = 1., timeout: float = 0.):
+    def register(self, target: Target, label: str, score: float = 1., timeout: float = 0.) -> TestDecorator:
         """
         Decorator for registering a new unit test for given target.
 
@@ -100,7 +105,7 @@ class NotebookTest:
         :return: decorator wrapping the original function
         """
 
-        def decorator(func):
+        def decorator(func: TestFunction) -> UnitTest:
             unit_test = UnitTest(func, target, label, score, timeout or self._test_timeout)
             if unit_test.id in self._unit_tests:
                 raise ValueError('A unit test with same id was already registered. Consider using a different label!')
@@ -109,7 +114,7 @@ class NotebookTest:
 
         return decorator
 
-    def register_comment(self, target: Union[str, re.Pattern], label: str, score: float = 1.):
+    def register_comment(self, target: Union[str, Path], label: str, score: float = 1.) -> UnitTest:
         """
         Register a special unit test that looks for markdown comments in the notebook by a given
         regular expression. If no such comment is found, the test fails. In all other cases,
@@ -134,9 +139,9 @@ class NotebookTest:
 
             return math.nan, msg
 
-        self.register('__COMMENTS__', label, score)(search_comment)
+        return self.register('__COMMENTS__', label, score)(search_comment)
 
-    def register_figure(self, target: Union[str, Path], label: str, score: float = 1, ):
+    def register_figure(self, target: Union[str, Path], label: str, score: float = 1) -> UnitTest:
         """
         Register a special unit test that loads an base64 encoded PNG or SVG image from artifacts.
         If the image does not exist, the test fails. In all other cases, the image is included into
@@ -161,7 +166,7 @@ class NotebookTest:
         def load_plot(artifacts):
             return math.nan, prefix + base64.b64encode(artifacts[target]).decode('utf8')
 
-        self.register('__ARTIFACTS__', label, score)(load_plot)
+        return self.register('__ARTIFACTS__', label, score)(load_plot)
 
     def set_import_filter(self, regex: Union[str, re.Pattern], blacklist: bool = False):
         """

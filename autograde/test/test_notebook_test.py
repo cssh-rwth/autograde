@@ -23,25 +23,33 @@ PROJECT_ROOT = project_root()
 class TestUnitTest(TestCase):
     def test_simple(self):
         def test_function(foo):
-            self.assertEqual(foo, 42)
+            assert foo == 42
 
         ut = UnitTest(test_function, target='foo', label='')
         self.assertTupleEqual((1.0, '✅ passed'), ut(dict(foo=42)))
 
-    def test_msg(self):
+    def test_msg_passed(self):
         ut = UnitTest(lambda x: x, target='foo', label='', score=4.)
         self.assertTupleEqual((4.0, '✅ passed'), ut(dict(foo=5)))
+
+    def test_msg_partially_passed(self):
+        ut = UnitTest(lambda x: x, target='foo', label='', score=4.)
         self.assertTupleEqual((3.0, '¯\\_(ツ)_/¯ partially passed'), ut(dict(foo=3.0)))
+
+    def test_msg_custom_message(self):
+        ut = UnitTest(lambda x: x, target='foo', label='', score=4.)
         self.assertTupleEqual((4.0, '42'), ut(dict(foo='42')))
 
     def test_unknown_target(self):
-        def test_function():
+        def test_function(*_):
             pass
 
         ut = UnitTest(test_function, target='foo', label='')
         with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
-            s, _ = ut({})
+            s, msg = ut({})
+
         self.assertEqual(s, 0.)
+        self.assertEqual(msg, '❌ NameError: "foo"')
 
     def test_multiple_targets(self):
         def test_function(foo, bar):
@@ -53,27 +61,43 @@ class TestUnitTest(TestCase):
 
         with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
             self.assertTupleEqual((0, '❌ AssertionError: ""'), ut(dict(foo=42, bar=0)))
-            self.assertTupleEqual((0, '❌ NameError: "\'bar\'"'), ut(dict(foo=42)))
+            self.assertTupleEqual((0, '❌ NameError: "bar"'), ut(dict(foo=42)))
 
-    def test_score(self):
-        def test_function(fail):
-            assert not fail
+    def test_score_fail(self):
+        def test_function(_):
+            pass
 
-        ut = UnitTest(test_function, target='fail', label='')
-        s, _ = ut(dict(fail=False))
+        ut = UnitTest(test_function, target='foo', label='')
+        s, _ = ut(dict(foo=42))
         self.assertEqual(s, 1.0)
         self.assertEqual(ut.score, 1.0)
 
-        ut = UnitTest(test_function, target='fail', label='')
+    def test_score_pass(self):
+        def test_function(_):
+            raise AssertionError
+
+        ut = UnitTest(test_function, target='foo', label='')
         with open(os.devnull, 'w') as stderr, capture_output(tmp_stderr=stderr):
-            s, _ = ut(dict(fail=True))
+            s, _ = ut(dict(foo=42))
         self.assertEqual(s, 0.)
         self.assertEqual(ut.score, 1.0)
 
-        ut = UnitTest(test_function, target='fail', label='', score=2)
-        s, _ = ut(dict(fail=False))
+    def test_score_pass_higher_score(self):
+        def test_function(_):
+            pass
+
+        ut = UnitTest(test_function, target='foo', label='', score=2)
+        s, _ = ut(dict(foo=42))
         self.assertEqual(s, 2.0)
         self.assertEqual(ut.score, 2.0)
+
+    def test_score_partially_pass(self):
+        def test_function(*_):
+            return .5
+
+        ut = UnitTest(test_function, target='foo', label='')
+        s, _ = ut(dict(foo=42))
+        self.assertEqual(s, .5)
 
     def test_label(self):
         def test_function():
@@ -185,11 +209,8 @@ class TestNotebookTest(TestCase):
                 results = NotebookTestResult.from_json(zipf.open('results.json').read())
 
         self.assertEqual(results.version, autograde.__version__)
-
         self.assertEqual(results.checksum, sha256_sum)
-
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
-
         assert_floats_equal(astuple(results.summarize()), (16, 5, 6, 3, math.nan, 25))
 
     def test_execute(self):
