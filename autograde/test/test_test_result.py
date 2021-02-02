@@ -4,14 +4,13 @@ from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import astuple
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.case import TestCase
 from zipfile import ZipFile
 
 import nbformat
 
 from autograde import __version__
-from autograde.test.util import assert_floats_equal, load_demo_archive
+from autograde.test.util import assert_floats_equal, mount_demo_archive
 from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
 from autograde.util import cd, now
 
@@ -251,11 +250,8 @@ class TestNotebookTestResultArchive(TestCase):
     def setUp(self) -> None:
         self._exit_stack = ExitStack().__enter__()
 
-        tmp = self._exit_stack.enter_context(TemporaryDirectory())
-        self._exit_stack.enter_context(cd(tmp))
-
-        with Path(tmp).joinpath('archive.zip').open(mode='wb') as f:
-            f.write(load_demo_archive())
+        temp = self._exit_stack.enter_context(mount_demo_archive())
+        self._exit_stack.enter_context(cd(temp))
 
         self.file_list = {
             'artifacts/bar.txt',
