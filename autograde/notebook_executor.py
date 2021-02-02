@@ -130,9 +130,9 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                 logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
                 stopwatch = StopWatch()
 
+                # actual execution that mutates the state
                 try:
                     with capture_output(stdout, stderr):
-                        # actual execution that extends state
                         with ExitStack() as es:
                             if if_regex is not None and i > 1:
                                 es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
@@ -141,15 +141,16 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
                             shadow_stack.enter_context(shadow_exec(code, state))
 
+                # extend log with a meaningful error message
                 except Exception as error:
-                    # extend log with some meaningful error message
                     traceback.print_exception(type(error), error, error.__traceback__, file=stderr)
 
                     if not ignore_errors:
+                        print('abort due to previous error', file=stderr)
                         raise error
 
+                # log code cell and outputs
                 finally:
-                    # log code and output
                     with capture_output(file):
                         _label = f' CODE CELL {label} '
                         print(f'# {_label:-^78}')
