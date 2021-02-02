@@ -71,7 +71,7 @@ def load_example_archives() -> Dict[str, Dict[str, bytes]]:
 def mount_demo_archive() -> ContextManager[Path]:
     """Mount demo archive to temporary directory"""
     with TemporaryDirectory() as temp:
-        with Path(temp).joinpath('archive.zip').open(mode='wb') as f:
+        with Path(temp).joinpath('results_demo.zip').open(mode='wb') as f:
             f.write(load_demo_archive())
 
         yield Path(temp)

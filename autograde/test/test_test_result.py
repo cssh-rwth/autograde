@@ -253,6 +253,8 @@ class TestNotebookTestResultArchive(TestCase):
         temp = self._exit_stack.enter_context(mount_demo_archive())
         self._exit_stack.enter_context(cd(temp))
 
+        temp.joinpath('results_demo.zip').rename('archive.zip')
+
         self.file_list = {
             'artifacts/bar.txt',
             'artifacts/figures/fig_nb_3_1.png',
