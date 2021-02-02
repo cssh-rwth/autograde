@@ -1,7 +1,7 @@
 import shutil
 from collections import defaultdict
 from contextlib import contextmanager
-from functools import cache, partial
+from functools import partial, lru_cache
 from itertools import product
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -17,6 +17,7 @@ _tmp.cleanup()
 
 DEMO = project_root().joinpath('demo')
 EXAMPLES = project_root().joinpath('autograde', 'test', 'examples')
+cache = partial(lru_cache, maxsize=None)
 
 
 @cache
