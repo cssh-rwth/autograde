@@ -17,19 +17,16 @@ def cmd_summary(result: Optional[str] = None, **_) -> int:
 
     def reader():
         for archive_path in list_results(path):
-            logger.debug(f'read {archive_path}')
-
+            logger.debug(f'mount {archive_path}')
             with NotebookTestResultArchive(archive_path, mode='r') as archive:
                 yield archive
 
-    # merge results
+    logger.info('render raw.csv')
     results_df = merge_results(reader())
-    logger.debug('store raw.csv')
     results_df.to_csv(path.joinpath('raw.csv'), index=False)
 
-    # summarize results
+    logger.info('render summary.csv')
     summary = summarize_results(results_df)
-    logger.debug('store summary.csv')
     summary.to_csv(path.joinpath('summary.csv'), index=False)
 
     plots = [

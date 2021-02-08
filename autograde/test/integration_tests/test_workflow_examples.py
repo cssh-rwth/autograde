@@ -17,7 +17,7 @@ EXAMPLES = PROJECT_ROOT.joinpath('autograde', 'test', 'examples')
 
 
 class TestWorkflow(TestCase):
-    def test_scenario_1(self):
+    def test_test_report_patch_summary(self):
         with TemporaryDirectory() as temp, cd(temp), warnings.catch_warnings():
             warnings.simplefilter('ignore')
 
@@ -54,8 +54,8 @@ class TestWorkflow(TestCase):
             assert_isclose(8., summary_2['score'].sum())
             assert_isclose(12., summary_1['max_score'].sum())
             assert_isclose(12., summary_2['max_score'].sum())
-            self.assertEqual(6, sum(summary_1['duplicate']))
-            self.assertEqual(6, sum(summary_2['duplicate']))
+            self.assertEqual(2, sum(summary_1['duplicate']))
+            self.assertEqual(2, sum(summary_2['duplicate']))
 
             # patch test 1 results and re-compute report + summary
             cli(['patch', 'results_1', 'results_2'])
@@ -70,13 +70,8 @@ class TestWorkflow(TestCase):
 
             assert_isclose(8., summary_1['score'].sum())
             assert_isclose(12., summary_1['max_score'].sum())
-            self.assertEqual(6, sum(summary_1['duplicate']))
+            self.assertEqual(2, sum(summary_1['duplicate']))
 
-            # compute global summary
-            cli(['summary', '.'])
-
-            summary = pd.read_csv('summary.csv')
-
-            assert_isclose(16., summary['score'].sum())
-            assert_isclose(24., summary['max_score'].sum())
-            self.assertTrue(all(summary['duplicate']))
+            # fails since multiple scores per task and student are not allowed!
+            with self.assertRaises(AssertionError):
+                cli(['summary', '.'])
