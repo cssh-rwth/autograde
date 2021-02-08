@@ -12,10 +12,12 @@ jobs:
   test:
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
+
     strategy:
       matrix:
         os: [ Ubuntu ]
         python-version: [ 3.8 ]
+
     steps:
       - uses: actions/checkout@v2
 
@@ -32,10 +34,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          # stop the build if there are syntax errors or undefined names
-          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # warn for all other errors
-          poetry run flake8 . --count --exit-zero --statistics
+          poetry run flake8 . --count --statistics
 
       - name: Test with UnitTest
         run: |
