@@ -3,11 +3,10 @@ import logging
 import math
 import re
 from contextlib import ExitStack
-from copy import deepcopy
 from dataclasses import dataclass
 from getpass import getuser
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, Optional, Set, Tuple
 
 import flask.cli as flask_cli
 from flask import Flask, redirect, request, send_file
@@ -72,47 +71,51 @@ class AuditState:
     def next_id(self, aid: str) -> Optional[str]:
         return self._next_ids.get(aid)
 
-    def patch(self, id: str, **kwargs):
-        aid = id
+    @staticmethod
+    def _parse_form(form: Dict) -> Tuple[Dict[str, float], Dict[str, str]]:
         scores = dict()
         comments = dict()
 
-        archive = self.archives[aid]
-        patch = deepcopy(archive.results)
-
-        patch.title = 'manual audit'
-        patch.timestamp = now()
-        if auditor := self.settings.auditor:
-            patch.title += f' by {auditor}'
-
-        # extract form data
-        for key, value in kwargs.items():
+        for key, value in form.items():
             if key.startswith('score:'):
                 scores[key.split(':')[-1]] = math.nan if value == '' else float(value)
             elif key.startswith('comment:'):
-                comments[key.split(':')[-1]] = value
+                if value:
+                    comments[key.split(':')[-1]] = str(value)
             else:
-                logger.warning(f'unknown form item: "{key}" (ignore)')
+                logger.warning(f'ignore unknown form item: "{key}"')
+
+        return scores, comments
+
+    def patch(self, id: str, **kwargs):
+        aid = id
+        scores, comments = self._parse_form(kwargs)
+
+        archive = self.archives[aid]
+        patch = archive.results.copy()
 
         # update archives
-        modification_flag = False
         for result in patch.unit_test_results:
-            score = scores.get(result.id)
-            if score is not None and not math.isclose(score, result.score):
+            if (score := scores.get(result.id)) is not None and not math.isclose(score, result.score):
                 logger.debug(f'update score of unit test result {result.id}')
                 result.score = score
-                modification_flag = True
 
             if comment := comments.get(result.id):
                 logger.debug(f'update messages of unit test result {result.id}')
                 result.messages.append(self.settings.format_comment(comment))
-                modification_flag = True
 
-        # patch archives back
-        if modification_flag:
-            # update state & persist patch
+        # apply patch if there are changes
+        if patch != archive.results:
+            # update remaining attributes of patch
+            patch.title = 'manual audit'
+            patch.timestamp = now()
+            if auditor := self.settings.auditor:
+                patch.title += f' by {auditor}'
+
+            # persist patch & update state
             archive.inject_patch(patch)
             self.patched.add(aid)
+
         else:
             logger.debug('no modifications were made')
 
