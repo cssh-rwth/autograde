@@ -15,7 +15,7 @@ from autograde.notebook_test import UnitTest, \
     NotebookTest
 from autograde.test_result import NotebookTestResult
 from autograde.util import project_root, cd, capture_output
-from autograde.test.util import assert_floats_equal
+from tests.util import assert_floats_equal
 
 PROJECT_ROOT = project_root()
 

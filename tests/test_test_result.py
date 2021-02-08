@@ -10,7 +10,7 @@ from zipfile import ZipFile
 import nbformat
 
 from autograde import __version__
-from autograde.test.util import assert_floats_equal, mount_demo_archive
+from tests.util import assert_floats_equal, mount_demo_archive
 from autograde.test_result import UnitTestResult, NotebookTestResult, NotebookTestResultArchive
 from autograde.util import cd, now
 

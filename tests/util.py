@@ -16,7 +16,7 @@ TMP_ROOT = Path(_tmp.__enter__()).parent
 _tmp.cleanup()
 
 DEMO = project_root().joinpath('demo')
-EXAMPLES = project_root().joinpath('autograde', 'test', 'examples')
+EXAMPLES = project_root().joinpath('tests', 'examples')
 cache = lru_cache(maxsize=None)
 
 

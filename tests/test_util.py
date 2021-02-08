@@ -38,7 +38,7 @@ class TestUtil(TestCase):
         self.assertEqual(10, loglevel(4))
 
     def test_project_root(self):
-        self.assertEqual(project_root(), Path(__file__).parent.parent.parent)
+        self.assertEqual(project_root(), Path(__file__).parent.parent)
 
     def test_snake_case(self):
         self.assertEqual('', snake_case(''))

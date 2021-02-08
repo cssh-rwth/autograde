@@ -6,8 +6,8 @@ from unittest import TestCase
 
 from autograde.cli import cli
 from autograde.cli.audit import AuditSettings, AuditState
-from autograde.test.test_test_result import utr_dummy
-from autograde.test.util import mount_demo_archive, mount_example_archives
+from tests.test_test_result import utr_dummy
+from tests.util import mount_demo_archive, mount_example_archives
 from autograde.util import cd
 
 USER = getuser()
