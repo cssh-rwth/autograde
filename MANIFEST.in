@@ -1,7 +1,0 @@
-include autograde/templates/*
-include autograde/static/*
-include demo/*
-include demo/context/*
-include Dockerfile
-include dummy.py
-include .flake8

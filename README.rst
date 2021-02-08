@@ -1,4 +1,3 @@
-
 .. _auto-grade:
 
 =========
@@ -18,8 +17,8 @@ Before installing *autograde* and in case you want to use it with a container ba
 We recommend podman as it runs rootless.
 
 Now, in order to install *autograde*, run :code:`pip install jupyter-autograde`.
-Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`pip install -e .`
-within it (or :code:`pip install -e .[develop]` if you're a developer).
+Alternatively, you can install *autograde* from source by cloning this repository and runing :code:`poetry install` within it.
+This requires `poetry <https://python-poetry.org/docs/>`_ to be installed on your system!
 
 Eventually, build the respective container image: :code:`python -m autograde build`.
 **Note:** in order to build a container image, *autograde* must not be installed via *PyPI* but from source code!
@@ -77,7 +76,9 @@ Results from multiple test runs can be merged via the :code:`patch` sub command:
 summarize results
 `````````````````
 
-In a typical scenario, test cases are not just applied to one notebook but many at a time. Therefore, *autograde* comes with a summary feature, that aggregates results, shows you a score distribution and has some very basic fraud detection. To create a summary, simply run:
+In a typical scenario, test cases are not just applied to one notebook but many at a time.
+Therefore, *autograde* comes with a summary feature, that aggregates results, shows you a score distribution and has some very basic fraud detection.
+To create a summary, simply run:
 
 ::
 

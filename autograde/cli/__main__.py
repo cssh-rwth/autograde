@@ -85,8 +85,9 @@ def cli(args=None):
     args = parser.parse_args(args)
 
     logger.setLevel(loglevel(args.verbose))
+    logger.debug(f'python: {sys.executable}')
+    logger.debug(f'autograde: {project_root()}')
     logger.debug(f'default encoding: {sys.getdefaultencoding()}')
-    logger.debug(f'autograde instance: {project_root()}')
     logger.debug(f'args: {args}')
 
     return args.func(args)
