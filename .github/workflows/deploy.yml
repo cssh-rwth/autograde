@@ -22,5 +22,5 @@ jobs:
       env:
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
       run: |
-        poetry build --format sdist
-        poetry publish
+        python -m poetry build --format sdist
+        python -m poetry publish
