@@ -158,8 +158,10 @@ class TestAuditState(TestCase):
             aid = next((id for id, a in state.archives.items() if 'results_a' in a.filename))
             self.assertEqual(state.archives[aid].patch_count, 0)
 
-            form = {f'score:{r.id}': r.score for r in state.archives[aid].results.unit_test_results} |\
-                   {f'comment:{r.id}': '' for r in state.archives[aid].results.unit_test_results}
+            form = {
+                **{f'score:{r.id}': r.score for r in state.archives[aid].results.unit_test_results},
+                **{f'comment:{r.id}': '' for r in state.archives[aid].results.unit_test_results}
+            }
 
             state.patch(aid, **form)
             self.assertEqual(state.archives[aid].patch_count, 0)
