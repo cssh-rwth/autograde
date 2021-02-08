@@ -78,7 +78,6 @@ def summarize_results(results_df: pd.DataFrame) -> pd.DataFrame:
         assert len(aggregate_df['notebook_id']) == 1
         assert len(aggregate_df['test_id']) == len(group)
         assert len(aggregate_df['archive']) == 1
-        # assert len(aggregate_df['duplicate']) == 1
 
         aggregate_df = aggregate_df.apply(lambda col: col[0])
         aggregate_df['score'] = group['score'].sum()
