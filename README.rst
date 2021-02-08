@@ -8,6 +8,10 @@ autograde
    :alt: autograde test
    :target: https://github.com/cssh-rwth/autograde/actions
 
+.. image:: https://img.shields.io/pypi/v/jupyter-autograde?color=blue&label=jupyter-autograde
+   :alt: autograde on PyPI
+   :target: https://pypi.org/project/jupyter-autograde
+
 *autograde* is a tool for testing *Jupyter* notebooks. Its features include execution of notebooks (optionally isolated via docker/podman) with consecutive unit testing of the final notebook state. On top of that, an audit mode allows for refining results (e.g. grading plots by hand). Eventually, *autograde* can summarize these results in human and machine readable formats.
 
 setup
