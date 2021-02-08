@@ -9,7 +9,7 @@ on:
     branches: [ master ]
 
 jobs:
-  test:
+  build:
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
 
