@@ -57,7 +57,7 @@ class UnitTestResult:
         return math.isnan(self.score)
 
     def failed(self) -> bool:
-        return math.isclose(self.score, 0.)
+        return math.isclose(self.score, 0.) or self.score < 0.
 
     def partially_passed(self) -> bool:
         return not (self.pending() or self.failed() or self.passed())
@@ -141,12 +141,15 @@ class NotebookTestSummary:
     score_max: float
 
     def __init__(self, results: NotebookTestResult):
+        score = sum(r.score for r in results.unit_test_results)
+        score_max = sum(r.score_max for r in results.unit_test_results)
+
         self.tests = len(results.unit_test_results)
         self.failed = sum(r.failed() for r in results.unit_test_results)
         self.passed = sum(r.passed() for r in results.unit_test_results)
         self.pending = sum(r.pending() for r in results.unit_test_results)
-        self.score = sum(r.score for r in results.unit_test_results)
-        self.score_max = sum(r.score_max for r in results.unit_test_results)
+        self.score = math.nan if math.isnan(score) else max(0., score)
+        self.score_max = math.nan if math.isnan(score_max) else max(0., score_max)
 
 
 class NotebookTestResultArchive:

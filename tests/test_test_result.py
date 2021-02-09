@@ -131,7 +131,8 @@ class TestUnitTestResult(TestCase):
             self.assertFalse(r.pending())
 
     def test_failed(self):
-        for r in [utr_dummy(score=0., score_max=1.), utr_dummy(score=0., score_max=2.)]:
+        for r in [utr_dummy(score=0., score_max=1.), utr_dummy(score=0., score_max=2.),
+                  utr_dummy(score=-1., score_max=1.), utr_dummy(score=-0.5, score_max=2.)]:
             self.assertFalse(r.passed())
             self.assertFalse(r.partially_passed())
             self.assertTrue(r.failed())
@@ -232,8 +233,8 @@ class TestNotebookTestResult(TestCase):
         assert_floats_equal(astuple(results.summarize()), (0, 0, 0, 0, 0, 0))
 
     def test_summarize_single(self):
-        results = ntr_dummy(unit_test_results=[utr_dummy(score=0., score_max=1.)])
-        assert_floats_equal(astuple(results.summarize()), (1, 1, 0, 0, 0., 1.))
+        results = ntr_dummy(unit_test_results=[utr_dummy(score=.5, score_max=1.)])
+        assert_floats_equal(astuple(results.summarize()), (1, 0, 0, 0, .5, 1.))
 
     def test_summarize_multiple(self):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=1., score_max=1.),
@@ -244,6 +245,10 @@ class TestNotebookTestResult(TestCase):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=math.nan, score_max=1.),
                                                utr_dummy(score=2., score_max=3.)])
         assert_floats_equal(astuple(results.summarize()), (2, 0, 0, 1, math.nan, 4.))
+
+    def test_summarize_negative(self):
+        results = ntr_dummy(unit_test_results=[utr_dummy(score=-1., score_max=1.)])
+        assert_floats_equal(astuple(results.summarize()), (1, 1, 0, 0, 0., 1.))
 
 
 class TestNotebookTestResultArchive(TestCase):

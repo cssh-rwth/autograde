@@ -60,9 +60,18 @@ def test_square_cube(square, cube):
 
 
 # but this test fails
-@nbt.register(target='failure', label='test failure', score=1.5)
-def test_failure(failure):
-    assert failure() == 42
+@nbt.register(target='fail', label='test failure', score=1.5)
+def test_fail(fail):
+    fail()
+
+
+# one may also return negative scores
+@nbt.register(target='fail', label='test negative score')
+def test_negative_score(fail):
+    try:
+        fail()
+    except ValueError:
+        return -0.5
 
 
 # see if the import restrictions defined above work
@@ -84,7 +93,7 @@ def test_sleep_2(sleep):
     sleep(.08)
 
 
-# this test will succeed
+# inspecting source code of a function works as expected
 @nbt.register(target='square', label='inspect source')
 def test_inspect_source(square):
     print(inspect.getsource(square))
@@ -92,7 +101,7 @@ def test_inspect_source(square):
 
 # Sometimes, the textual cells of a notebook are also of interest and should be included into the
 # report. However, other than regular test cases, textual tests cannot be passed directly and are
-# scored with NaN by default. Eventually, scores are assigned manually in audit mode.
+# scored with NaN by default. Those test cases are supposed to be scored manually in audit mode.
 nbt.register_comment(target=r'\*A1:\*', label='Bob', score=4)
 nbt.register_comment(target=r'\*A2:\*', label='Douglas', score=1)
 nbt.register_comment(target=r'\*A3:\*', label='???', score=2.5)

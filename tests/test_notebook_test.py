@@ -211,7 +211,7 @@ class TestNotebookTest(TestCase):
         self.assertEqual(results.version, autograde.__version__)
         self.assertEqual(results.checksum, sha256_sum)
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
-        assert_floats_equal(astuple(results.summarize()), (16, 5, 6, 3, math.nan, 25))
+        assert_floats_equal(astuple(results.summarize()), (17, 6, 6, 3, math.nan, 26))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')
@@ -224,4 +224,4 @@ class TestNotebookTest(TestCase):
         spec.loader.exec_module(nbtest)
 
         with TemporaryDirectory() as path, cd(path):
-            self.assertEqual(5, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))
+            self.assertEqual(6, nbtest.nbt.execute(args=(str(nb_path), '--context', str(c_path))))
