@@ -123,7 +123,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
     # actual code execution
     with ExitStack() as shadow_stack:
-        for i, (label, code, timeout) in enumerate(code_cells, start=1):
+        for i, (label, code_snippet, timeout) in enumerate(code_cells, start=1):
             state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
@@ -139,7 +139,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                             es.enter_context(deadline(timeout))
                             es.enter_context(stopwatch)
 
-                            shadow_stack.enter_context(shadow_exec(code, state))
+                            shadow_stack.enter_context(shadow_exec(code_snippet, state))
 
                 # extend log with a meaningful error message
                 except Exception as error:
@@ -154,26 +154,23 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                     with capture_output(file):
                         _label = f' CODE CELL {label} '
                         print(f'# {_label:-^78}')
-                        print(str(code).strip())
+                        print(str(code_snippet).strip())
 
-                        print(f"\n# EXECUTED IN {stopwatch.duration_rel()[-1]:.3}s")
+                        print()
+                        print(f"# EXECUTED IN {stopwatch.duration_rel()[-1]:.3}s")
 
-                        stdout_s = stdout.getvalue()
-                        if stdout_s:
+                        if stdout_s := stdout.getvalue():
                             print('# STDOUT')
                             print(as_py_comment(stdout_s, 4))
 
-                        stderr_s = stderr.getvalue()
-                        if stderr_s:
+                        if stderr_s := stderr.getvalue():
                             print('# STDERR')
                             print(as_py_comment(stderr_s, 4))
 
-                        print('\n')
+                        print()
 
-        # add markdown comments to state
+        # add special items to state
         state['__COMMENTS__'] = md_cells
-
-        # add artifact loader
         state['__ARTIFACTS__'] = ArtifactLoader()
 
         logger.debug('execution completed')
