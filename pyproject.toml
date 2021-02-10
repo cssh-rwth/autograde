@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jupyter-autograde"
-version = "0.2.5"
+version = "0.2.6"
 description = "Unittesting & Grading of Jupyter Notebooks"
 authors = ["Lukas Ochse"]
 maintainers = ["Chair for Computational Social Sciences and Humanities at RWTH Aachen University"]
