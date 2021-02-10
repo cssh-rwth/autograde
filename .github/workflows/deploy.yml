@@ -28,6 +28,8 @@ jobs:
         POETRY_HTTP_BASIC_PYPI_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
       run: |
+        echo $POETRY_HTTP_BASIC_PYPI_USERNAME
+        echo $POETRY_HTTP_BASIC_PYPI_PASSWORD | sha256sum
         echo $POETRY_PYPI_TOKEN_PYPI | sha256sum
         poetry build --format sdist
         poetry publish
