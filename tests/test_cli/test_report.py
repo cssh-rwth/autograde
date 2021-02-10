@@ -8,11 +8,11 @@ from tests.util import mount_example_archives
 
 class TestCMD(TestCase):
 
-    def test_patch_none(self):
+    def test_report_none(self):
         with TemporaryDirectory() as temp:
             cli(['report', str(temp)])
 
-    def test_patch_single(self):
+    def test_report_single(self):
         with mount_example_archives() as examples:
             result = examples.joinpath('test_1', 'results_a.zip')
 
@@ -25,7 +25,7 @@ class TestCMD(TestCase):
                 with NotebookTestResultArchive(result) as archive:
                     self.assertEqual(archive.report_count, i + 1)
 
-    def test_patch_multi(self):
+    def test_report_multi(self):
         with mount_example_archives() as examples:
             results = examples.joinpath('test_2')
 
