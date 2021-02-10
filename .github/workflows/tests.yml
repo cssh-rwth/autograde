@@ -1,6 +1,6 @@
 # Github action for testing autograde on each commit/pr
 
-name: test autograde
+name: Test autograde
 
 on:
   push:
