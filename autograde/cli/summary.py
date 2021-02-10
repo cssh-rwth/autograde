@@ -20,11 +20,12 @@ def cmd_summary(result: Optional[str] = None, **_) -> int:
     logger.info('render summary.csv')
     summary = summarize_results(results_df)
     summary.to_csv(path.joinpath('summary.csv'), index=False)
+    score_distribution = plot_score_distribution(summary)
 
     plots = [
         dict(
             title='Score Distribution',
-            data=b64str(plot_score_distribution(summary))
+            data=b64str(score_distribution) if score_distribution else None
         ),
     ]
 
