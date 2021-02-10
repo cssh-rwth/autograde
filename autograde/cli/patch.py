@@ -18,6 +18,6 @@ def cmd_patch(patch: str, result: str, **_) -> int:
         if patch := patches.get(archive.results.checksum):
             archive.inject_patch(patch)
         else:
-            logger.warn(f'no patch for {archive.filename} found')
+            logger.warning(f'no patch for {archive.filename} found')
 
     return 0
