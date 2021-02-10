@@ -13,7 +13,7 @@ from flask import Flask, redirect, request, send_file
 from werkzeug.exceptions import HTTPException, InternalServerError
 
 from autograde.cli.util import namespace_args, merge_results, summarize_results, b64str, plot_score_distribution, \
-    list_results
+    find_archives
 from autograde.test_result import UnitTestResult, NotebookTestResultArchive
 from autograde.util import now, logger, parse_bool, render
 
@@ -49,7 +49,7 @@ class AuditState:
         self.archives: Dict[str, NotebookTestResultArchive] = dict()
 
         # load archives
-        for path in list_results(path):
+        for path in find_archives(path):
             archive = self._exit_stack.enter_context(NotebookTestResultArchive(path, mode='a'))
             self.archives[archive.results.checksum] = archive
 

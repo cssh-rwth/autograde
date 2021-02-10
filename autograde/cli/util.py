@@ -4,7 +4,7 @@ import math
 from functools import wraps
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List, Iterable
+from typing import Generator, List, Iterable, Optional
 
 # ensure matplotlib uses the right backend (this has to be done BEFORE import of pyplot!)
 import matplotlib as mpl
@@ -35,7 +35,7 @@ def b64str(data) -> str:
     return base64.b64encode(data).decode('utf-8')
 
 
-def list_results(path='.', prefix='results') -> List[Path]:
+def find_archives(path='.', prefix='results') -> List[Path]:
     """List all results archives at given location"""
     path = Path(path).expanduser().absolute()
 
@@ -43,6 +43,17 @@ def list_results(path='.', prefix='results') -> List[Path]:
         return [path]
 
     return sorted(path.rglob(f'{prefix}_*.zip'))
+
+
+def traverse_archives(paths: Iterable[Path], mode: str = 'r') -> Generator[NotebookTestResultArchive, None, None]:
+    """Mount given archives, one after another"""
+    for path in paths:
+        logger.debug(f'mount {path}')
+
+        with NotebookTestResultArchive(path, mode=mode) as archive:
+            yield archive
+
+        logger.debug(f'umount {path}')
 
 
 def merge_results(archives: Iterable[NotebookTestResultArchive]) -> pd.DataFrame:
@@ -86,7 +97,10 @@ def summarize_results(results_df: pd.DataFrame) -> pd.DataFrame:
 
         return aggregate_df
 
-    summary_df = results_df.groupby(by=['student_id', 'notebook_id']).apply(aggregate)
+    if len(results_df) > 0:
+        summary_df = results_df.groupby(by=['student_id', 'notebook_id']).apply(aggregate)
+    else:
+        summary_df = results_df.set_index(['student_id', 'notebook_id'])
 
     # flag duplicates
     summary_df = summary_df.sort_values(by='score')
@@ -98,8 +112,12 @@ def summarize_results(results_df: pd.DataFrame) -> pd.DataFrame:
     return summary_df.sort_values(by='last_name')
 
 
-def plot_score_distribution(summary_df: pd.DataFrame):
+def plot_score_distribution(summary_df: pd.DataFrame) -> Optional[bytes]:
     logger.debug('plot score distributions')
+
+    if len(summary_df) == 0:
+        logger.warning('not enough items in summary to plot score distribution')
+        return None
 
     summary_df = summary_df.sort_values(by='score')
     max_score = summary_df['max_score'].max()

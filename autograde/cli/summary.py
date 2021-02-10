@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
-from autograde.cli.util import namespace_args
-from autograde.test_result import NotebookTestResultArchive
+from autograde.cli.util import namespace_args, find_archives, traverse_archives, merge_results, b64str, \
+    plot_score_distribution, summarize_results
 from autograde.util import logger, render
 
 
@@ -10,19 +10,11 @@ from autograde.util import logger, render
 def cmd_summary(result: Optional[str] = None, **_) -> int:
     """Generate human & machine readable summary of results"""
 
-    from autograde.cli.util import list_results, merge_results, b64str, plot_score_distribution, summarize_results
-
     path = Path(result or Path.cwd()).expanduser().absolute()
     assert path.is_dir(), f'{path} is no regular directory'
 
-    def reader():
-        for archive_path in list_results(path):
-            logger.debug(f'mount {archive_path}')
-            with NotebookTestResultArchive(archive_path, mode='r') as archive:
-                yield archive
-
     logger.info('render raw.csv')
-    results_df = merge_results(reader())
+    results_df = merge_results(traverse_archives(find_archives(path)))
     results_df.to_csv(path.joinpath('raw.csv'), index=False)
 
     logger.info('render summary.csv')

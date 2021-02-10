@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from autograde.cli.util import namespace_args, list_results
-from autograde.test_result import NotebookTestResultArchive
+from autograde.cli.util import namespace_args, find_archives, traverse_archives
 from autograde.util import logger
 
 
@@ -12,17 +11,13 @@ def cmd_patch(patch: str, result: str, **_) -> int:
     result = Path(result)
 
     # load patches
-    patches = dict()
-    for path in list_results(patch):
-        with NotebookTestResultArchive(path) as archive:
-            patches[archive.results.checksum] = archive.results
+    patches = {a.results.checksum: a.results for a in traverse_archives(find_archives(patch))}
 
     # inject patches
-    for path in list_results(result):
-        with NotebookTestResultArchive(path, mode='a') as archive:
-            if patch := patches.get(archive.results.checksum):
-                archive.inject_patch(patch)
-            else:
-                logger.warn(f'no patch for {path} found')
+    for archive in traverse_archives(find_archives(result), mode='a'):
+        if patch := patches.get(archive.results.checksum):
+            archive.inject_patch(patch)
+        else:
+            logger.warn(f'no patch for {archive.filename} found')
 
     return 0
