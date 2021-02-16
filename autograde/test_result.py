@@ -172,10 +172,13 @@ class NotebookTestResultArchive:
             if f not in files:
                 raise KeyError(f'Archive does not cointain {f}')
 
+        logger.debug(f'open archive at {self.filename} (mode: {mode})')
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        logger.debug(f'close {self.filename}')
         self._zipfile.close()
 
     def __repr__(self):
@@ -217,6 +220,7 @@ class NotebookTestResultArchive:
         with self._zipfile.open(patch_name, mode='w') as f:
             logger.debug(f'add {patch_name} to {self._zipfile.filename}')
             f.write(patch.to_json(indent=4).encode('utf-8'))
+            f.flush()
 
         # add report revision
         if 'report.html' in self.files:
@@ -234,6 +238,7 @@ class NotebookTestResultArchive:
         with self._zipfile.open(revision_name, mode='w') as f:
             logger.debug(f'add {revision_name} to {self._zipfile.filename}')
             f.write(report.encode('utf-8'))
+            f.flush()
 
         self._modifications += 1
 

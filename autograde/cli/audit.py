@@ -135,6 +135,11 @@ def cmd_audit(result: str, bind: str, port: str, **_) -> int:
         app.logger = logger
         logging.root = logger
 
+        if app.debug:
+            # In debug mode, flask may reload code dynamically, e.g. on changes. This is not problem if the application
+            # does not hold any state, a common best practice we're breaking with here!
+            logger.warning('the application is running in debug mode which may corrupt your files!')
+
         @app.errorhandler(Exception)
         def handle_error(error):
             logger.warning(f'{type(error)}: {error}')
@@ -197,5 +202,6 @@ def cmd_audit(result: str, bind: str, port: str, **_) -> int:
 
             return render('message.html', title='stop server', message='ciao kakao :)')
 
-        app.run(host=bind, port=port)
-        return 0
+        app.run(host=bind, port=port, threaded=False, processes=1)
+
+    return 0
