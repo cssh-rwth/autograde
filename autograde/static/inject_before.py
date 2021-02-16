@@ -5,7 +5,7 @@ __LABEL__ = None
 
 
 # If matplotlib is available on the test system, it's set to headless mode and all plots are stored
-# on disk rather than displayed.
+# on disk rather than being displayed.
 try:
     print("use 'Agg' backend for matplotlib")
     import matplotlib as mpl

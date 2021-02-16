@@ -184,8 +184,6 @@ class NotebookTest:
         )
 
     def _apply_unit_tests(self, state: Dict) -> Generator[UnitTestResult, None, None]:
-        state = state.copy()
-
         # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
 
@@ -197,14 +195,13 @@ class NotebookTest:
                     if if_regex is not None:
                         es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
                     es.enter_context(capture_output(stdout, stderr))
-
-                    achieved, msg = unit_test(state)
+                    score, msg = unit_test(state)
 
                 yield UnitTestResult(
                     id=unit_test.id,
                     label=unit_test.label,
                     target=unit_test.targets,
-                    score=achieved,
+                    score=score,
                     score_max=unit_test.score,
                     messages=[msg],
                     stdout=stdout.getvalue(),
