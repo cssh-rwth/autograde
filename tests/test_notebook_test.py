@@ -211,7 +211,7 @@ class TestNotebookTest(TestCase):
         self.assertEqual(results.version, autograde.__version__)
         self.assertEqual(results.checksum, sha256_sum)
         self.assertListEqual(results.excluded_artifacts, ['foo.txt'])
-        assert_floats_equal(astuple(results.summarize()), (17, 6, 6, 3, math.nan, 26))
+        assert_floats_equal(astuple(results.summarize()), (17, 6, 6, 2, 3, math.nan, 26))
 
     def test_execute(self):
         nb_path = PROJECT_ROOT.joinpath('demo', 'notebook.ipynb')

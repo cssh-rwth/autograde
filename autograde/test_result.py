@@ -75,7 +75,7 @@ class NotebookTestResult:
     artifacts: List[str]
     excluded_artifacts: List[str]
     unit_test_results: List[UnitTestResult]
-    applied_patches: List[Tuple[str, str, List[str]]] = field(default_factory=lambda: [])
+    applied_patches: List[Tuple[str, DateTime, List[str]]] = field(default_factory=lambda: [])
     version: str = field(default_factory=lambda: autograde.__version__)
     timestamp: DateTime = field(
         default_factory=now,
@@ -127,29 +127,43 @@ class NotebookTestResult:
         return patched
 
     def summarize(self) -> 'NotebookTestSummary':
-        return NotebookTestSummary(self)
+        return NotebookTestSummary.from_results(self)
 
 
 @dataclass_json
-@dataclass(init=False)
+@dataclass
 class NotebookTestSummary:
     tests: int
     failed: int
     passed: int
+    partially_passed: int
     pending: int
     score: float
     score_max: float
 
-    def __init__(self, results: NotebookTestResult):
+    def __post_init__(self):
+        if self.failed + self.passed + self.partially_passed + self.pending != self.tests:
+            raise ValueError(f'there is a mismatch the number of failed({self.failed})/passed({self.passed})/partially '
+                             f'passed({self.partially_passed})/pending({self.pending}) tests and '
+                             f'the total number of tests({self.tests})')
+
+        if not math.isnan(self.score) and not 0 <= self.score <= self.score_max:
+            raise ValueError(f'{self.score} is no valid value for score. It must either be NaN or '
+                             f'0 <= score <= {self.score_max}')
+
+    @classmethod
+    def from_results(cls, results: NotebookTestResult):
         score = sum(r.score for r in results.unit_test_results)
         score_max = sum(r.score_max for r in results.unit_test_results)
-
-        self.tests = len(results.unit_test_results)
-        self.failed = sum(r.failed() for r in results.unit_test_results)
-        self.passed = sum(r.passed() for r in results.unit_test_results)
-        self.pending = sum(r.pending() for r in results.unit_test_results)
-        self.score = math.nan if math.isnan(score) else max(0., score)
-        self.score_max = math.nan if math.isnan(score_max) else max(0., score_max)
+        return cls(
+            tests=len(results.unit_test_results),
+            failed=sum(r.failed() for r in results.unit_test_results),
+            passed=sum(r.passed() for r in results.unit_test_results),
+            partially_passed=sum(r.partially_passed() for r in results.unit_test_results),
+            pending=sum(r.pending() for r in results.unit_test_results),
+            score=math.nan if math.isnan(score) else max(0., score),
+            score_max=math.nan if math.isnan(score_max) else max(0., score_max),
+        )
 
 
 class NotebookTestResultArchive:

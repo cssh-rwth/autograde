@@ -90,7 +90,7 @@ def cli(args=None):
     logger.debug(f'default encoding: {sys.getdefaultencoding()}')
     logger.debug(f'args: {args}')
 
-    return args.func(args)
+    return args.func(args) or 0
 
 
 if __name__ == '__main__':

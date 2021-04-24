@@ -158,56 +158,56 @@ class TestNotebookTestResult(TestCase):
         results_a = ntr_dummy()
         results_b = ntr_dummy()
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (0, 0, 0, 0, 0., 0.))
+        assert_floats_equal(astuple(patch_result.summarize()), (0, 0, 0, 0, 0, 0., 0.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
     def test_patch_empty_with_nonempty(self):
         results_a = ntr_dummy()
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1')])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
     def test_patch_nonempty_with_empty(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy()])
         results_b = ntr_dummy()
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
     def test_patch_different_ids(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='2', score=1., score_max=1.)])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (2, 1, 1, 0, 1., 2.))
+        assert_floats_equal(astuple(patch_result.summarize()), (2, 1, 1, 0, 0, 1., 2.))
         self.assertListEqual([('', results_b.timestamp, ['2'])], patch_result.applied_patches)
 
     def test_patch_increase_score(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=1., score_max=1.)])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 0, 1, 0, 1., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 0, 1, 0, 0, 1., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
     def test_patch_update_stderr(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1., stderr='foo')])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
     def test_patch_specify_nan(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=math.nan, score_max=1.)])
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, ['1'])], patch_result.applied_patches)
 
     def test_patch_set_nan(self):
         results_a = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=0., score_max=1.)])
         results_b = ntr_dummy(unit_test_results=[utr_dummy(id='1', score=math.nan, score_max=1.)])
         patch_result = results_a.patch(results_b)
-        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(patch_result.summarize()), (1, 1, 0, 0, 0, 0., 1.))
         self.assertListEqual([('', results_b.timestamp, [])], patch_result.applied_patches)
 
     def test_multiple_patches(self):
@@ -216,7 +216,7 @@ class TestNotebookTestResult(TestCase):
         results_c = ntr_dummy(title='c', unit_test_results=[utr_dummy(id='3', score=2., score_max=4.),
                                                             utr_dummy(id='4', score=4., score_max=8.)])
         patch_result = results_a.patch(results_b).patch(results_c)
-        assert_floats_equal(astuple(patch_result.summarize()), (4, 1, 1, 0, 7., 14.))
+        assert_floats_equal(astuple(patch_result.summarize()), (4, 1, 1, 2, 0, 7., 14.))
         self.assertListEqual(
             [('b', results_b.timestamp, ['2']), ('c', results_c.timestamp, ['3', '4'])],
             patch_result.applied_patches
@@ -230,25 +230,25 @@ class TestNotebookTestResult(TestCase):
 
     def test_summarize_empty(self):
         results = ntr_dummy()
-        assert_floats_equal(astuple(results.summarize()), (0, 0, 0, 0, 0, 0))
+        assert_floats_equal(astuple(results.summarize()), (0, 0, 0, 0, 0, 0, 0))
 
     def test_summarize_single(self):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=.5, score_max=1.)])
-        assert_floats_equal(astuple(results.summarize()), (1, 0, 0, 0, .5, 1.))
+        assert_floats_equal(astuple(results.summarize()), (1, 0, 0, 1, 0, .5, 1.))
 
     def test_summarize_multiple(self):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=1., score_max=1.),
                                                utr_dummy(score=2., score_max=3.)])
-        assert_floats_equal(astuple(results.summarize()), (2, 0, 1, 0, 3., 4.))
+        assert_floats_equal(astuple(results.summarize()), (2, 0, 1, 1, 0, 3., 4.))
 
     def test_summarize_nan(self):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=math.nan, score_max=1.),
                                                utr_dummy(score=2., score_max=3.)])
-        assert_floats_equal(astuple(results.summarize()), (2, 0, 0, 1, math.nan, 4.))
+        assert_floats_equal(astuple(results.summarize()), (2, 0, 0, 1, 1, math.nan, 4.))
 
     def test_summarize_negative(self):
         results = ntr_dummy(unit_test_results=[utr_dummy(score=-1., score_max=1.)])
-        assert_floats_equal(astuple(results.summarize()), (1, 1, 0, 0, 0., 1.))
+        assert_floats_equal(astuple(results.summarize()), (1, 1, 0, 0, 0, 0., 1.))
 
 
 class TestNotebookTestResultArchive(TestCase):

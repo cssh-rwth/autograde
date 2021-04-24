@@ -276,7 +276,7 @@ class NotebookTest:
                 if not group:
                     logger.warning(f'Couldn\'t find valid information about members in "{nb_path}"')
 
-                # apply unit tests tests
+                # apply unit tests
                 logger.debug('apply unit tests')
                 results = NotebookTestResult(
                     title=self._title,
