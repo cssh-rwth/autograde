@@ -152,7 +152,7 @@ class NotebookTestSummary:
                              f'0 <= score <= {self.score_max}')
 
     @classmethod
-    def from_results(cls, results: NotebookTestResult):
+    def from_results(cls, results: NotebookTestResult) -> 'NotebookTestSummary':
         score = sum(r.score for r in results.unit_test_results)
         score_max = sum(r.score_max for r in results.unit_test_results)
         return cls(
@@ -180,8 +180,8 @@ class NotebookTestResultArchive:
         self._modifications = 0
         self._zipfile = ZipFile(file, mode)
 
-        # check contents are complete
-        files = self._zipfile.namelist()
+        # check if contents are complete
+        files = set(self._zipfile.namelist())
         for f in self._required_files:
             if f not in files:
                 raise KeyError(f'Archive does not cointain {f}')
