@@ -30,6 +30,13 @@ Eventually, build the respective container image: :code:`python -m autograde bui
 usage
 -----
 
+Once installed, *autograde* can be invoked via the `autograde` command.
+If you are using a virtual environment (which poetry does implicitly) you may have to activate it first.
+Alternative methods:
+
+- **`path/to/python -m autograde`** runs *autograde* with a specific python binary, e.g. the one of your virtual environment.
+- **`poetry run autograde`** if you've installed *autograde* from source, you
+
 testing
 ```````
 
