@@ -30,7 +30,7 @@ TestFunction = Callable[..., TestResult]
 class UnitTest:
     def __init__(self, test_function: TestFunction, target: Target, label: str, score: float = 1., timeout: float = 0.):
         self._id = sha256(label.lower().strip().encode('utf-8')).hexdigest()
-        self._test_func = test_function
+        self._test_function = test_function
         self._targets = (target,) if isinstance(target, str) else tuple(target)
         self._label = label
         self._score = score
@@ -44,15 +44,23 @@ class UnitTest:
             except KeyError as err:
                 raise NameError(err.args[0])
 
-            # apply actual test
+            # run actual test
             with deadline(self._timeout):
-                result = self._test_func(*targets, *args, **kwargs)
+                result = self._test_function(*targets, *args, **kwargs)
 
             # interpret results
-            score = min(float(result), self.score) if isinstance(result, (int, float)) else self.score
-            msg = result if isinstance(result, str) else (
-                '✅ passed' if isclose(score, self.score) else '¯\\_(ツ)_/¯ partially passed')
-            score, msg = result if isinstance(result, tuple) else (score, msg)
+            if isinstance(result, (int, float)):
+                score = min(float(result), self.score)
+            else:
+                score = self.score
+
+            if isinstance(result, str):
+                msg = result
+            else:
+                msg = '✅ passed' if isclose(score, self.score) else '¯\\_(ツ)_/¯ partially passed'
+
+            if isinstance(result, tuple):
+                score, msg = result
 
             return score, str(msg)
 
@@ -116,8 +124,8 @@ class NotebookTest:
 
     def register_comment(self, target: Union[str, Path], label: str, score: float = 1.) -> UnitTest:
         """
-        Register a special unit test that looks for markdown comments in the notebook by a given
-        regular expression. If no such comment is found, the test fails. In all other cases,
+        Register a special unit test that looks for markdown comments in the notebook using the
+        given regular expression. If no such comment is found, the test fails. In all other cases,
         the comment texts are included into the report. NOTE: a "passed" test is scored with NaN
         (not a number) as its output is intended for further, manual inspection.
 
@@ -191,10 +199,10 @@ class NotebookTest:
             logger.debug(f'[{i}/{len(self._unit_tests)}] execute {unit_test}')
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
-                with ExitStack() as es:
+                with ExitStack() as stack:
                     if if_regex is not None:
-                        es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                    es.enter_context(capture_output(stdout, stderr))
+                        stack.enter_context(import_filter(if_regex, blacklist=if_blacklist))
+                    stack.enter_context(capture_output(stdout, stderr))
                     score, msg = unit_test(state)
 
                 yield UnitTestResult(
@@ -227,15 +235,16 @@ class NotebookTest:
                 logger.debug(f'remove existing {archive}')
                 archive.unlink()
 
-            with ExitStack() as exec_test_stack:
-                exec_test_stack.enter_context(cd_zip(archive))
+            with ExitStack() as stack:
+                # ensure all artifacts created in this context are persisted in the results archive
+                stack.enter_context(cd_zip(archive))
 
                 # store copy of notebook
                 logger.debug('dump copy of original notebook')
                 with open('notebook.ipynb', mode='wb') as f:
                     f.write(nb_data)
 
-                # prepare context and execute notebook
+                # prepare execution context and execute notebook
                 with open('code.py', mode='wt', encoding='utf-8') as code, cd('artifacts', mkdir=True):
                     # prepare execution context in file system
                     if context is not None:
@@ -245,10 +254,10 @@ class NotebookTest:
                     # build index of all files known before execution
                     wd = WatchDog(Path('.'))
 
-                    # actual notebook execution
+                    # actual notebook execution, resulting in the final state we'll run tests on
                     try:
                         logger.debug('execute notebook')
-                        state = exec_test_stack.enter_context(exec_notebook(
+                        state = stack.enter_context(exec_notebook(
                             io.StringIO(nb_data.decode('utf-8')),
                             file=code,
                             ignore_errors=True,
@@ -274,9 +283,9 @@ class NotebookTest:
                     group = []
 
                 if not group:
-                    logger.warning(f'Couldn\'t find valid information about members in "{nb_path}"')
+                    logger.warning(f'Couldn\'t find valid information about members in {nb_path}')
 
-                # apply unit tests
+                # run unit tests
                 logger.debug('apply unit tests')
                 results = NotebookTestResult(
                     title=self._title,
@@ -292,7 +301,7 @@ class NotebookTest:
                 with open('results.json', mode='wt', encoding='utf-8') as f:
                     json.dump(results.to_dict(), fp=f, indent=4)
 
-                # infer new, more readable name
+                # infer new, better readable name TODO change separator to '', remove '[' and ']'
                 names = results.format_members(separator=',')
                 archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.zip')
 

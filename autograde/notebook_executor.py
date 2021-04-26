@@ -6,7 +6,7 @@ from contextlib import contextmanager, ExitStack
 from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, TextIO
+from typing import Dict, Optional, TextIO
 
 from IPython.core.interactiveshell import InteractiveShell
 from nbformat import read
@@ -66,7 +66,7 @@ def shadow_exec(source: str, *args, **kwargs):
 
 @contextmanager
 def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
-                  ignore_errors: bool = False, variables: Dict = None):
+                  ignore_errors: bool = False, variables: Optional[Dict] = None):
     """
     Extract source code from jupyter notebook and execute it.
 
@@ -123,23 +123,21 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
     # actual code execution
     with ExitStack() as shadow_stack:
-        for i, (label, code_snippet, timeout) in enumerate(code_cells, start=1):
+        for i, (label, code_cell, timeout) in enumerate(code_cells, start=1):
             state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
                 stopwatch = StopWatch()
 
-                # actual execution that mutates the state
+                # state transmuting code execution
                 try:
-                    with capture_output(stdout, stderr):
-                        with ExitStack() as es:
-                            if if_regex is not None and i > 1:
-                                es.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                            es.enter_context(deadline(timeout))
-                            es.enter_context(stopwatch)
-
-                            shadow_stack.enter_context(shadow_exec(code_snippet, state))
+                    with capture_output(stdout, stderr), ExitStack() as execution_stack:
+                        if if_regex is not None and i > 1:
+                            execution_stack.enter_context(import_filter(if_regex, blacklist=if_blacklist))
+                        execution_stack.enter_context(deadline(timeout))
+                        execution_stack.enter_context(stopwatch)
+                        shadow_stack.enter_context(shadow_exec(code_cell, state))
 
                 # extend log with a meaningful error message
                 except Exception as error:
@@ -154,9 +152,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                     with capture_output(file):
                         _label = f' CODE CELL {label} '
                         print(f'# {_label:-^78}')
-                        print(str(code_snippet).strip())
-
-                        print()
+                        print(f'{str(code_cell).strip()}\n')
                         print(f"# EXECUTED IN {stopwatch.duration_rel()[-1]:.3}s")
 
                         if stdout_s := stdout.getvalue():
