@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jupyter-autograde"
-version = "0.2.7"
+version = "0.2.8"
 description = "Unittesting & Grading of Jupyter Notebooks"
 authors = ["Lukas Ochse"]
 maintainers = ["Chair for Computational Social Sciences and Humanities at RWTH Aachen University"]
@@ -30,9 +30,9 @@ dataclasses-json = "^0.5"
 numpy = "~1.20"
 scipy = "~1.6"
 pandas = "~1.2"
-matplotlib = "~3.3"
+matplotlib = "~3.4"
 seaborn = "~0.11"
-ipykernel = "~5.4"
+ipykernel = "~5.5"
 jupyter = "~1.0"
 Jinja2 = "~2.11"
 Flask = "~1.1"
