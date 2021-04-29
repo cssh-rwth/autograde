@@ -1,4 +1,5 @@
 {% extends "results.html" %}
+
 {% macro status_class(result) -%}
     {%- if result.passed() -%}
         ag-success
@@ -8,80 +9,79 @@
         ag-warning
     {%- endif -%}
 {%- endmacro %}
+
 {% block content %}
-    {% set results = archive.results %}
-    <section style="justify-content: center">
-        <section>
-            <article style="flex: none">
-                <h2>Group</h2>
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Last Name</th>
-                        <th>First Name</th>
-                        <th>Student ID</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for student in results.team_members %}
-                        <tr>
-                            <td>{{ student.last_name }}</td>
-                            <td>{{ student.first_name }}</td>
-                            <td><code>{{ student.student_id }}</code></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!
-                </p>
-            </article>
-        </section>
-    </section>
-    <h2>Test Results</h2>
     <section>
-        <section>
-            {{ display_results(results, False, True) }}
-        </section>
+        <article>
+            <h2>Test Results</h2>
+            {{ display_results(archive.results, False, True) }}
+        </article>
     </section>
-    <h2>Meta</h2>
-    <section style="justify-content: center">
-        <section>
-            <article>
-                <h2>Report</h2>
-                <p>All test results are based on the <i>jupyter</i> notebook with checksum: {{ hash(results.checksum) }}
-                    (unsalted sha256).</p>
-                <p>The following results have been merged for this report:</p>
-                <table>
-                    <thead>
+{% endblock %}
+
+{% block footer %}
+    <section>
+        {% set results = archive.results %}
+        <article>
+            <h2>Group Members</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Last Name</th>
+                    <th>First Name</th>
+                    <th>ID</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for student in results.team_members %}
                     <tr>
-                        <th>Title</th>
-                        <th>Timestamp</th>
-                        <th>Modified Unit Test Results</th>
+                        <td>{{ student.last_name }}</td>
+                        <td>{{ student.first_name }}</td>
+                        <td><code>{{ student.student_id }}</code></td>
                     </tr>
-                    </thead>
-                    <tbody>
+                {% endfor %}
+                </tbody>
+            </table>
+            <p><b>NOTE:</b> If you appear in multiple assignments we reserve the right to take the lower grading!
+            </p>
+        </article>
+        <article>
+            <h2>Log</h2>
+            <p>
+                All test results are based on the <em>Jupyter</em> notebook with checksum: {{ hash(results.checksum) }}.
+            </p>
+            <table>
+                <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Timestamp</th>
+                    <th>Modifications</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><i>{{ results.title }}</i></td>
+                    <td><code>{{ results.timestamp }}</code></td>
+                    <td></td>
+                </tr>
+                {% for ap in results.applied_patches %}
                     <tr>
-                        <td><i>{{ results.title }}</i></td>
-                        <td><code>{{ results.timestamp }}</code></td>
-                        <td></td>
+                        <td>{{ ap[0] }}</td>
+                        <td><code>{{ ap[1] }}</code></td>
+                        <td>
+                            <p>
+                                {% for h in ap[2] %}
+                                    {{ hash(h) }}<br/>
+                                {% endfor %}
+                            </p>
+                        </td>
                     </tr>
-                    {% for ap in results.applied_patches %}
-                        <tr>
-                            <td>{{ ap[0] }}</td>
-                            <td><code>{{ ap[1] }}</code></td>
-                            <td>
-                                <p>
-                                    {% for h in ap[2] %}
-                                        {{ hash(h) }}<br/>
-                                    {% endfor %}
-                                </p>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </article>
-        </section>
-        {{ list_artifacts(results, False) }}
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        <article>
+            {{ list_artifacts(results, False) }}
+        </article>
     </section>
 {% endblock %}

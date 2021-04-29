@@ -107,7 +107,7 @@ class AuditState:
         # apply patch if there are changes
         if patch != archive.results:
             # update remaining attributes of patch
-            patch.title = 'manual audit'
+            patch.title = 'Audit'
             patch.timestamp = now()
             if auditor := self.settings.auditor:
                 patch.title += f' by {auditor}'

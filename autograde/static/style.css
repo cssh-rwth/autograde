@@ -5,26 +5,30 @@
 }
 
 :root {
-    --sans: 1em/1.6 system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Droid Sans, Helvetica Neue, Fira Sans, sans-serif;
-    --mono: 'Courier New', Courier, 'Ubuntu Mono', 'Liberation Mono', monospace;
-    --c1: #17a2b8;
-    --c2: #eee;
-    --c3: #fff;
-    --c4: #000;
-    --c5: #fff;
-    --c6: #f7f7f7;
-    --c7: #e5e5e5;
-    --m1: 8px;
-    --rc: 8px;
+    /* typography */
+    --sans: 1em/1.6 Arial, sans-serif;
+    --mono: SFMono-Regular, monospace;
+    /* layout */
+    --m1: 0.5em;
+    --rc: 0;
+    /* colors */
+    --c-accent: #00549F;
+    --c-background: #fff;
+    --c-foreground: #000;
+    --c-grey-heavy: #CFD1D2;
+    --c-grey-light: #ECEDED;
+    --c-warning: #FFED00;
+    --c-danger: #E30066
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --c2: #333;
-        --c3: #1e1f20;
-        --c4: #fff;
-        --c6: #282828;
-        --c7: #3d3d3d;
+        --c-background: #1e1f20;
+        --c-foreground: #ECEDED;
+        --c-grey-light: #505050;
+        --c-grey-heavy: #646567;
+        --c-warning: #e6d500;
+        --c-danger: #b60052
     }
 
     img {
@@ -38,7 +42,7 @@ html {
     -webkit-text-size-adjust: 100%;
 }
 
-/* General settings */
+/* General */
 
 body {
     margin: 0;
@@ -47,8 +51,8 @@ body {
     font-style: normal;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-    background-color: var(--c3);
-    color: var(--c4);
+    background-color: var(--c-background);
+    color: var(--c-foreground);
 }
 
 main, footer {
@@ -62,24 +66,27 @@ main {
     min-height: 80vh;
 }
 
+footer {
+    text-align: center;
+}
+
 img, iframe {
     border: none;
     max-width: 100%
 }
 
 a {
-    color: var(--c1);
+    color: var(--c-accent);
     text-decoration: none
 }
 
 a:hover {
-    color: var(--c1);
     text-decoration: underline
 }
 
 pre {
     font: 1em/1.6 var(--mono);
-    background: var(--c2);
+    background: var(--c-grey-light);
     padding: 1em;
     overflow: auto
 }
@@ -89,14 +96,14 @@ code {
 }
 
 blockquote {
-    border-left: 5px solid var(--c2);
+    border-left: 5px solid var(--c-grey-light);
     padding: 1em 1.5em;
     margin: 0
 }
 
 hr {
     border: 0;
-    border-bottom: 1px solid var(--c4)
+    border-bottom: 1px solid var(--c-foreground)
 }
 
 /* Headlines */
@@ -134,6 +141,7 @@ h5, h6 {
 /* Table */
 
 table {
+    background-color: var(--c-background);
     border-collapse: collapse;
     border-spacing: 0;
     margin: 1em 0
@@ -146,8 +154,9 @@ th, td {
     padding: 0.4em
 }
 
-thead, tfoot {
-    background: var(--c7)
+thead, tfoot, .THead, .TFoot {
+    font-weight: bold;
+    background: var(--c-grey-heavy)
 }
 
 td > pre {
@@ -165,20 +174,25 @@ pre, code, input, select, textarea, button, img {
     border-radius: var(--rc)
 }
 
-
 /* Forms */
 
 input, select, textarea {
     font-size: 1em;
-    color: var(--c4);
-    background: var(--c2);
+    color: var(--c-foreground);
+    background: var(--c-background);
     border: 0;
-    padding: 0.6em
+    padding: 0.6em;
+    display: inline-block;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 3px solid var(--c-accent);
 }
 
 button, input[type=submit], input[type=reset], input[type="button"] {
     -webkit-appearance: none;
     font-size: 1em;
+    font-weight: bold;
     display: inline-block;
     border: 0;
     margin: 4px;
@@ -206,54 +220,48 @@ section {
 /* Cards */
 
 article {
-    background: var(--c2);
+    min-width: 20em;
+    background: var(--c-grey-light);
     border-radius: var(--rc);
     padding: 1em;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
-    justify-content: left;
+    box-shadow: .25em .25em 0 var(--c-grey-heavy);
     text-align: left;
 }
 
-section > section {
-    background-color: var(--c6);
+main > section {
     padding: 15px;
-    align-items: center;
-    justify-content: center;
 }
 
-[style*="--c:"]:first-child, section > section:first-child, article:first-child {
-    margin-left: 0
+section > section {
+    align-items: start;
 }
 
 /* Classes */
 
-.cls-description {
-    font-size: 0.75em;
-    font-style: italic;
-    opacity: 0.8;
+.TitleCard {
+    min-width: 15em;
+    margin: var(--m1);
+    padding: 1em;
+    justify-content: left;
+    text-align: left;
 }
 
-.cls-neutral {
-    color: var(--c4);
-    background-color: var(--c7);
+.CNeutral {
+    color: var(--c-foreground);
+    background-color: var(--c-grey-heavy);
 }
 
-.cls-link {
+.CLink, .CSuccess {
     color: #FFFFFF;
-    background-color: var(--c1);
+    background-color: var(--c-accent);
 }
 
-.cls-success {
-    color: #FFFFFF;
-    background-color: #57AB27;
-}
-
-.cls-warning {
+.CWarning {
     color: #000000;
-    background-color: #F6A800;
+    background-color: var(--c-warning);
 }
 
-.cls-danger {
+.CDanger {
     color: #FFFFFF;
-    background-color: #CC071E;
+    background-color: var(--c-danger);
 }

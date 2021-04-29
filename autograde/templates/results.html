@@ -1,26 +1,25 @@
 {% extends "base.html" %}
+
 {% macro status_class(result) -%}
     {%- if result.passed() -%}
-        cls-success
+        CSuccess
     {%- elif result.partially_passed() -%}
-        cls-warning
+        CWarning
     {%- elif result.failed() -%}
-        cls-danger
+        CDanger
     {%- elif result.pending() -%}
-        cls-link
+        CLink
     {%- endif -%}
 {%- endmacro %}
+
 {% macro display_results(results, edit_mode, summarize) -%}
     <table style="width: 100%">
         <thead>
-        <tr>
+        <tr class="THead">
             <th><i>i</i></th>
-            <th>ID</th>
-            <th>Label</th>
-            <th>Target(s)</th>
-            <th style="text-align: right">Reached Score</th>
-            <th style="text-align: right">Max Score</th>
-            <th>Message(s)</th>
+            <th>Unit Test</th>
+            <th style="text-align: right">Score</th>
+            <th>Notes</th>
             <th>Output</th>
         </tr>
         </thead>
@@ -28,13 +27,13 @@
         {% for r in results %}
             {% if settings is undefined or state.settings.select(r) %}
                 <tr>
-                    <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c4)">
+                    <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c-foreground)">
                         <span class="{{ status_class(r) }}">{{ loop.index }}</span>
                     </td>
-                    <td>{{ hash(r.id) }}<br></td>
-                    <td><i>{{ r.label|e }}</i></td>
                     <td>
-                        {{ r.target|join(', ') }}
+                        <b>ID:</b> {{ hash(r.id) }}<br>
+                        <b>Label:</b> <i>{{ r.label|e }}</i><br>
+                        <b>Target:</b> <em>"{{ r.target|join('", "') }}"</em><br>
                     </td>
                     <td style="text-align: right">
                         {% if edit_mode %}
@@ -45,8 +44,8 @@
                         {% else %}
                             {{ r.score }}
                         {% endif %}
+                        / {{ r.score_max }}
                     </td>
-                    <td style="text-align: right">{{ r.score_max }}</td>
                     <td>
                         {% for m in r.messages %}
                             {% if m.startswith('data:image') %}
@@ -56,16 +55,17 @@
                             {% endif %}
                         {% endfor %}
                         {% if edit_mode %}
+                            <br>
                             <label>
                                 Add a comment: <br/>
-                                <textarea name="comment:{{ r.id }}" style="width: 100%"></textarea>
+                                <textarea name="comment:{{ r.id }}" style="background: var(--c-grey-light)"></textarea>
                             </label>
                         {% endif %}
                     </td>
                     <td>
-                        <span class="cls-description">stdout</span>
+                        <span class="Description">stdout</span>
                         <pre>{{ r.stdout|e }}</pre>
-                        <span class="cls-description">stderr</span>
+                        <span class="Description">stderr</span>
                         <pre>{{ r.stderr|e }}</pre>
                     </td>
                 </tr>
@@ -73,56 +73,53 @@
         {% endfor %}
         {% if summarize %}
             {% set summary = results.summarize() %}
-            <tr style="background-color: var(--c7)">
-                <td><b>{{ summary.tests }}</b></td>
+            <tr class="TFoot">
+                <td>{{ summary.tests }}</td>
                 <td></td>
-                <td></td>
-                <td></td>
-                <td style="text-align: right"><b>{{ summary.score }}</b></td>
-                <td style="text-align: right"><b>{{ summary.score_max }}</b></td>
-                <td><b>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</b></td>
-                <td></td>
+                <td style="text-align: right">{{ summary.score }} / {{ summary.score_max }}</td>
+                <td>{{ summary.passed }} passed, {{ summary.failed }} failed, {{ summary.pending }} pending</td>
                 <td></td>
             </tr>
         {% endif %}
         <tbody>
     </table>
 {%- endmacro %}
+
 {% macro list_artifacts(results, link) -%}
-    <section>
-        <article>
-            <h2>Artifacts</h2>
-            <p>While the jupyter notebook is executed, <i>autograde</i> watches the current working directory for
-                files being created or modified:</p>
-            {% if results.artifacts %}
-                <ul>
-                    {% for file in results.artifacts %}
-                        {% if link %}
-                            <li>
-                                <a href="/download/{{ results.checksum }}/artifacts/{{ file }}">
-                                    <code>{{ file }}</code>
-                                </a>
-                            </li>
-                        {% else %}
-                            <li><code>{{ file }}</code></li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <b>None</b>
-            {% endif %}
-            <p>All files listed above can be found in the <code>/artifacts</code> directory of your results archive.
-            </p>
-            <p>The following files have been excluded from results as they haven't changed during execution:</p>
-            {% if results.artifacts %}
-                <ul>
-                    {% for file in results.excluded_artifacts %}
-                        <li><code>{{ file }}</code></li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <b>None</b>
-            {% endif %}
-        </article>
-    </section>
+    <h2>Artifacts</h2>
+    <p>
+        The following files have been created or modified during execution of the <em>Jupyter</em> notebook:
+    </p>
+    {% if results.artifacts %}
+        <ul>
+            {% for file in results.artifacts %}
+                {% if link %}
+                    <li>
+                        <a href="/download/{{ results.checksum }}/artifacts/{{ file }}">
+                            <code>{{ file }}</code>
+                        </a>
+                    </li>
+                {% else %}
+                    <li><code>{{ file }}</code></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% else %}
+        <b>None</b>
+    {% endif %}
+    <p>
+        All files listed above can be found in the <code>/artifacts</code> directory of the results archive.
+    </p>
+    <p>
+        The following files have been excluded from the results archive as they haven't changed during execution:
+    </p>
+    {% if results.artifacts %}
+        <ul>
+            {% for file in results.excluded_artifacts %}
+                <li><code>{{ file }}</code></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <b>None</b>
+    {% endif %}
 {%- endmacro %}

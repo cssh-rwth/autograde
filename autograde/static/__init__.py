@@ -9,5 +9,5 @@ def _load(*args, mode='rt'):
 # Globals and constants variables.
 INJECT_BEFORE = _load('inject_before.py')
 INJECT_AFTER = _load('inject_after.py')
-CSS = _load('basic.css')
+CSS = _load('style.css')
 FAVICON = _load('favicon.ico', mode='rb')

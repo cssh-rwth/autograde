@@ -1,96 +1,107 @@
 {% extends "results.html" %}
+
+{% block header %}
+    {% for aid, archive in state.archives.items() %}
+        <article style="min-width: 15em; flex: none">
+            <h3 style="margin: 0">Result {{ hash(aid) }} {% if aid in state.patched %}✔{% endif %}</h3>
+            <span class="Description">
+                {% if state.settings.show_identities %}
+                    {{ archive.results.format_members(separator='/', max_width=32) }}
+                {% else %}
+                    ●●●●●●●
+                {% endif %}
+            </span><br>
+            <a href="/audit/{{ aid }}#edit">
+                <button class="{% if archive.results.summarize().pending %}CLink{% else %}CNeutral{% endif %}">
+                    edit
+                </button>
+            </a>
+            <a href="/report/{{ aid }}" target="_blank">
+                <button class="CNeutral">preview</button>
+            </a>
+            <a href="/download/{{ aid }}/code.py">
+                <button class="CNeutral">code</button>
+            </a>
+        </article>
+    {% endfor %}
+{% endblock %}
+
 {% block content %}
-    <h2 id="controlls">Controlls</h2>
-    <section>
-        <section>
-            <form action="/settings" method="POST" style="width: 100%">
-                    <span title="Regular Expression for Filtering Results by Label">
-                        <label style="float: left; white-space: nowrap; margin: 0.5em">
-                            Selector:
-                            <input type="text" name="selector" min="0" value="{{ state.settings.selector.pattern }}">
-                        </label>
-                    </span>
-                <span title="Name of the Auditor (added to patches!)">
-                        <label style="float: left; white-space: nowrap; margin: 0.5em">
-                            Who's Auditing?
-                            <input type="text" name="auditor" min="0" value="{{ state.settings.auditor }}">
-                        </label>
-                    </span>
-                <span title="Show Identities">
-                        <label style="float: left; white-space: nowrap; margin: 0.5em">
-                            Show Names:
-                            <input type="checkbox" name="show_identities" value="{{ state.settings.show_identities }}"
-                                   {% if state.settings.show_identities %}checked{% endif %}>
-                        </label>
-                    </span>
-                <input type="submit" value="Apply" style="float: right; margin: 0.5em" class="cls-success"/>
-            </form>
-        </section>
-        <section>
-            <p style="width: 100%">
-                <a href="/summary?distribution=True" target="_blank">
-                    <button class="cls-link" style="float: right">Summary</button>
-                </a>
-                <a href="/stop">
-                    <button class="cls-danger" style="float: right">Stop</button>
-                </a>
-            </p>
-        </section>
-    </section>
-    <h2 id="overview">Results</h2>
-    <section>
-        <section>
-            {% for aid, archive in state.archives.items() %}
-                {% set results = archive.results %}
-                <article style="flex: none; min-width: 16em">
-                    <h3 style="margin: 0">{{ hash(aid) }} {% if aid in state.patched %}✔{% endif %}</h3>
-                    <span class="cls-description">{% if state.settings.show_identities %}
-                        {{ archive.results.format_members(separator='/', max_width=32) }}{% else %}
-                        ●●●●●{% endif %}</span><br>
-                    <a href="/audit/{{ aid }}#edit">
-                        <button class="{% if archive.results.summarize().pending %}cls-link{% else %}cls-neutral{% endif %}">
-                            edit
-                        </button>
-                    </a>
-                    <a href="/report/{{ aid }}" target="_blank">
-                        <button class="cls-neutral">preview</button>
-                    </a>
-                    <a href="/download/{{ aid }}/code.py">
-                        <button class="cls-neutral">code</button>
-                    </a>
-                </article>
-            {% endfor %}
-        </section>
-    </section>
     {% if id in state.archives %}
         {% set results = state.archives[id].results %}
-        <h2 id="edit">Edit: {{ hash(results.checksum) }}</h2>
         <section>
-            <section>
-                <form action="/patch" method="POST" style="width: 100%; margin: 1em">
+            <article>
+                <h2 id="edit">Edit Result {{ hash(results.checksum) }}</h2>
+                <form action="/patch" method="POST" style="width: 100%">
                     <input type="hidden" name="id" value="{{ id }}"/>
                     {{ display_results(results, True, None) }}
                     {% if state.prev_id(id) %}
-                        <a href="/audit/{{ state.prev_id(id) }}#edit">
-                            <input type="button" value="<< prev" class="cls-link" style="float: left"/>
+                        <a href="/audit/{{ state.prev_id(id) }}#edit" title="Open previous result">
+                            <input type="button" value="<< Prev" class="CLink" style="float: left"/>
                         </a>
                     {% endif %}
-                    <a href="/audit/#overview">
-                        <input type="button" value="Overview" class="cls-link" style="float: left"/>
+                    <a href="/audit" title="Close current result">
+                        <input type="button" value="Overview" class="CLink" style="float: left"/>
                     </a>
                     {% if state.next_id(id) %}
-                        <a href="/audit/{{ state.next_id(id) }}#edit">
-                            <input type="button" value="next >>" class="cls-link" style="float: left"/>
+                        <a href="/audit/{{ state.next_id(id) }}#edit" title="Open next result">
+                            <input type="button" value="Next >>" class="CLink" style="float: left"/>
                         </a>
                     {% endif %}
-                    <input type="submit" value="Patch & Next" style="float: right" class="cls-warning"/>
-                    <input type="reset" value="Reset" style="float: right" class="cls-danger"/>
+                    <input type="submit" value="Patch & Next" style="float: right" class="CWarning"
+                           title="Apply changes and open next result"/>
+                    <input type="reset" value="Reset" style="float: right" class="CDanger"
+                           title="Reset current changes"/>
                 </form>
-            </section>
-        </section>
-        <h2>Meta</h2>
-        <section>
-            {{ list_artifacts(state.archives[id].results, True) }}
+            </article>
         </section>
     {% endif %}
+{% endblock %}
+
+{% block footer %}
+    <section>
+        {% if id in state.archives %}
+            <article>
+                {{ list_artifacts(state.archives[id].results, True) }}
+            </article>
+        {% endif %}
+        <article>
+            <h2>Settings</h2>
+            <form action="/settings" method="POST">
+                <p>
+                    <label>
+                        Label Filter:<br>
+                        <input type="text" name="selector" min="0" value="{{ state.settings.selector.pattern }}"
+                               placeholder="Regex">
+                    </label>
+                </p>
+                <p>
+                    <label for="auditor">
+                        Auditor:<br>
+                        <input id="auditor" type="text" name="auditor" min="0" value="{{ state.settings.auditor }}"
+                               placeholder="Your Name">
+                    </label>
+                </p>
+                <p>
+                    <label for="show_identities">
+                        Show Names:
+                        <input id="show_identities" type="checkbox" name="show_identities"
+                               value="{{ state.settings.show_identities }}"
+                               {% if state.settings.show_identities %}checked{% endif %}>
+                    </label>
+
+                    <input type="submit" value="Apply" style="float: right" class="CSuccess" title="Apply settings"/>
+                </p>
+            </form>
+        </article>
+        <article>
+            <h2>Controlls</h2>
+            <a href="/stop" title="Store changes and stop audit session">
+                <button class="CDanger" style="float: right">Shutdown</button>
+            </a>
+            <a href="/summary" target="_blank" title="Summarize all results">
+                <button class="CLink" style="float: right">Summary</button>
+            </a>
+        </article>
+    </section>
 {% endblock %}

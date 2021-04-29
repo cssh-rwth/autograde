@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+
 {% block content %}
-        <section style="justify-content: center">
-            <section>
-                <article>
-                    <h2>Error: {{ error.code }} - {{ error.name }}</h2>
-                    <pre>
-                        {{ error.description }}
-                    </pre>
-                </article>
-            </section>
-        </section>
+    <section style="justify-content: center">
+        <article>
+            <h2>Error: {{ error.code }} - {{ error.name }}</h2>
+            <pre>{{ error.description }}</pre>
+        </article>
+    </section>
 {% endblock %}
