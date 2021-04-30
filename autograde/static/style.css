@@ -17,8 +17,9 @@
     --c-foreground: #000;
     --c-grey-heavy: #CFD1D2;
     --c-grey-light: #ECEDED;
-    --c-warning: #FFED00;
-    --c-danger: #E30066
+    --c-success: #57AB27;
+    --c-warning: #F6A800;
+    --c-danger: #CC071E;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,8 +28,6 @@
         --c-foreground: #ECEDED;
         --c-grey-light: #505050;
         --c-grey-heavy: #646567;
-        --c-warning: #e6d500;
-        --c-danger: #b60052
     }
 
     img {
@@ -251,9 +250,14 @@ section > section {
     background-color: var(--c-grey-heavy);
 }
 
-.CLink, .CSuccess {
+.CLink {
     color: #FFFFFF;
     background-color: var(--c-accent);
+}
+
+.CSuccess {
+    color: #FFFFFF;
+    background-color: var(--c-success);
 }
 
 .CWarning {

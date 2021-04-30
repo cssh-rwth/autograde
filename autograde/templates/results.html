@@ -33,9 +33,9 @@
                     <td>
                         <b>ID:</b> {{ hash(r.id) }}<br>
                         <b>Label:</b> <i>{{ r.label|e }}</i><br>
-                        <b>Target:</b> <em>"{{ r.target|join('", "') }}"</em><br>
+                        <b>Target(s):</b> <code>{{ r.target|join(',') }}</code><br>
                     </td>
-                    <td style="text-align: right">
+                    <td style="text-align: right; font-size: 1.1em">
                         {% if edit_mode %}
                             <label>
                                 <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.05"
