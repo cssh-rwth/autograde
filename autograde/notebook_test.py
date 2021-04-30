@@ -15,7 +15,7 @@ from contextlib import ExitStack
 from hashlib import sha256
 from math import isclose
 from pathlib import Path
-from typing import Callable, Dict, Union, Iterable, Generator, Tuple
+from typing import Callable, Dict, Optional, Union, Iterable, Generator, Tuple
 
 from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
@@ -218,11 +218,11 @@ class NotebookTest:
 
         logger.debug('testing completed')
 
-    def _grade_notebook(self, nb_path, target_dir=None, context=None):
+    def _grade_notebook(self, nb_path: Path, target_dir: Optional[Path] = None, context: Optional[Path] = None):
         target_dir = target_dir or os.getcwd()
 
         # prepare notebook
-        with open(nb_path, mode='rb') as f:
+        with nb_path.open(mode='rb') as f:
             nb_data = f.read()
 
         nb_hash = sha256(nb_data).hexdigest()
@@ -271,7 +271,7 @@ class NotebookTest:
 
                     # collect artifacts and remove files that haven't changed
                     artifacts = list(wd.list_changed())
-                    excluded_artifacts = list(wd.list_not_changed())
+                    excluded_artifacts = list(wd.list_unchanged())
 
                     for path in excluded_artifacts:
                         path.unlink()
@@ -284,6 +284,10 @@ class NotebookTest:
 
                 if not group:
                     logger.warning(f'Couldn\'t find valid information about members in {nb_path}')
+
+                # enrich state with meta information
+                state['__TEAM_MEMBERS__'] = group.copy()
+                state['__CONTEXT__'] = context
 
                 # run unit tests
                 logger.debug('apply unit tests')

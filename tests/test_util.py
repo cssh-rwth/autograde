@@ -219,20 +219,20 @@ class TestWatchDog(TestCase):
 
             wd = WatchDog(tmp)
             self.assertSetEqual(set(wd.list_changed()), set())
-            self.assertSetEqual(set(wd.list_not_changed()), set())
+            self.assertSetEqual(set(wd.list_unchanged()), set())
 
             f_1.touch()
             self.assertSetEqual(set(wd.list_changed()), {f_1})
-            self.assertSetEqual(set(wd.list_not_changed()), set())
+            self.assertSetEqual(set(wd.list_unchanged()), set())
 
             wd.reload()
             self.assertSetEqual(set(wd.list_changed()), set())
-            self.assertSetEqual(set(wd.list_not_changed()), {f_1})
+            self.assertSetEqual(set(wd.list_unchanged()), {f_1})
 
             f_2.parent.mkdir()
             f_2.touch()
             self.assertSetEqual(set(wd.list_changed()), {f_2})
-            self.assertSetEqual(set(wd.list_not_changed()), {f_1})
+            self.assertSetEqual(set(wd.list_unchanged()), {f_1})
 
     def test_file_access(self):
         with TemporaryDirectory() as tmp:
@@ -246,15 +246,15 @@ class TestWatchDog(TestCase):
             wd = WatchDog(tmp)
 
             self.assertSetEqual(set(wd.list_changed()), set())
-            self.assertSetEqual(set(wd.list_not_changed()), {f_1, f_2})
+            self.assertSetEqual(set(wd.list_unchanged()), {f_1, f_2})
 
             f_1.open(mode='r').close()
 
             self.assertSetEqual(set(wd.list_changed()), set())
-            self.assertSetEqual(set(wd.list_not_changed()), {f_1, f_2})
+            self.assertSetEqual(set(wd.list_unchanged()), {f_1, f_2})
 
             with f_1.open(mode='w') as f:
                 f.write('hello world')
 
             self.assertSetEqual(set(wd.list_changed()), {f_1})
-            self.assertSetEqual(set(wd.list_not_changed()), {f_2})
+            self.assertSetEqual(set(wd.list_unchanged()), {f_2})

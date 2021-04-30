@@ -239,7 +239,7 @@ class WatchDog:
         """List files that have been modified since the index was built"""
         yield from (path for path, hsh in self._list() if hsh != self._index.get(path))
 
-    def list_not_changed(self) -> Generator[Path, None, None]:
+    def list_unchanged(self) -> Generator[Path, None, None]:
         """List files that have NOT been modified since the index was built"""
         yield from (path for path, hsh in self._list() if hsh == self._index.get(path))
 

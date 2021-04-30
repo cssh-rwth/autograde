@@ -118,7 +118,17 @@ def test_raw_artifacts(artifacts):
     return f'the following was read from a file: "{content}"'
 
 
+# There are a few other special variables
+@nbt.register(target=('__CONTEXT__', '__TEAM_MEMBERS__', '__COMMENTS__'), label='special variables')
+def test_special_variables(context, team_members, comments):
+    for member in team_members:
+        print(f'Hello {member.first_name}')
+    print()
+    print(f'the tested notebook has {len(comments)} comments')
+    assert context.is_dir()
+
+
 # `execute` brings a simple comand line interface, e.g.:
-# `$ test.py notebook.ipynb -c context/ -t /tmp/ -vvv`
+# `$ autograde -vvv test demo/test.py demo/ --context demo/context --target /tmp`
 if __name__ == '__main__':
     sys.exit(nbt.execute())
