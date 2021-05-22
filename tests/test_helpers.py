@@ -4,7 +4,8 @@ from collections import defaultdict
 from unittest import TestCase
 
 from autograde.helpers import assert_equal, assert_iter_eqal, assert_is, assert_isclose, \
-    assert_raises, import_hook, import_filter
+    assert_raises
+from autograde.util import import_hook, import_filter
 
 
 class TestHelpers(TestCase):

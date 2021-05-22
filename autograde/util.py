@@ -1,15 +1,17 @@
 import base64
+import builtins
 import logging
 import math
 import os
 import re
 import sys
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ContextManager, Generator, Iterable, Union, List
+from typing import Any, ContextManager, Generator, Iterable, List, Optional, TextIO, Tuple, Union
+from unittest import mock
 from zipfile import ZipFile
 
 from htmlmin.minify import html_minify
@@ -41,7 +43,7 @@ logger = logging.getLogger('autograde')
 logger.addHandler(_stream_handler)
 
 
-def parse_bool(s):
+def parse_bool(s: Any) -> bool:
     s = str(s).lower()
     if s in {'0', 'false', 'f', 'no', 'n'}:
         return False
@@ -54,36 +56,34 @@ def now() -> DateTime:
     return DateTime.now().replace(microsecond=0)
 
 
-def loglevel(x):
+def loglevel(x: int) -> int:
     return max(10, 40 - max(x, 0) * 10)
 
 
-def project_root():
+def project_root() -> Path:
     import autograde
     return Path(autograde.__file__).parent.parent
 
 
-def float_equal(a, b):
+def float_equal(a: float, b: float) -> bool:
     return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
 
 
-def _alpha_numeric_split(s):
-    for w in ALPHA_NUMERIC.split(s.strip()):
-        if w:
-            yield w
+def _alpha_numeric_split(s: str) -> Generator[str, None, None]:
+    yield from filter(lambda s: s, ALPHA_NUMERIC.split(s.strip()))
 
 
-def snake_case(s):
+def snake_case(s: str) -> str:
     return '_'.join(map(str.lower, _alpha_numeric_split(s)))
 
 
-def camel_case(s):
+def camel_case(s: str) -> str:
     if not s:
         return ''
     return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in _alpha_numeric_split(s))
 
 
-def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int, float] = float('inf')):
+def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int, float] = float('inf')) -> str:
     """
     Join strings by given separator. Optionally, the strings are pruned in order
     make the resulting string matching the maximum width criteria.
@@ -103,7 +103,9 @@ def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int,
 
 
 @contextmanager
-def capture_output(tmp_stdout=None, tmp_stderr=None):
+def capture_output(tmp_stdout: Optional[TextIO] = None, tmp_stderr: Optional[TextIO] = None) -> \
+        ContextManager[Tuple[TextIO, TextIO]]:
+    """temporary redirect stdout and/or stderr to custom streams"""
     stdout = sys.stdout
     stderr = sys.stderr
 
@@ -112,7 +114,6 @@ def capture_output(tmp_stdout=None, tmp_stderr=None):
 
     try:
         yield stdout, stderr
-
     finally:
         sys.stdout = stdout
         sys.stderr = stderr
@@ -141,7 +142,7 @@ def cd(path: Union[Path, str], mkdir: bool = False) -> ContextManager[Path]:
 
 @contextmanager
 def cd_zip(path: Union[Path, str], mode: str = 'w') -> ContextManager[ZipFile]:
-    """Change to a temporary directory and write all files to zip file when context is left"""
+    """Change to a temporary directory and write all contents to zip file when context is left"""
     if mode not in set('wax'):
         raise ValueError('supported modes: "w", "a", "x"')
 
@@ -165,9 +166,8 @@ class StopWatch:
         self._captures.append(time.monotonic())
         return len(self._captures) - 1
 
-    def __enter__(self):
-        self.capture()
-        return self
+    def __enter__(self) -> int:
+        return self.capture()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.capture()
@@ -186,8 +186,8 @@ class StopWatch:
 
 
 @contextmanager
-def deadline(timeout):
-    """Context that fails if not left in time"""
+def deadline(timeout: float) -> ContextManager[float]:
+    """Context that fails if not closed in time"""
     start = time.monotonic()
 
     # trace callbacks
@@ -207,7 +207,6 @@ def deadline(timeout):
 
     try:
         yield start
-
     finally:
         sys.settrace(trace)
 
@@ -244,7 +243,7 @@ class WatchDog:
         yield from (path for path, hsh in self._list() if hsh == self._index.get(path))
 
 
-def render(template: str, minify: bool = True, **kwargs):
+def render(template: str, minify: bool = True, **kwargs) -> str:
     """Render template with default values set"""
     html = JINJA_ENV.get_template(template).render(
         autograde=autograde,
@@ -253,8 +252,37 @@ def render(template: str, minify: bool = True, **kwargs):
         timestamp=now().isoformat(),
         **kwargs
     )
-
     if minify:
         return html_minify(html)
-
     return html
+
+
+@contextmanager
+def import_hook(callback) -> ContextManager[None]:
+    """Temporarily register a hook function called at each import statement"""
+    def dummy(*_):
+        raise ImportError('calling `import_module` is not allowed within `import_hook` context')
+
+    with ExitStack() as es:
+        es.enter_context(mock.patch('importlib.import_module', side_effect=dummy))
+        es.enter_context(mock.patch('importlib.__import__', side_effect=callback))
+        es.enter_context(mock.patch('builtins.__import__', side_effect=callback))
+        yield None
+
+
+@contextmanager
+def import_filter(regex, flags=0, blacklist=False) -> ContextManager[None]:
+    """Temporarily filter imports by given regular expression"""
+    pattern = re.compile(regex, flags) if isinstance(regex, str) else regex
+    import_ = builtins.__import__
+
+    def callback(target, *args):
+        matches = pattern.search(target) is not None
+
+        if (matches and blacklist) or (not matches and not blacklist):
+            raise ImportError(f'usage of "\'{target}\'" is not permitted')
+
+        return import_(target, *args)
+
+    with import_hook(callback):
+        yield None

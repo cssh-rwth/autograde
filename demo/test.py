@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import inspect
 import sys
 
 from autograde import NotebookTest
@@ -13,7 +12,7 @@ nbt.set_import_filter(r'networkx|requests', blacklist=True)
 # this test will succeed
 @nbt.register(target='square', label='test square')
 def test_square(square):
-    # Everything you print to stdout is included into the report
+    # Everything printed to stdout is included into the report
     print('F' + ('O' * 77))
     for i in range(-5, 5):
         assert i ** 2 == square(i)
@@ -22,7 +21,7 @@ def test_square(square):
 # as well as this one (note the custom return message)
 @nbt.register(target='cube', label='test cube', score=2.5)
 def test_cube(cube):
-    # Everything you print to stderr is included into the report
+    # Everything printed to stderr is included into the report
     print('cube', file=sys.stderr)
     for i in range(-5, 5):
         assert i ** 3 == cube(i)
@@ -96,6 +95,7 @@ def test_sleep_2(sleep):
 # inspecting source code of a function works as expected
 @nbt.register(target='square', label='inspect source')
 def test_inspect_source(square):
+    import inspect
     print(inspect.getsource(square))
 
 

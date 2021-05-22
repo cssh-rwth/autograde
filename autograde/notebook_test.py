@@ -17,10 +17,9 @@ from math import isclose
 from pathlib import Path
 from typing import Callable, Dict, Optional, Union, Iterable, Generator, Tuple
 
-from autograde.helpers import import_filter
 from autograde.notebook_executor import exec_notebook
 from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
-from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline, WatchDog
+from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline, WatchDog, import_filter
 
 Target = Union[str, Iterable[str]]
 TestResult = Union[None, float, str, Tuple[float, str]]

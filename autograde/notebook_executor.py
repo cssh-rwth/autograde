@@ -11,9 +11,8 @@ from typing import Dict, Optional, TextIO
 from IPython.core.interactiveshell import InteractiveShell
 from nbformat import read
 
-from autograde.helpers import import_filter
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, capture_output, deadline, StopWatch
+from autograde.util import logger, capture_output, deadline, StopWatch, import_filter
 
 
 def as_py_comment(s: str, indentation: int = 0):
