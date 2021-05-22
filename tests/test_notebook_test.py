@@ -198,7 +198,6 @@ class TestNotebookTest(TestCase):
                     'artifacts/figures/fig_nb_3_1.png',
                     'artifacts/figures/fig_nb_8_1.png',
                     'artifacts/figures/fig_nb_8_2.png',
-                    'artifacts/figures/fig_nb_9_1.png',
                     'artifacts/fnord.txt',
                     'artifacts/plot.png',
                     'code.py',

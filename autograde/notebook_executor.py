@@ -103,7 +103,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                 source = shell.input_transformer_manager.transform_cell(cell.source)
                 yield (
                     f'nb-{i + 1}',
-                    f'{source.strip()}\n\n# injected by test\ndump_figure()',
+                    f'{source.strip()}\n\n# injected by test\nauto_save_figure()',
                     cell_timeout
                 )
 
@@ -124,7 +124,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
     # actual code execution
     with ExitStack() as shadow_stack:
         for i, (label, code_cell, timeout) in enumerate(code_cells, start=1):
-            state.update({'__LABEL__': deepcopy(label), '__PLOT_REGISTRY__': []})
+            state.update({'__LABEL__': deepcopy(label), '__PLOTS__': []})
 
             with io.StringIO() as stdout, io.StringIO() as stderr:
                 logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
