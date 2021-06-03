@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from autograde.backend.local.util import find_archives, traverse_archives
+from autograde.cli.util import namespace_args, find_archives, traverse_archives
 from autograde.util import logger
 
 
+@namespace_args
 def cmd_report(result: str, **_) -> int:
     """Inject a human readable report (standalone HTML) into result archive(s)"""
 
