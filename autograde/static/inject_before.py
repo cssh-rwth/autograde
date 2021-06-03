@@ -20,26 +20,28 @@ try:
     show = plt.show
     save = plt.savefig
 
+
     @wraps(save)
     def _savefig(*args, **kwargs):
         save(*args, **kwargs)
         plt.close()
 
+
     @wraps(show)
     def _show(*_, **__):
         # check if something was plotted
         if plt.gcf().get_axes():
-            global __LABEL__
             global __PLOTS__
 
             root = Path('figures')
             root.mkdir(exist_ok=True)
-            path = root / snake_case(f'fig_{__LABEL__}_{len(__PLOTS__) + 1}')
+            path = root / snake_case(f'fig_cell_{__LABEL__}_{len(__PLOTS__) + 1}')
             __PLOTS__.append(path)
 
             # store current figure
             print(f'save figure at {path}')
             _savefig(path)
+
 
     plt.savefig = _savefig
     plt.show = _show
