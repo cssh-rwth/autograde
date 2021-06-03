@@ -20,12 +20,10 @@ try:
     show = plt.show
     save = plt.savefig
 
-
     @wraps(save)
     def _savefig(*args, **kwargs):
         save(*args, **kwargs)
         plt.close()
-
 
     @wraps(show)
     def _show(*_, **__):
@@ -41,7 +39,6 @@ try:
             # store current figure
             print(f'save figure at {path}')
             _savefig(path)
-
 
     plt.savefig = _savefig
     plt.show = _show
