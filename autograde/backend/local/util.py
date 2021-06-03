@@ -1,9 +1,7 @@
 import base64
 import io
 import math
-from functools import wraps
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Generator, List, Iterable, Optional
 
 # ensure matplotlib uses the right backend (this has to be done BEFORE import of pyplot!)
@@ -15,19 +13,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from scipy.linalg import LinAlgError
-from typing import Callable
 from autograde.test_result import NotebookTestResultArchive
 from autograde.util import logger
-
-
-def namespace_args(func) -> Callable[[SimpleNamespace], int]:
-    """Decorator that turns parameters provided via a namespace into proper key value parameters"""
-
-    @wraps(func)
-    def wrapper(args: SimpleNamespace):
-        return func(**args.__dict__)
-
-    return wrapper
 
 
 def b64str(data) -> str:

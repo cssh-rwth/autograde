@@ -1,12 +1,11 @@
 from pathlib import Path
 from typing import Optional
 
-from autograde.cli.util import namespace_args, find_archives, traverse_archives, merge_results, b64str, \
+from autograde.backend.local.util import find_archives, traverse_archives, merge_results, b64str, \
     plot_score_distribution, summarize_results
 from autograde.util import logger, render
 
 
-@namespace_args
 def cmd_summary(result: Optional[str] = None, **_) -> int:
     """Generate human & machine readable summary of results"""
 

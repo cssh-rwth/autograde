@@ -3,12 +3,10 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from autograde.cli.util import namespace_args
 from autograde.util import logger
 
 
 # no typo, the word "test" caused some confusion at the test framework
-@namespace_args
 def cmd_tst(test: str, notebook: str, target: str, tag: str, verbose: int, context: Optional[str] = None,
             backend: Optional[str] = None, **_) -> int:
     """Run autograde test script on jupyter notebook(s)"""

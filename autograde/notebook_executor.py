@@ -86,7 +86,6 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
         # when executed within a docker container, some minor warnings occur that we filter here
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-
             notebook = read(notebook, 4)
             shell = InteractiveShell.instance()
 
@@ -94,21 +93,16 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
         md_cells = [c.source for c in filter(lambda c: c.cell_type == 'markdown', notebook.cells)]
 
         # prepare code cells for execution
-        def _code_cells():
-            yield 'injected: setup', INJECT_BEFORE, 0
+        def transform_code_cells():
+            yield 'SETUP', INJECT_BEFORE, 0
 
-            for i, cell in enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells)):
-                # render code
-                source = shell.input_transformer_manager.transform_cell(cell.source)
-                yield (
-                    f'nb-{i + 1}',
-                    f'{source.strip()}\n\n# injected by test\nauto_save_figure()',
-                    cell_timeout
-                )
+            for i, cell in enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells), start=1):
+                yield f'{i}', shell.input_transformer_manager.transform_cell(cell.source).strip(), cell_timeout
+                yield f'{i} CLEAN', 'auto_save_figure()', cell_timeout
 
-            yield 'injected: teardown', INJECT_AFTER, 0
+            yield 'TEARDOWN', INJECT_AFTER, 0
 
-        code_cells = list(_code_cells())
+        code_cells = list(transform_code_cells())
 
     except Exception as error:
         logger.error(f'unable to parse notebook: {error}')

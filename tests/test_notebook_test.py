@@ -195,9 +195,9 @@ class TestNotebookTest(TestCase):
             with ZipFile(rpath, mode='r') as zipf:
                 self.assertListEqual(sorted(zipf.namelist()), [
                     'artifacts/bar.txt',
-                    'artifacts/figures/fig_nb_3_1.png',
-                    'artifacts/figures/fig_nb_8_1.png',
-                    'artifacts/figures/fig_nb_8_2.png',
+                    'artifacts/figures/fig_cell_3_clean_1.png',
+                    'artifacts/figures/fig_cell_8_1.png',
+                    'artifacts/figures/fig_cell_8_2.png',
                     'artifacts/fnord.txt',
                     'artifacts/plot.png',
                     'code.py',
