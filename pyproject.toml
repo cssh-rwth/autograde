@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jupyter-autograde"
-version = "0.2.10"
+version = "0.2.11"
 description = "Unittesting & Grading of Jupyter Notebooks"
 authors = ["Lukas Ochse"]
 maintainers = ["Chair for Computational Social Sciences and Humanities at RWTH Aachen University"]
@@ -39,7 +39,7 @@ Flask = "~1.1"
 django-htmlmin-ajax = "~0.11"
 
 [tool.poetry.dev-dependencies]
-flake8 = "~3.8"
+flake8 = "~3.9"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
