@@ -1,5 +1,6 @@
 import base64
 import builtins
+import importlib
 import logging
 import math
 import os
@@ -8,6 +9,7 @@ import sys
 import time
 from contextlib import contextmanager, ExitStack
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, ContextManager, Generator, Iterable, List, Optional, TextIO, Tuple, Union
@@ -258,31 +260,28 @@ def render(template: str, minify: bool = True, **kwargs) -> str:
 
 
 @contextmanager
-def import_hook(callback) -> ContextManager[None]:
-    """Temporarily register a hook function called at each import statement"""
-    def dummy(*_):
-        raise ImportError('calling `import_module` is not allowed within `import_hook` context')
-
-    with ExitStack() as es:
-        es.enter_context(mock.patch('importlib.import_module', side_effect=dummy))
-        es.enter_context(mock.patch('importlib.__import__', side_effect=callback))
-        es.enter_context(mock.patch('builtins.__import__', side_effect=callback))
-        yield None
-
-
-@contextmanager
-def import_filter(regex, flags=0, blacklist=False) -> ContextManager[None]:
-    """Temporarily filter imports by given regular expression"""
+def import_filter(regex: Union[str, re.Pattern], flags: int = 0, blacklist: bool = False) -> ContextManager[None]:
+    """Temporarily filter imports by regular expression"""
     pattern = re.compile(regex, flags) if isinstance(regex, str) else regex
-    import_ = builtins.__import__
 
-    def callback(target, *args):
-        matches = pattern.search(target) is not None
+    builtins_import = builtins.__import__
+    importlib_import = importlib.__import__
+    importlib_import_module = importlib.import_module
 
-        if (matches and blacklist) or (not matches and not blacklist):
-            raise ImportError(f'usage of "\'{target}\'" is not permitted')
+    def make_guard(protected_function):
+        @wraps(protected_function)
+        def guard(target, *args, **kwargs):
+            matches = pattern.search(target) is not None
 
-        return import_(target, *args)
+            if (matches and blacklist) or (not matches and not blacklist):
+                raise ImportError(f'usage of "\'{target}\'" is not permitted')
 
-    with import_hook(callback):
+            return protected_function(target, *args, **kwargs)
+
+        return guard
+
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch('importlib.import_module', side_effect=make_guard(importlib_import_module)))
+        stack.enter_context(mock.patch('importlib.__import__', side_effect=make_guard(importlib_import)))
+        stack.enter_context(mock.patch('builtins.__import__', side_effect=make_guard(builtins_import)))
         yield None

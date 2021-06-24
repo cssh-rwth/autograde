@@ -1,3 +1,4 @@
+import importlib
 import io
 import math
 import string
@@ -14,7 +15,7 @@ from zipfile import ZipFile
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
     camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, deadline, \
-    WatchDog
+    WatchDog, import_filter
 
 
 class TestUtil(TestCase):
@@ -200,6 +201,122 @@ class TestUtil(TestCase):
                 time.sleep(.02)
 
         self.assertIsNone(sys.gettrace())
+
+    def test_import_filter_import_keyword_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            import math
+            _ = dir(math)
+
+        with import_filter(r'typ*'):
+            import types
+            _ = dir(types)
+
+    def test_import_filter_import_keyword_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            import math
+            _ = dir(math)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            import types
+            _ = dir(types)
+
+    def test_import_filter_import_keyword_alias_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            import math as foo
+            _ = dir(foo)
+
+        with import_filter(r'typ*'):
+            import types as foo
+            _ = dir(foo)
+
+    def test_import_filter_import_keyword_alias_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            import math as foo
+            _ = dir(foo)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            import types as foo
+            _ = dir(foo)
+
+    def test_import_filter_from_keyword_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            from math import isclose
+            _ = dir(isclose)
+
+        with import_filter(r'typ*'):
+            from types import SimpleNamespace
+            _ = dir(SimpleNamespace)
+
+    def test_import_filter_from_keyword_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            from math import isclose
+            _ = dir(isclose)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            from types import SimpleNamespace
+            _ = dir(SimpleNamespace)
+
+    def test_import_filter___import___keyword_success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                __import__('math', *args)
+
+            with import_filter(r'typ*'):
+                __import__('types', *args)
+
+    def test_import_filter___import_keyword___failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                __import__('math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                __import__('types', *args)
+
+    def test_import_filter_exec_success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                exec('import math', *args)
+
+            with import_filter(r'typ*'):
+                exec('import types', *args)
+
+    def test_import_filter_exec_failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                exec('import math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                exec('import types', *args)
+
+    def test_import_filter_importlib___import___success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                importlib.__import__('math', *args)
+
+            with import_filter(r'typ*'):
+                importlib.__import__('types', *args)
+
+    def test_import_filter_importlib___import___failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                importlib.__import__('math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                importlib.__import__('types', *args)
+
+    def test_import_filter_importlib_import_module_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            importlib.import_module('math')
+
+        with import_filter(r'typ*'):
+            importlib.import_module('types')
+
+    def test_import_filter_importlib_import_module_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            importlib.import_module('math')
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            importlib.import_module('types')
 
 
 class TestWatchDog(TestCase):
