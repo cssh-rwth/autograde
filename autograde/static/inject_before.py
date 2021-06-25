@@ -1,4 +1,3 @@
-__IB_FLAG__ = True
 __IMPORT_FILTER__ = globals().get('IMPORT_FILTER', None)
 __PLOTS__ = []
 __LABEL__ = None
@@ -43,6 +42,6 @@ try:
     _plt.show = _show
 
 except ImportError:
-    pass
+    print('matplotlib is not available')
 
 auto_save_figure = globals().get('_show', lambda *args, **kwargs: None)

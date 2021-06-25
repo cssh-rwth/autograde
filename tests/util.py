@@ -72,25 +72,27 @@ def load_example_archives() -> Dict[str, Dict[str, bytes]]:
 def mount_demo_archive() -> ContextManager[Path]:
     """Mount demo archive to temporary directory"""
     with TemporaryDirectory() as temp:
-        with Path(temp).joinpath('results_demo.zip').open(mode='wb') as f:
+        temp = Path(temp)
+        with temp.joinpath('results_demo.zip').open(mode='wb') as f:
             f.write(load_demo_archive())
 
-        yield Path(temp)
+        yield temp
 
 
 @contextmanager
 def mount_example_archives() -> ContextManager[Path]:
     """Mount example archives to temporary directory"""
     with TemporaryDirectory() as temp:
+        temp = Path(temp)
         for tid, results in load_example_archives().items():
-            test_path = Path(temp).joinpath(f'test_{tid}')
+            test_path = temp.joinpath(f'test_{tid}')
             test_path.mkdir()
 
             for nid, result in results.items():
                 with test_path.joinpath(f'results_{nid}.zip').open(mode='wb') as f:
                     f.write(result)
 
-        yield Path(temp)
+        yield temp
 
 
 assert_floats_equal = partial(assert_iter_eqal, comp=float_equal)

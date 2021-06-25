@@ -78,23 +78,22 @@ class TestFunctions(TestCase):
 
             # forward errors raised in notebook
             with self.assertRaises(AssertionError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    with exec_notebook(nb_buffer, file=stdout):
+                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as f:
+                    with exec_notebook(nb_buffer, file=f):
                         pass
 
             # cell timeout
             with self.assertRaises(TimeoutError):
-                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as stdout:
-                    with exec_notebook(nb_buffer, file=stdout, cell_timeout=0.05):
+                with io.StringIO(nb) as nb_buffer, open(os.devnull, 'w') as f:
+                    with exec_notebook(nb_buffer, file=f, cell_timeout=0.05):
                         pass
 
             # ignore errors
-            with io.StringIO(nb) as nb_buffer, io.StringIO() as stdout:
-                with exec_notebook(nb_buffer, file=stdout, ignore_errors=True) as state:
+            with io.StringIO(nb) as nb_buffer, io.StringIO() as f:
+                with exec_notebook(nb_buffer, file=f, ignore_errors=True) as state:
                     pass
-                stdout = stdout.getvalue()
 
-        self.assertIn('__IB_FLAG__', state)
-        self.assertIn('__IA_FLAG__', state)
+        self.assertIn('__IMPORT_FILTER__', state)
+        self.assertIn('__PLOTS__', state)
+        self.assertIn('__LABEL__', state)
         self.assertEqual(state.get('SOME_CONSTANT'), 42)
-        self.assertIn('this goes to stdout', stdout)

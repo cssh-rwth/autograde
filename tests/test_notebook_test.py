@@ -2,6 +2,7 @@ import importlib.util as import_util
 import math
 import os
 import re
+import shutil
 import time
 from dataclasses import astuple
 from hashlib import sha256
@@ -11,8 +12,7 @@ from unittest import TestCase
 from zipfile import ZipFile
 
 import autograde
-from autograde.notebook_test import UnitTest, \
-    NotebookTest
+from autograde.notebook_test import UnitTest, NotebookTest
 from autograde.test_result import NotebookTestResult
 from autograde.util import project_root, cd, capture_output
 from tests.util import assert_floats_equal
@@ -190,14 +190,14 @@ class TestNotebookTest(TestCase):
         with TemporaryDirectory() as path, cd(path):
             nbtest.nbt._grade_notebook(nb_path, context=c_path)
 
-            rpath, *_ = Path(path).glob('results_*.zip')
+            rpath = next(Path(path).glob('results_*.zip'))
 
             with ZipFile(rpath, mode='r') as zipf:
                 self.assertListEqual(sorted(zipf.namelist()), [
                     'artifacts/bar.txt',
-                    'artifacts/figures/fig_cell_3_clean_1.png',
-                    'artifacts/figures/fig_cell_8_1.png',
-                    'artifacts/figures/fig_cell_8_2.png',
+                    'artifacts/figures/fig_cell_4_clean_1.png',
+                    'artifacts/figures/fig_cell_9_1.png',
+                    'artifacts/figures/fig_cell_9_2.png',
                     'artifacts/fnord.txt',
                     'artifacts/plot.png',
                     'code.py',

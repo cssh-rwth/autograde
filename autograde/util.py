@@ -274,7 +274,7 @@ def import_filter(regex: Union[str, re.Pattern], flags: int = 0, blacklist: bool
             matches = pattern.search(target) is not None
 
             if (matches and blacklist) or (not matches and not blacklist):
-                raise ImportError(f'usage of "\'{target}\'" is not permitted')
+                raise ImportError(f'usage of "{target}" is not permitted')
 
             return protected_function(target, *args, **kwargs)
 

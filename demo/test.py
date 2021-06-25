@@ -6,7 +6,8 @@ from autograde.helpers import assert_raises
 
 nbt = NotebookTest('demo notebook test', cell_timeout=4., test_timeout=.1)
 
-nbt.set_import_filter(r'networkx|requests', blacklist=True)
+# an import filter can be any regular expression, e.g. r'autograde|networkx|typ.*'
+nbt.set_import_filter(r'autograde', blacklist=True)
 
 
 # this test will succeed

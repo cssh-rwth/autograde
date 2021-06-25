@@ -333,7 +333,7 @@ class TestNotebookTestResultArchive(TestCase):
                 self.assertIsInstance(archive.load_file('code.py'), bytes)
                 self.assertIsInstance(archive.load_file('code.py', encoding='utf-8'), str)
 
-                archive.load_file('code.py', encoding='utf-8').startswith('__IB_FLAG__')
+                archive.load_file('code.py', encoding='utf-8').startswith('__IMPORT_FILTER__')
 
                 with self.assertRaises(KeyError):
                     archive.load_file('foo')
@@ -471,7 +471,7 @@ class TestNotebookTestResultArchive(TestCase):
     def test_code(self):
         with NotebookTestResultArchive('archive.zip', mode='r') as archive:
             hsh = hash(archive)
-            self.assertIn('__IB_FLAG__', archive.code)
+            self.assertIn('__IMPORT_FILTER__', archive.code)
             self.assertEqual(hsh, hash(archive))
 
     def test_notebook(self):
