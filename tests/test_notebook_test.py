@@ -2,7 +2,6 @@ import importlib.util as import_util
 import math
 import os
 import re
-import shutil
 import time
 from dataclasses import astuple
 from hashlib import sha256
