@@ -262,9 +262,9 @@ class TestNotebookTestResultArchive(TestCase):
 
         self.file_list = {
             'artifacts/bar.txt',
-            'artifacts/figures/fig_cell_3_clean_1.png',
-            'artifacts/figures/fig_cell_8_1.png',
-            'artifacts/figures/fig_cell_8_2.png',
+            'artifacts/figures/fig_cell_4_clean_1.png',
+            'artifacts/figures/fig_cell_9_1.png',
+            'artifacts/figures/fig_cell_9_2.png',
             'artifacts/fnord.txt',
             'artifacts/plot.png',
             'code.py',
