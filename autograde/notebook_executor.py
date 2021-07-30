@@ -78,12 +78,11 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
     """
     state = dict()
     variables = variables or {}
-    state.update(deepcopy(variables))
 
     try:
         logger.debug('parse notebook')
 
-        # when executed within a docker container, some minor warnings occur that we filter here
+        # when executed within a container, some minor warnings occur that we filter here
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             notebook = read(notebook, 4)
@@ -107,6 +106,10 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
     except Exception as error:
         logger.error(f'unable to parse notebook: {error}')
         raise ValueError(error)
+
+    # prepare state
+    state.update(deepcopy(variables))
+    state['get_ipython'] = lambda: shell
 
     # prepare import filter
     if_regex, if_blacklist = variables.get('IMPORT_FILTER', (None, None))
