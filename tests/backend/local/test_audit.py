@@ -189,14 +189,14 @@ class TestAuditState(TestCase):
 
 def live_audit_demo(backend: str = 'local'):
     with mount_demo_archive() as path:
-        cli(['-vvv', '--backend', backend, 'audit', str(path)])
+        cli(['--backend', backend, 'audit', str(path)])
 
 
 def live_audit_example_1(backend: str = 'local'):
     with mount_example_archives() as path:
-        cli(['-vvv', '--backend', backend, 'audit', str(path.joinpath('test_1'))])
+        cli(['--backend', backend, 'audit', str(path.joinpath('test_1'))])
 
 
 def live_audit_example_2(backend: str = 'local'):
     with mount_example_archives() as path:
-        cli(['-vvv', '--backend', backend, 'audit', str(path.joinpath('test_2'))])
+        cli(['--backend', backend, 'audit', str(path.joinpath('test_2'))])

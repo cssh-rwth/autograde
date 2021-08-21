@@ -18,6 +18,9 @@ jobs:
         os: [ Ubuntu ]
         python-version: [ 3.8 ]
 
+    env:
+      AG_VERBOSITY: 3
+
     steps:
       - uses: actions/checkout@v2
 

@@ -36,7 +36,6 @@ class Local(Backend):
 
     def version(self) -> int:
         print(f'autograde version {autograde.__version__}')
-        print(f'supported backends: {set(self.supported)}')
         print(f'python {sys.version.split()[0]} at {sys.executable}')
         print(f'default encoding {sys.getdefaultencoding()}')
         return 0

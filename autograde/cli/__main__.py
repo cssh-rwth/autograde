@@ -84,6 +84,8 @@ def cli(args=None):
     logger.debug(f'python: {sys.executable}')
     logger.debug(f'autograde: {project_root()}')
     logger.debug(f'default encoding: {sys.getdefaultencoding()}')
+    logger.debug(f'supported backends: {set(Backend.supported)}')
+    logger.debug(f'available backends: {set(Backend.available)}')
     logger.debug(f'args: {args}')
 
     backend = Backend.load(args.pop('backend'), tag=args.pop('tag'), verbosity=args.pop('verbosity'))
