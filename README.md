@@ -28,7 +28,7 @@ If you intend to use autograde in a sandboxed environment
 ensure [rootless docker](docs.docker.com/engine/security/rootless/) or [podman](podman.io/getting-started/installation)
 are available on your system. So far, only rootless mode is supported!
 
-## usage
+## Usage
 
 Once installed, *autograde* can be invoked via the`autograde` command. If you are using a virtual environment (which
 poetry does implicitly) you may have to activate it first. Alternative methods:
@@ -37,13 +37,19 @@ poetry does implicitly) you may have to activate it first. Alternative methods:
   environment.
 - `poetry run autograde` if you've installed *autograde* from source
 
-### testing
+To get an overview over all options available, run
+
+```shell
+autograde [sub command] --help
+```
+
+### Testing
 
 *autograde* comes with some example files located in the `demo/`
 subdirectory that we will use for now to illustrate the workflow. Run
 
 ```shell
-python -m autograde test demo/test.py demo/notebook.ipynb --target /tmp --context demo/context
+autograde test demo/test.py demo/notebook.ipynb --target /tmp --context demo/context
 ```
 
 What happened? Let's first have a look at the arguments of *autograde*:
@@ -66,43 +72,53 @@ The output is a compressed archive that is named something like
 - `notebook.ipynb`: an identical copy of the tested notebook
 - `restults.json`: test results
 
-### reports
+### Audit Mode
+
+The interactive audit mode allows for manual refining the result files. This is useful for grading parts that cannot be
+tested automatically such as plots or text comments.
+
+```shell
+autograde audit path/to/results
+```
+
+**Overview**
+[![autograde on PyPI](assets/overview.png)](assets/overview.png)
+
+**Auditing**
+[![autograde on PyPI](assets/audit.png)](assets/audit.png)
+
+**Report Preview**
+[![autograde on PyPI](assets/report.png)](assets/report.png)
+
+### Generate Reports
 
 The `report` sub command creates human readable HTML reports from test results:
 
 ```shell
-python -m autograde report path/to/result(s)
+autograde report path/to/result(s)
 ```
 
 The report is added to the results archive inplace.
 
-### patching
+### Patch Result Archives
 
 Results from multiple test runs can be merged via the `patch` sub command:
 
 ```shell
-python -m autograde patch path/to/result(s) /path/to/patch/result(s)
+autograde patch path/to/result(s) /path/to/patch/result(s)
 ```
 
-### summarize results
+### Summarize Multiple Results
 
 In a typical scenario, test cases are not just applied to one notebook but many at a time. Therefore, *autograde* comes
 with a summary feature, that aggregates results, shows you a score distribution and has some very basic fraud detection.
 To create a summary, simply run:
 
 ```shell
-python -m autograde summary path/to/results
+autograde summary path/to/results
 ```
 
 Two new files will appear in the result directory:
 
 - `summary.csv`: aggregated results
 - `summary.html`: human readable summary report
-
-### help
-
-To get an overview of all available commands and their usage, run
-
-```shell
-python -m autograde [sub command] --help
-```

@@ -35,7 +35,7 @@
                         <b>Label:</b> <i>{{ r.label|e }}</i><br>
                         <b>Target(s):</b> <code>{{ r.target|join(', ') }}</code><br>
                     </td>
-                    <td style="text-align: right; font-size: 1.1em">
+                    <td style="text-align: right; font-size: 1.1em; overflow: hidden; white-space: nowrap">
                         {% if edit_mode %}
                             <label>
                                 <input type="number" name="score:{{ r.id }}" min="0" max="{{ r.score_max }}" step="0.05"
