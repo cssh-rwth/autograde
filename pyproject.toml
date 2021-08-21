@@ -4,7 +4,7 @@ version = "0.2.13"
 description = "Unittesting & Grading of Jupyter Notebooks"
 authors = ["Lukas Ochse"]
 maintainers = ["Chair for Computational Social Sciences and Humanities at RWTH Aachen University"]
-readme = "README.rst"
+readme = "README.md"
 repository = "https://github.com/cssh-rwth/autograde"
 keywords = ["jupyter", "notebook", "testing", "grading"]
 license = "MIT"
@@ -16,23 +16,26 @@ include = [
     "autograde/static/*",
     "demo/*",
     "demo/context/*",
-    "Dockerfile",
-    "dummy.py",
     ".flake8"
 ]
 
 [tool.poetry.scripts]
 autograde = "autograde.cli.__main__:cli"
 
+[tool.poetry.plugins.ag_backends]
+"local" = "autograde.backend.local:Local"
+"podman" = "autograde.backend.container:Podman"
+"docker" = "autograde.backend.container:Docker"
+
 [tool.poetry.dependencies]
 python = ">=3.8,<3.10"
 dataclasses-json = "^0.5"
 numpy = "~1.21"
 scipy = "~1.7"
-pandas = "~1.2"
+pandas = "~1.3"
 matplotlib = "~3.4"
 seaborn = "~0.11"
-ipykernel = "~5.5"
+ipykernel = "~6.2"
 jupyter = "~1.0"
 Jinja2 = "~2.11"
 Flask = "~1.1"

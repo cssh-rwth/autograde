@@ -12,7 +12,7 @@ import flask.cli as flask_cli
 from flask import Flask, redirect, request, send_file
 from werkzeug.exceptions import HTTPException, InternalServerError
 
-from autograde.cli.util import namespace_args, merge_results, summarize_results, b64str, plot_score_distribution, \
+from autograde.backend.local.util import merge_results, summarize_results, b64str, plot_score_distribution, \
     find_archives
 from autograde.test_result import UnitTestResult, NotebookTestResultArchive
 from autograde.util import now, logger, parse_bool, render
@@ -122,11 +122,8 @@ class AuditState:
         return self.next_id(aid)
 
 
-@namespace_args
-def cmd_audit(result: str, bind: str, port: str, **_) -> int:
-    """Launch a web interface for manually auditing test archives"""
-
-    with AuditState(Path(result)) as state:
+def cmd_audit(result: Path, bind: str, port: int, **_) -> int:
+    with AuditState(result) as state:
         # create actual flask application
         app = Flask('autograde - audit')
 

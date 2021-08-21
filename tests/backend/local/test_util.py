@@ -1,24 +1,13 @@
 from base64 import b64decode
-from types import SimpleNamespace
 from unittest import TestCase
 
-from autograde.cli.util import namespace_args, b64str, find_archives, traverse_archives, merge_results, \
+from autograde.backend.local.util import b64str, find_archives, traverse_archives, merge_results, \
     summarize_results, plot_score_distribution
 from autograde.helpers import assert_isclose
 from tests.util import mount_example_archives
 
 
 class TestFunctions(TestCase):
-
-    def test_namespace_args(self):
-        kwargs_dict = dict(foo=13, bar=37)
-
-        @namespace_args
-        def test(*args, **kwargs):
-            self.assertTupleEqual(args, ())
-            self.assertDictEqual(kwargs, kwargs_dict)
-
-        test(SimpleNamespace(**kwargs_dict))
 
     def test_b64str(self):
         self.assertEqual(b64decode(b64str(b'Fnord')), b'Fnord')

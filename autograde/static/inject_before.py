@@ -1,3 +1,4 @@
+# this code snipped is injected by autograde
 __IMPORT_FILTER__ = globals().get('IMPORT_FILTER', None)
 __PLOTS__ = []
 __LABEL__ = None
@@ -8,7 +9,7 @@ if __IMPORT_FILTER__ is not None:
 
 try:
     # If matplotlib is available in the test environment, it is set to headless mode
-    # and all plots are dumped to disk rather than being displayed.
+    # and all plots are dumped to disk instead of being displayed.
     import matplotlib as _mpl
     _mpl.use('Agg')
 
@@ -43,5 +44,6 @@ try:
 
 except ImportError:
     print('matplotlib is not available')
+
 
 auto_save_figure = globals().get('_show', lambda *args, **kwargs: None)

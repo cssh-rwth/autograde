@@ -1,14 +1,14 @@
+import math
 from contextlib import ExitStack
 from getpass import getuser
 from pathlib import Path
-import math
 from unittest import TestCase
 
+from autograde.backend.local.audit import AuditSettings, AuditState
 from autograde.cli import cli
-from autograde.cli.audit import AuditSettings, AuditState
+from autograde.util import cd
 from tests.test_test_result import utr_dummy
 from tests.util import mount_demo_archive, mount_example_archives
-from autograde.util import cd
 
 USER = getuser()
 
@@ -187,16 +187,16 @@ class TestAuditState(TestCase):
             self.assertEqual(state.archives[aid].patch_count, 1)
 
 
-def live_audit_demo():
+def live_audit_demo(backend: str = 'local'):
     with mount_demo_archive() as path:
-        cli(['-vvv', 'audit', str(path)])
+        cli(['-vvv', '--backend', backend, 'audit', str(path)])
 
 
-def live_audit_example_1():
+def live_audit_example_1(backend: str = 'local'):
     with mount_example_archives() as path:
-        cli(['-vvv', 'audit', str(path.joinpath('test_1'))])
+        cli(['-vvv', '--backend', backend, 'audit', str(path.joinpath('test_1'))])
 
 
-def live_audit_example_2():
+def live_audit_example_2(backend: str = 'local'):
     with mount_example_archives() as path:
-        cli(['-vvv', 'audit', str(path.joinpath('test_2'))])
+        cli(['-vvv', '--backend', backend, 'audit', str(path.joinpath('test_2'))])

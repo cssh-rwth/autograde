@@ -7,8 +7,8 @@ from zipfile import ZipFile
 
 import pandas as pd
 
+from autograde.backend.local.util import find_archives
 from autograde.cli.__main__ import cli
-from autograde.cli.util import find_archives
 from autograde.helpers import assert_isclose
 from autograde.util import project_root, cd
 
@@ -39,7 +39,7 @@ class TestWorkflow(TestCase):
             # create reports for test 2 results
             cli(['report', 'results_2'])
 
-            for path in find_archives('results_2'):
+            for path in find_archives(Path('results_2')):
                 with ZipFile(path, mode='r') as zipf:
                     self.assertTrue('report.html' in zipf.namelist())
 
@@ -62,7 +62,7 @@ class TestWorkflow(TestCase):
             cli(['report', 'results_1'])
             cli(['summary', 'results_1'])
 
-            for path in find_archives('results_1'):
+            for path in find_archives(Path('results_1')):
                 with ZipFile(path, mode='r') as zipf:
                     self.assertTrue('report.html' in zipf.namelist())
 

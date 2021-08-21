@@ -1,13 +1,10 @@
 from pathlib import Path
-
-
-def _load(*args, mode='rt'):
-    with Path(__file__).parent.joinpath(*args).open(mode=mode if mode.startswith('r') else f'r{mode}') as f:
-        return f.read().strip() + '\n' if mode.endswith('t') else f.read()
-
+from typing import Dict
 
 # Globals and constants variables.
-INJECT_BEFORE = _load('inject_before.py')
-INJECT_AFTER = _load('inject_after.py')
-CSS = _load('style.css')
-FAVICON = _load('favicon.ico', mode='rb')
+STATIC_DIR = Path(__file__).parent.absolute()
+STATIC_FILES: Dict[str, Path] = {p.name: p for p in filter(lambda p: not p.name.startswith('__'), STATIC_DIR.glob('*'))}
+INJECT_BEFORE = STATIC_FILES['inject_before.py'].read_text()
+INJECT_AFTER = STATIC_FILES['inject_after.py'].read_text()
+CSS = STATIC_FILES['style.css'].read_text()
+FAVICON = STATIC_FILES['favicon.ico'].read_bytes()

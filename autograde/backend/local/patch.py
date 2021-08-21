@@ -1,15 +1,10 @@
 from pathlib import Path
 
-from autograde.cli.util import namespace_args, find_archives, traverse_archives
+from autograde.backend.local.util import find_archives, traverse_archives
 from autograde.util import logger
 
 
-@namespace_args
-def cmd_patch(patch: str, result: str, **_) -> int:
-    """Patch result archive(s) with results from a different run"""
-    patch = Path(patch)
-    result = Path(result)
-
+def cmd_patch(result: Path, patch: Path) -> int:
     # load patches
     patches = {a.results.checksum: a.results for a in traverse_archives(find_archives(patch))}
 
