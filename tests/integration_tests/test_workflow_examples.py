@@ -1,14 +1,17 @@
 import os
 import warnings
+from functools import wraps
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
+from typing import Callable, List
+from unittest import skipUnless, TestCase
 from zipfile import ZipFile
 
 import pandas as pd
 
+from autograde.backend import Backend
 from autograde.backend.local.util import find_archives
-from autograde.cli.__main__ import cli
+from autograde.cli.__main__ import cli as cli_orig
 from autograde.helpers import assert_isclose
 from autograde.util import project_root, cd
 
@@ -16,8 +19,16 @@ PROJECT_ROOT = project_root()
 EXAMPLES = PROJECT_ROOT.joinpath('tests', 'examples')
 
 
+def make_cli(backend: str) -> Callable[[List[str]], int]:
+    @wraps(cli_orig)
+    def cli(cmd):
+        return cli_orig(['--backend', 'local', *cmd])
+
+    return cli
+
+
 class TestWorkflow(TestCase):
-    def test_test_report_patch_summary(self):
+    def _test_test_report_patch_summary(self, cli: Callable[[List[str]], int]):
         with TemporaryDirectory() as temp, cd(temp), warnings.catch_warnings():
             warnings.simplefilter('ignore')
 
@@ -75,3 +86,14 @@ class TestWorkflow(TestCase):
             # fails since multiple scores per task and student are not allowed!
             with self.assertRaises(AssertionError):
                 cli(['summary', '.'])
+
+    def test_test_report_patch_summary(self):
+        self._test_test_report_patch_summary(make_cli('local'))
+
+    @skipUnless('podman' in Backend.available, 'Podman is not available on this system')
+    def test_test_report_patch_summary_podman(self):
+        self._test_test_report_patch_summary(make_cli('podman'))
+
+    @skipUnless('docker' in Backend.available, 'Docker is not available on this system')
+    def test_test_report_patch_summary_docker(self):
+        self._test_test_report_patch_summary(make_cli('docker'))
