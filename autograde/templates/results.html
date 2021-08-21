@@ -33,7 +33,7 @@
                     <td>
                         <b>ID:</b> {{ hash(r.id) }}<br>
                         <b>Label:</b> <i>{{ r.label|e }}</i><br>
-                        <b>Target(s):</b> <code>{{ r.target|join(',') }}</code><br>
+                        <b>Target(s):</b> <code>{{ r.target|join(', ') }}</code><br>
                     </td>
                     <td style="text-align: right; font-size: 1.1em">
                         {% if edit_mode %}
