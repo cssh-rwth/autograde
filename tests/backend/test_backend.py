@@ -138,7 +138,7 @@ class TestBackend(TestCase):
                 EXAMPLES.joinpath('solution_c.ipynb'),
                 temp
             )
-            self.assertEqual(len(list(temp.glob('results_*.zip'))), 1)
+            self.assertEqual(len(list(temp.glob('results*.zip'))), 1)
 
     def test_test_multi(self):
         with TemporaryDirectory() as temp:
@@ -148,7 +148,7 @@ class TestBackend(TestCase):
                 EXAMPLES,
                 temp
             )
-            self.assertEqual(len(list(temp.glob('results_*.zip'))), 3)
+            self.assertEqual(len(list(temp.glob('results*.zip'))), 3)
 
     def test_test_with_target(self):
         with TemporaryDirectory() as temp:
@@ -158,7 +158,7 @@ class TestBackend(TestCase):
                 EXAMPLES.joinpath('solution_b.ipynb'),
                 temp
             )
-            self.assertEqual(len(list(temp.glob('results_*.zip'))), 1)
+            self.assertEqual(len(list(temp.glob('results*.zip'))), 1)
 
     def test_test_with_context(self):
         with TemporaryDirectory() as temp:
@@ -169,7 +169,7 @@ class TestBackend(TestCase):
                 temp,
                 DEMO.joinpath('context')
             )
-            self.assertEqual(len(list(temp.glob('results_*.zip'))), 1)
+            self.assertEqual(len(list(temp.glob('results*.zip'))), 1)
 
     # Test Version Command
     def test_version(self):

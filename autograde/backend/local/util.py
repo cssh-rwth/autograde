@@ -27,7 +27,7 @@ def find_archives(path: Path = Path('.'), prefix='results') -> List[Path]:
     if path.is_file():
         return [path]
 
-    return sorted(path.rglob(f'{prefix}_*.zip'))
+    return sorted(path.rglob(f'{prefix}*.zip'))
 
 
 def traverse_archives(paths: Iterable[Path], mode: str = 'r') -> Generator[NotebookTestResultArchive, None, None]:

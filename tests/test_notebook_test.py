@@ -189,7 +189,7 @@ class TestNotebookTest(TestCase):
         with TemporaryDirectory() as path, cd(path):
             nbtest.nbt._grade_notebook(nb_path, context=c_path)
 
-            rpath = next(Path(path).glob('results_*.zip'))
+            rpath = next(Path(path).glob('results*.zip'))
 
             with ZipFile(rpath, mode='r') as zipf:
                 self.assertListEqual(sorted(zipf.namelist()), [

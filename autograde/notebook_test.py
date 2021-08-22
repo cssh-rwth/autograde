@@ -193,7 +193,6 @@ class NotebookTest:
         )
 
     def _apply_unit_tests(self, state: Dict) -> Generator[UnitTestResult, None, None]:
-        # prepare import filter
         if_regex, if_blacklist = self._variables.get('IMPORT_FILTER', (None, None))
 
         for i, unit_test in enumerate(self._unit_tests.values(), start=1):
@@ -302,18 +301,19 @@ class NotebookTest:
                 )
 
                 # store results as json
-                logger.debug('dump results as json')
+                logger.debug('store results')
                 with open('results.json', mode='wt', encoding='utf-8') as f:
                     json.dump(results.to_dict(), fp=f, indent=4)
 
-                # infer new, better readable name TODO change separator to '', remove '[' and ']'
-                names = results.format_members(separator=',')
-                archive_name_new = Path(f'results_[{names}]_{nb_hash_short}.zip')
+                # infer new, better readable name
+                names = results.format_members(separator='')
+                archive_name_new = Path(f'results-{names}-{nb_hash_short}.zip')
 
             if archive_name_new.exists():
                 logger.debug(f'remove existing {archive_name_new}')
                 archive_name_new.unlink()
 
+            logger.debug(f'rename results archive to {archive_name_new}')
             archive.rename(archive_name_new)
 
         return results
