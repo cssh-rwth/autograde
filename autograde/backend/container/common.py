@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -6,7 +7,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Optional
 
 from autograde.backend.base import Backend
-from autograde.util import cd, logger, render
+from autograde.util import cd, logger, project_root, render
 
 
 class Command(list):
@@ -94,16 +95,20 @@ class ContainerBackend(ABC, Backend):
         ag_cmd.parameter(mp_result)
         return (c_cmd + ag_cmd).run().returncode
 
-    def build(self, requirements: Optional[Path] = None) -> int:
+    def build(self, requirements: Optional[Path] = None, from_source: bool = False) -> int:
         # container command
         with TemporaryDirectory() as tmp, cd(tmp):
             kwargs = {}
             tmp = Path(tmp)
             dockerfile = tmp.joinpath('Dockerfile')
+            source_dir = tmp.joinpath('src')
             if requirements:
                 requirements_copy = tmp.joinpath('requirements.txt')
                 requirements_copy.write_bytes(requirements.read_bytes())
                 kwargs['requirements'] = requirements_copy.relative_to(tmp)
+            if from_source:
+                shutil.copytree(project_root(), source_dir)
+                kwargs['source_dir'] = source_dir.relative_to(tmp)
             dockerfile.write_text(render('container.dockerfile', minify=False, **kwargs))
             cmd = self.new_container_command('build')
             cmd.named_parameter('--file', dockerfile)

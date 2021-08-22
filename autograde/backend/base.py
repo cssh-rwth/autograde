@@ -34,7 +34,7 @@ class Backend(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def build(self, requirements: Optional[Path] = None) -> int:
+    def build(self, requirements: Optional[Path] = None, from_source: bool = False) -> int:
         """Build autograde container image"""
         raise NotImplementedError
 

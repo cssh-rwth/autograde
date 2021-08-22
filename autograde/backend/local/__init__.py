@@ -19,7 +19,7 @@ class Local(Backend):
     def audit(self, result: Path, bind: str, port: int) -> int:
         return cmd_audit(result, bind, port)
 
-    def build(self, requirements: Optional[Path] = None) -> int:
+    def build(self, requirements: Optional[Path] = None, from_source: bool = False) -> int:
         raise ValueError('command is not supported by this backend')
 
     def patch(self, result: Path, patch: Path) -> int:

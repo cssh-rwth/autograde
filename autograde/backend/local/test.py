@@ -7,7 +7,6 @@ from autograde.util import logger
 
 # no typo, the word "test" caused some confusion with the test framework
 def cmd_tset(test: Path, notebook: Path, target: Path, verbosity: int, context: Optional[Path] = None) -> int:
-    # TODO turn into Value Error
     assert test.is_file(), f'{test} is no regular file'
     assert notebook.is_file() or notebook.is_dir(), f'{notebook} is no regular file or directory'
     assert target.is_dir(), f'{target} is no regular directory'

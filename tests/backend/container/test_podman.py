@@ -1,7 +1,9 @@
+import os
 from unittest import skip, skipUnless
 
 from autograde.backend import Backend
 from autograde.backend.container import ContainerBackend, Podman
+from autograde.util import parse_bool
 from tests.backend.test_backend import TestBackend
 
 
@@ -13,7 +15,7 @@ class TestPodmanBackend(TestBackend):
     @classmethod
     def setUpClass(cls):
         super(TestPodmanBackend, cls).setUpClass()
-        cls.backend.build()
+        cls.backend.build(from_source=parse_bool(os.getenv('AG_TEST_BUILD_IMAGE_FROM_SOURCE', False)))
 
     @classmethod
     def tearDownClass(cls) -> None:
