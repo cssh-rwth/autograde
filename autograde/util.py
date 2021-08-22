@@ -6,13 +6,17 @@ import math
 import os
 import re
 import sys
+import threading
 import time
 from contextlib import contextmanager, ExitStack
+from ctypes import pythonapi, c_long, py_object
 from datetime import datetime
-from functools import wraps
+from functools import partial, wraps
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Any, ContextManager, Generator, Iterable, List, Optional, TextIO, Tuple, Union
+from queue import Queue
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from threading import Thread
+from typing import Any, Callable, ContextManager, Dict, Generator, Iterable, List, Optional, TextIO, Tuple, Union
 from unittest import mock
 from zipfile import ZipFile
 
@@ -71,18 +75,16 @@ def float_equal(a: float, b: float) -> bool:
     return math.isclose(a, b) or (math.isnan(a) and math.isnan(b))
 
 
-def _alpha_numeric_split(s: str) -> Generator[str, None, None]:
-    yield from filter(lambda s: s, ALPHA_NUMERIC.split(s.strip()))
+def _alpha_numeric_split(string: str) -> Generator[str, None, None]:
+    yield from filter(lambda s: s, ALPHA_NUMERIC.split(string.strip()))
 
 
-def snake_case(s: str) -> str:
-    return '_'.join(map(str.lower, _alpha_numeric_split(s)))
+def snake_case(string: str) -> str:
+    return '_'.join(map(str.lower, _alpha_numeric_split(string)))
 
 
-def camel_case(s: str) -> str:
-    if not s:
-        return ''
-    return ''.join(f'{ss[0].upper()}{ss[1:].lower()}' for ss in _alpha_numeric_split(s))
+def camel_case(string: str) -> str:
+    return ''.join(f'{s[0].upper()}{s[1:].lower()}' for s in _alpha_numeric_split(string))
 
 
 def prune_join(words: Iterable[str], separator: str = ',', max_width: Union[int, float] = float('inf')) -> str:
@@ -187,30 +189,112 @@ class StopWatch:
         return list(map(lambda ts: ts[1] - ts[0], zip([self.captures[0]] + self.captures, self.captures)))
 
 
+class KillableThread(Thread):
+    """
+    A thread implementation that can be forcibly terminated from the outside.
+    Stolen from: blog.finxter.com/how-to-kill-a-thread-in-python/#Method_4_Using_ctypes_To_Raise_Exceptions_In_A_Thread
+    """
+
+    @wraps(Thread.__init__)
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
+        self._result_queue = Queue()
+        wrapper = target
+        if target:
+            def wrapper(*args, **kwargs):
+                try:
+                    self._result_queue.put(target(*args, **kwargs))
+                except Exception as e:
+                    self._result_queue.put(e)
+        super().__init__(group, wrapper, name, args, kwargs, daemon=daemon)
+
+    @property
+    def thread_id(self) -> Optional[int]:
+        """
+        :return: unique thread id or none if thread has not been started
+        """
+        attr_name = '_thread_id'
+
+        if (tid := getattr(self, attr_name, None)) is not None:
+            return tid
+
+        for tid, thread in threading._active.items():
+            if thread is self:
+                setattr(self, attr_name, tid)
+                return tid
+
+        return None
+
+    def terminate(self):
+        """
+        raises SystemExit in the context of the given thread, which should
+        cause the thread to exit silently (unless caught)
+        """
+        if not self.is_alive():
+            raise RuntimeError('threads can only be killed when alive')
+
+        if pythonapi.PyThreadState_SetAsyncExc(c_long(self.thread_id), py_object(SystemExit)) > 1:
+            # if it returns a number greater than one, you're in trouble,
+            # and you should call it again with exc=NULL to revert the effect
+            pythonapi.PyThreadState_SetAsyncExc(self.thread_id, 0)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+
+    def result(self) -> Any:
+        result = self._result_queue.get(block=True)
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+
+def run_with_timeout(target: Callable[..., Any], timeout: float, *, args: Tuple = (),
+                     kwargs: Optional[Dict[str, Any]] = None) -> Any:
+    """
+    Run a given callable and raise a `TimeoutError` when the timeout limit is exceeded.
+
+    :param target: callable object to be run
+    :param timeout: timeout limit
+    :param args: positional arguments for the target invocation
+    :param kwargs: keyword arguments for the target invocation
+    :return: return value of target invocation
+    """
+    worker = KillableThread(target=target, args=args, kwargs=kwargs or dict())
+    worker.start()
+    worker.join(timeout=timeout)
+    if worker.is_alive():
+        worker.terminate()
+        worker.join()  # this may still block if the job catches SystemExit!
+        raise TimeoutError(f'code execution took longer than {timeout or -1.:.3f}s to terminate')
+    return worker.result()
+
+
+def exec_with_timeout(*args, timeout: float):
+    """
+    Wrapper for builtin `exec` that aborts execution when given timeout limit is exceeded.
+
+    :param args: positional arguments for `exec`
+    :param timeout: timeout limit
+    """
+    run_with_timeout(lambda: exec(*args), timeout=timeout)
+
+
 @contextmanager
-def deadline(timeout: float) -> ContextManager[float]:
-    """Context that fails if not closed in time"""
-    start = time.monotonic()
+def shadow_exec(source: str, *args, timeout: Optional[float] = None) -> ContextManager[Path]:
+    """
+    Wrapper for builtin `exec` that accepts source code as input and executes it while preserving
+    a copy of it in the file system. That's particularly useful when inspecting the state created
+    by source execution later on.
 
-    # trace callbacks
-    def _globaltrace(frame, event, arg):
-        return _localtrace if event == 'call' else None
-
-    def _localtrace(frame, event, arg):
-        if time.monotonic() - start >= timeout and event == 'line':
-            logger.debug('abort execution due to timeout')
-            raise TimeoutError(f'code execution took longer than {timeout:.3f}s to terminate')
-
-    trace = sys.gettrace()
-
-    # activate tracing only in case timeout was actually set
-    if timeout:
-        sys.settrace(_globaltrace)
-
-    try:
-        yield start
-    finally:
-        sys.settrace(trace)
+    :param source: source code to be executed
+    :param args: positional arguments for `exec`
+    :param timeout: optional, results in using `exec_with_timeout` internally when non negative
+    :return: path of the source file
+    """
+    source = f'{source}\n'
+    exec_function = partial(exec_with_timeout, timeout=timeout) if timeout and timeout > 0 else exec
+    with NamedTemporaryFile(mode='wt', encoding='utf-8') as shadow_copy:
+        shadow_copy.write(source)
+        shadow_copy.flush()
+        exec_function(compile(source, shadow_copy.name, mode='exec'), *args)
+        yield Path(shadow_copy.name)
 
 
 class WatchDog:
@@ -261,9 +345,8 @@ def render(template: str, minify: bool = True, **kwargs) -> str:
 
 @contextmanager
 def import_filter(regex: Union[str, re.Pattern], flags: int = 0, blacklist: bool = False) -> ContextManager[None]:
-    """Temporarily filter imports by regular expression"""
+    """Temporarily filter imports with a regex"""
     pattern = re.compile(regex, flags) if isinstance(regex, str) else regex
-
     builtins_import = builtins.__import__
     importlib_import = importlib.__import__
     importlib_import_module = importlib.import_module
@@ -272,12 +355,9 @@ def import_filter(regex: Union[str, re.Pattern], flags: int = 0, blacklist: bool
         @wraps(protected_function)
         def guard(target, *args, **kwargs):
             matches = pattern.search(target) is not None
-
             if (matches and blacklist) or (not matches and not blacklist):
                 raise ImportError(f'usage of "{target}" is not permitted')
-
             return protected_function(target, *args, **kwargs)
-
         return guard
 
     with ExitStack() as stack:

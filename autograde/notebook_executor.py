@@ -5,14 +5,13 @@ import warnings
 from contextlib import contextmanager, ExitStack
 from copy import deepcopy
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, TextIO
 
 from IPython.core.interactiveshell import InteractiveShell
 from nbformat import read
 
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
-from autograde.util import logger, capture_output, deadline, StopWatch, import_filter
+from autograde.util import logger, capture_output, shadow_exec, StopWatch, import_filter
 
 
 def as_py_comment(s: str, indentation: int = 0):
@@ -36,31 +35,7 @@ class ArtifactLoader:
         self._root = Path(root)
 
     def __getitem__(self, path) -> bytes:
-        with self._root.joinpath(path).open(mode='rb') as f:
-            return f.read()
-
-
-@contextmanager
-def shadow_exec(source: str, *args, **kwargs):
-    """
-    Wrapper for builtin `exec` that accepts source code as input and executes it while preserving
-    a copy of it in the file system. That's particularly useful when inspecting the state created
-    by source execution later on.
-
-    :param source: source code to be executed
-    :param args: positional arguments for `exec`
-    :param kwargs: key word arguments for `exec`
-    :return: path of the source file
-    """
-    source = f'{source}\n'
-    with NamedTemporaryFile(mode='wt', encoding='utf-8') as shadow_copy:
-        shadow_copy.write(source)
-        shadow_copy.flush()
-
-        compiled_source = compile(source, shadow_copy.name, mode='exec')
-        exec(compiled_source, *args, **kwargs)
-
-        yield shadow_copy.name
+        return self._root.joinpath(path).read_bytes()
 
 
 @contextmanager
@@ -131,9 +106,8 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                     with capture_output(stdout, stderr), ExitStack() as execution_stack:
                         if if_regex is not None and i > 1:
                             execution_stack.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                        execution_stack.enter_context(deadline(timeout))
                         execution_stack.enter_context(stopwatch)
-                        shadow_stack.enter_context(shadow_exec(code_cell, state))
+                        shadow_stack.enter_context(shadow_exec(code_cell, state, timeout=timeout))
 
                 # extend log with a meaningful error message
                 except Exception as error:

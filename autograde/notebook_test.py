@@ -19,7 +19,7 @@ from typing import Callable, Dict, Optional, Union, Iterable, Generator, Tuple
 
 from autograde.notebook_executor import exec_notebook
 from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
-from autograde.util import logger, loglevel, capture_output, cd, cd_zip, deadline, WatchDog, import_filter
+from autograde.util import capture_output, cd, cd_zip, import_filter, logger, loglevel, run_with_timeout, WatchDog
 
 Target = Union[str, Iterable[str]]
 TestResult = Union[None, float, str, Tuple[float, str]]
@@ -27,7 +27,7 @@ TestFunction = Callable[..., TestResult]
 
 
 class UnitTest:
-    def __init__(self, test_function: TestFunction, target: Target, label: str, score: float = 1., timeout: float = 0.):
+    def __init__(self, test_function: TestFunction, target: Target, label: str, score: float = 1., timeout: float = -1):
         self._id = sha256(label.lower().strip().encode('utf-8')).hexdigest()
         self._test_function = test_function
         self._targets = (target,) if isinstance(target, str) else tuple(target)
@@ -44,7 +44,9 @@ class UnitTest:
                 raise NameError(err.args[0])
 
             # run actual test
-            with deadline(self._timeout):
+            if (t := self._timeout) > 0:
+                result = run_with_timeout(self._test_function, args=(*targets, *args), kwargs=kwargs, timeout=t)
+            else:
                 result = self._test_function(*targets, *args, **kwargs)
 
             # interpret results

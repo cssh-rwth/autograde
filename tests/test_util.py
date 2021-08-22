@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import io
 import math
 import string
@@ -9,27 +10,17 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 from unittest import TestCase
 from zipfile import ZipFile
 
 from autograde.helpers import assert_iter_eqal
 from autograde.util import parse_bool, loglevel, project_root, snake_case, \
-    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, deadline, \
-    WatchDog, import_filter
+    camel_case, prune_join, capture_output, cd, cd_zip, StopWatch, WatchDog, \
+    import_filter, run_with_timeout, exec_with_timeout, shadow_exec
 
 
 class TestUtil(TestCase):
-    def test_parse_bool(self):
-        for v in (False, 0, 'F', 'f', 'false', 'FALSE', 'FalsE', 'nO', 'n'):
-            self.assertFalse(parse_bool(v))
-
-        for v in (True, 1, 'T', 't', 'true', 'TRUE', 'TruE', 'yEs', 'y'):
-            self.assertTrue(parse_bool(v))
-
-        for v in ('ja', 'nein', 'fnord', Exception, io):
-            with self.assertRaises(ValueError):
-                parse_bool(v)
-
     def test_loglevel(self):
         self.assertEqual(40, loglevel(-1))
         self.assertEqual(40, loglevel(0))
@@ -40,6 +31,61 @@ class TestUtil(TestCase):
 
     def test_project_root(self):
         self.assertEqual(project_root(), Path(__file__).parent.parent)
+
+    def test_capture_output(self):
+        stdout = sys.stdout
+        stderr = sys.stderr
+
+        with io.StringIO() as tmp_stdout, io.StringIO() as tmp_stderr:
+            sys.stdout = tmp_stdout
+            sys.stderr = tmp_stderr
+
+            with io.StringIO() as out_buffer, io.StringIO() as err_buffer:
+                with capture_output() as (bo, be):
+                    self.assertIs(bo, tmp_stdout)
+                    self.assertIs(be, tmp_stderr)
+                    print('<o1>')
+                    print('<e1>', file=sys.stderr)
+
+                with capture_output(out_buffer) as (bo, be):
+                    self.assertIs(bo, tmp_stdout)
+                    self.assertIs(be, tmp_stderr)
+                    print('<o2>')
+                    print('<e2>', file=sys.stderr)
+
+                with capture_output(tmp_stderr=err_buffer) as (bo, be):
+                    self.assertIs(bo, tmp_stdout)
+                    self.assertIs(be, tmp_stderr)
+                    print('<o3>')
+                    print('<e3>', file=sys.stderr)
+
+                with capture_output(out_buffer, err_buffer) as (bo, be):
+                    self.assertIs(bo, tmp_stdout)
+                    self.assertIs(be, tmp_stderr)
+                    print('<o4>')
+                    print('<e4>', file=sys.stderr)
+
+                self.assertEqual('<o2>\n<o4>\n', out_buffer.getvalue())
+                self.assertEqual('<e3>\n<e4>\n', err_buffer.getvalue())
+
+            self.assertEqual('<o1>\n<o3>\n', tmp_stdout.getvalue())
+            self.assertEqual('<e1>\n<e2>\n', tmp_stderr.getvalue())
+
+        sys.stdout = stdout
+        sys.stderr = stderr
+
+
+class TestStringFunctions(TestCase):
+    def test_parse_bool(self):
+        for v in (False, 0, 'F', 'f', 'false', 'FALSE', 'FalsE', 'nO', 'n'):
+            self.assertFalse(parse_bool(v))
+
+        for v in (True, 1, 'T', 't', 'true', 'TRUE', 'TruE', 'yEs', 'y'):
+            self.assertTrue(parse_bool(v))
+
+        for v in ('ja', 'nein', 'fnord', Exception, io):
+            with self.assertRaises(ValueError):
+                parse_bool(v)
 
     def test_snake_case(self):
         self.assertEqual('', snake_case(''))
@@ -71,52 +117,8 @@ class TestUtil(TestCase):
                     for word in words:
                         self.assertIn(word[0], counts)
 
-    def test_capture_output(self):
-        stdout = sys.stdout
-        stderr = sys.stderr
 
-        with io.StringIO() as tmpstdout, io.StringIO() as tmpstderr:
-            sys.stdout = tmpstdout
-            sys.stderr = tmpstderr
-
-            with io.StringIO() as out_buffer, io.StringIO() as err_buffer:
-                with capture_output() as (bo, be):
-                    self.assertIs(bo, tmpstdout)
-                    self.assertIs(be, tmpstderr)
-
-                    print('<o1>')
-                    print('<e1>', file=sys.stderr)
-
-                with capture_output(out_buffer) as (bo, be):
-                    self.assertIs(bo, tmpstdout)
-                    self.assertIs(be, tmpstderr)
-
-                    print('<o2>')
-                    print('<e2>', file=sys.stderr)
-
-                with capture_output(tmp_stderr=err_buffer) as (bo, be):
-                    self.assertIs(bo, tmpstdout)
-                    self.assertIs(be, tmpstderr)
-
-                    print('<o3>')
-                    print('<e3>', file=sys.stderr)
-
-                with capture_output(out_buffer, err_buffer) as (bo, be):
-                    self.assertIs(bo, tmpstdout)
-                    self.assertIs(be, tmpstderr)
-
-                    print('<o4>')
-                    print('<e4>', file=sys.stderr)
-
-                self.assertEqual('<o2>\n<o4>\n', out_buffer.getvalue())
-                self.assertEqual('<e3>\n<e4>\n', err_buffer.getvalue())
-
-            self.assertEqual('<o1>\n<o3>\n', tmpstdout.getvalue())
-            self.assertEqual('<e1>\n<e2>\n', tmpstderr.getvalue())
-
-        sys.stdout = stdout
-        sys.stderr = stderr
-
+class TestCD(TestCase):
     def test_cd(self):
         cwd = Path('')
 
@@ -165,7 +167,9 @@ class TestUtil(TestCase):
             with ZipFile(path) as zipf:
                 self.assertSetEqual(set(zipf.namelist()), {'bar'})
 
-    def test_stopwatch(self):
+
+class TestStopWatch(TestCase):
+    def test(self):
         assert_list_eq = partial(assert_iter_eqal, comp=lambda a, b: math.isclose(a, b, abs_tol=5e-3))
 
         sw = StopWatch()
@@ -186,137 +190,202 @@ class TestUtil(TestCase):
         assert_list_eq([0., 1e-2, 3e-2, 6e-2, 1e-1], sw.duration_abs())
         assert_list_eq([0., 1e-2, 2e-2, 3e-2, 4e-2], sw.duration_rel())
 
-    def test_deadline(self):
-        self.assertIsNone(sys.gettrace())
 
-        with deadline(0):
-            self.assertIsNone(sys.gettrace())
-            time.sleep(.01)
+class TestImportFilter(TestCase):
 
-        self.assertIsNone(sys.gettrace())
+    def test_import_keyword_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            import math
+            _ = dir(math)
 
+        with import_filter(r'typ*'):
+            import types
+            _ = dir(types)
+
+    def test_import_keyword_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            import math
+            _ = dir(math)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            import types
+            _ = dir(types)
+
+    def test_import_keyword_alias_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            import math as foo
+            _ = dir(foo)
+
+        with import_filter(r'typ*'):
+            import types as foo
+            _ = dir(foo)
+
+    def test_import_keyword_alias_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            import math as foo
+            _ = dir(foo)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            import types as foo
+            _ = dir(foo)
+
+    def test_from_keyword_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            from math import isclose
+            _ = dir(isclose)
+
+        with import_filter(r'typ*'):
+            from types import SimpleNamespace
+            _ = dir(SimpleNamespace)
+
+    def test_from_keyword_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            from math import isclose
+            _ = dir(isclose)
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            from types import SimpleNamespace
+            _ = dir(SimpleNamespace)
+
+    def test___import___keyword_success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                __import__('math', *args)
+
+            with import_filter(r'typ*'):
+                __import__('types', *args)
+
+    def test___import_keyword___failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                __import__('math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                __import__('types', *args)
+
+    def test_exec_success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                exec('import math', *args)
+
+            with import_filter(r'typ*'):
+                exec('import types', *args)
+
+    def test_exec_failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                exec('import math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                exec('import types', *args)
+
+    def test_importlib___import___success(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with import_filter(r'typ*', blacklist=True):
+                importlib.__import__('math', *args)
+
+            with import_filter(r'typ*'):
+                importlib.__import__('types', *args)
+
+    def test_importlib___import___failure(self):
+        for args in [(), (dict(),), (dict(), dict())]:
+            with self.assertRaises(ImportError), import_filter(r'typ*'):
+                importlib.__import__('math', *args)
+
+            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+                importlib.__import__('types', *args)
+
+    def test_importlib_import_module_success(self):
+        with import_filter(r'typ*', blacklist=True):
+            importlib.import_module('math')
+
+        with import_filter(r'typ*'):
+            importlib.import_module('types')
+
+    def test_importlib_import_module_failure(self):
+        with self.assertRaises(ImportError), import_filter(r'typ*'):
+            importlib.import_module('math')
+
+        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
+            importlib.import_module('types')
+
+
+def some_function(return_value=None, block_for: float = 0, *, exception: Optional[Exception] = None):
+    start_t = time.monotonic()
+    while time.monotonic() - start_t < block_for:
+        time.sleep(1e-3)
+    if exception is not None:
+        raise exception
+    return return_value
+
+
+class TestRunWithTimeout(TestCase):
+    def test_success(self):
+        self.assertEqual(run_with_timeout(some_function, 1, args=(42,)), 42)
+
+    def test_exception(self):
+        with self.assertRaises(AssertionError):
+            run_with_timeout(some_function, 1, kwargs=dict(exception=AssertionError()))
+
+    def test_timeout(self):
         with self.assertRaises(TimeoutError):
-            with deadline(.01):
-                self.assertIsNotNone(sys.gettrace())
-                time.sleep(.02)
+            run_with_timeout(some_function, 1e-4, kwargs=dict(block_for=1.))
 
-        self.assertIsNone(sys.gettrace())
 
-    def test_import_filter_import_keyword_success(self):
-        with import_filter(r'typ*', blacklist=True):
-            import math
-            _ = dir(math)
+class TestExecWithTimeout(TestCase):
+    def test_success(self):
+        state = dict()
+        exec_with_timeout('foo = 42', state, timeout=1)
+        self.assertEqual(state['foo'], 42)
 
-        with import_filter(r'typ*'):
-            import types
-            _ = dir(types)
+    def test_exception(self):
+        with self.assertRaises(AssertionError):
+            exec_with_timeout('assert False', timeout=1)
 
-    def test_import_filter_import_keyword_failure(self):
-        with self.assertRaises(ImportError), import_filter(r'typ*'):
-            import math
-            _ = dir(math)
+    def test_timeout(self):
+        with self.assertRaises(TimeoutError):
+            exec_with_timeout('while True:\n    pass', timeout=1e-4)
 
-        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-            import types
-            _ = dir(types)
 
-    def test_import_filter_import_keyword_alias_success(self):
-        with import_filter(r'typ*', blacklist=True):
-            import math as foo
-            _ = dir(foo)
+class TestShadowExec(TestCase):
+    def test_success(self):
+        state = dict()
+        source = 'def foo():\n\treturn 42'
+        with shadow_exec(source, state) as path:
+            with open(path, mode='rt') as f:
+                shadow_source = f.read()
 
-        with import_filter(r'typ*'):
-            import types as foo
-            _ = dir(foo)
+            self.assertEqual(f'{source}\n', inspect.getsource(state['foo']))
+            self.assertEqual(f'{source}\n', shadow_source)
 
-    def test_import_filter_import_keyword_alias_failure(self):
-        with self.assertRaises(ImportError), import_filter(r'typ*'):
-            import math as foo
-            _ = dir(foo)
+        self.assertEqual(42, state['foo']())
 
-        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-            import types as foo
-            _ = dir(foo)
+    def test_inspect(self):
+        state = dict()
+        source = 'def foo():\n    return 42'
 
-    def test_import_filter_from_keyword_success(self):
-        with import_filter(r'typ*', blacklist=True):
-            from math import isclose
-            _ = dir(isclose)
+        with shadow_exec(source, state) as path:
+            with open(path, mode='rt') as f:
+                shadow_source = f.read()
 
-        with import_filter(r'typ*'):
-            from types import SimpleNamespace
-            _ = dir(SimpleNamespace)
+            self.assertEqual(f'{source}\n', inspect.getsource(state['foo']))
+            self.assertEqual(f'{source}\n', shadow_source)
 
-    def test_import_filter_from_keyword_failure(self):
-        with self.assertRaises(ImportError), import_filter(r'typ*'):
-            from math import isclose
-            _ = dir(isclose)
+        with self.assertRaises(OSError):
+            inspect.getsource(state['foo'])
 
-        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-            from types import SimpleNamespace
-            _ = dir(SimpleNamespace)
+    def test_exception(self):
+        state = dict()
+        with shadow_exec('def bar():\n\tassert False', state):
+            pass
 
-    def test_import_filter___import___keyword_success(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with import_filter(r'typ*', blacklist=True):
-                __import__('math', *args)
+        with self.assertRaises(AssertionError):
+            state['bar']()
 
-            with import_filter(r'typ*'):
-                __import__('types', *args)
-
-    def test_import_filter___import_keyword___failure(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with self.assertRaises(ImportError), import_filter(r'typ*'):
-                __import__('math', *args)
-
-            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-                __import__('types', *args)
-
-    def test_import_filter_exec_success(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with import_filter(r'typ*', blacklist=True):
-                exec('import math', *args)
-
-            with import_filter(r'typ*'):
-                exec('import types', *args)
-
-    def test_import_filter_exec_failure(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with self.assertRaises(ImportError), import_filter(r'typ*'):
-                exec('import math', *args)
-
-            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-                exec('import types', *args)
-
-    def test_import_filter_importlib___import___success(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with import_filter(r'typ*', blacklist=True):
-                importlib.__import__('math', *args)
-
-            with import_filter(r'typ*'):
-                importlib.__import__('types', *args)
-
-    def test_import_filter_importlib___import___failure(self):
-        for args in [(), (dict(),), (dict(), dict())]:
-            with self.assertRaises(ImportError), import_filter(r'typ*'):
-                importlib.__import__('math', *args)
-
-            with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-                importlib.__import__('types', *args)
-
-    def test_import_filter_importlib_import_module_success(self):
-        with import_filter(r'typ*', blacklist=True):
-            importlib.import_module('math')
-
-        with import_filter(r'typ*'):
-            importlib.import_module('types')
-
-    def test_import_filter_importlib_import_module_failure(self):
-        with self.assertRaises(ImportError), import_filter(r'typ*'):
-            importlib.import_module('math')
-
-        with self.assertRaises(ImportError), import_filter(r'typ*', blacklist=True):
-            importlib.import_module('types')
+    def test_timeout(self):
+        with self.assertRaises(TimeoutError):
+            with shadow_exec('while True:\n    pass', timeout=1e-4):
+                pass
 
 
 class TestWatchDog(TestCase):
