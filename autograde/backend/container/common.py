@@ -24,18 +24,12 @@ class Command(list):
         self.extend(other)
         return self
 
-    @staticmethod
-    def escape(value: Any) -> str:
-        if isinstance(value, Path):
-            return f'"{value}"'
-        return str(value)
-
     def parameter(self, value: Any):
-        self.append(self.escape(value))
+        self.append(str(value))
 
     def named_parameter(self, name: str, value: Any):
         self.append(name)
-        self.append(self.escape(value))
+        self.append(str(value))
 
     def run(self, **kwargs) -> CompletedProcess:
         logger.debug(f'> {self}')

@@ -83,7 +83,8 @@ def mount_demo_archive() -> ContextManager[Path]:
 def mount_example_archives() -> ContextManager[Path]:
     """Mount example archives to temporary directory"""
     with TemporaryDirectory() as temp:
-        temp = Path(temp)
+        temp = Path(temp).joinpath('sub dir')
+        temp.mkdir(exist_ok=True)
         for tid, results in load_example_archives().items():
             test_path = temp.joinpath(f'test_{tid}')
             test_path.mkdir()
