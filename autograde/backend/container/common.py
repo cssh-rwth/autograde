@@ -24,16 +24,22 @@ class Command(list):
         self.extend(other)
         return self
 
+    @staticmethod
+    def escape(value: Any) -> str:
+        if isinstance(value, Path):
+            return f'"{value}"'
+        return str(value)
+
     def parameter(self, value: Any):
-        self.append(str(value))
+        self.append(self.escape(value))
 
     def named_parameter(self, name: str, value: Any):
         self.append(name)
-        self.append(str(value))
+        self.append(self.escape(value))
 
     def run(self, **kwargs) -> CompletedProcess:
         logger.debug(f'> {self}')
-        return subprocess.run(self, **kwargs)
+        return subprocess.run(str(self), **kwargs)
 
 
 class ContainerCommand(Command):
