@@ -25,12 +25,12 @@ def cli(args=None):
     )
 
     # global flags
-    backends = '|'.join(Backend.available)
+    backends = ','.join(Backend.available)
     parser.add_argument('-v', '--verbosity', action='count', default=verbosity,
                         help='verbosity level')
     parser.add_argument('--backend', type=str, default=container_backend,
                         choices=list(Backend.available), metavar='',
-                        help=f'container backend to use ({backends}), default is {container_backend}')
+                        help=f'container backend to use {{{backends}}}, default is "{container_backend}"')
     parser.add_argument('--tag', type=str, default=container_tag, metavar='',
                         help=f'container tag, default: "{container_tag}"')
     parser.set_defaults(cmd='version')
