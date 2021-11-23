@@ -39,7 +39,8 @@ class Command(list):
 
     def run(self, **kwargs) -> CompletedProcess:
         logger.debug(f'> {self}')
-        return subprocess.run(str(self), **kwargs)
+        cmd = ' '.join(self) if (shell := kwargs.get('shell')) and shell else self
+        return subprocess.run(cmd, **kwargs)
 
 
 class ContainerCommand(Command):
