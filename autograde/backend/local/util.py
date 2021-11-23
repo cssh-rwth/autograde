@@ -69,11 +69,13 @@ def summarize_results(results_df: pd.DataFrame) -> pd.DataFrame:
 
         # sanity checks
         assert len(aggregate_df['student_id']) == 1
-        assert len(aggregate_df['last_name']) == 1
-        assert len(aggregate_df['first_name']) == 1
-        assert len(aggregate_df['notebook_id']) == 1
-        assert len(aggregate_df['test_id']) == len(group)
-        assert len(aggregate_df['archive']) == 1
+        student_id = aggregate_df['student_id'][0]
+        error_msg = f'there is an inconsistency for student ID {student_id}'
+        assert len(aggregate_df['last_name']) == 1, error_msg
+        assert len(aggregate_df['first_name']) == 1, error_msg
+        assert len(aggregate_df['notebook_id']) == 1, error_msg
+        assert len(aggregate_df['test_id']) == len(group), error_msg
+        assert len(aggregate_df['archive']) == 1, error_msg
 
         aggregate_df = aggregate_df.apply(lambda col: col[0])
         aggregate_df['score'] = group['score'].sum()
