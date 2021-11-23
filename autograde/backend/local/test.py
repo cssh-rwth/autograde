@@ -1,7 +1,7 @@
-import subprocess
 from pathlib import Path
 from typing import Optional
 
+from autograde.backend.container.common import AutogradeCommand
 from autograde.util import logger
 
 
@@ -20,18 +20,15 @@ def cmd_tset(test: Path, notebook: Path, target: Path, verbosity: int, context: 
             notebook.rglob('*.ipynb')
         ))
 
-    def run(path_nb_):
-        cmd = [
-            'python', f'"{test}"',
-            f'"{path_nb_}"',
-            '--target', f'"{target}"',
-            *(('--context', f'"{context}"') if context else ()),
-            *(('-' + 'v' * verbosity,) if verbosity > 0 else ())
-        ]
+    def run(nb):
+        cmd = AutogradeCommand('python')
+        cmd.parameter(test)
+        cmd.parameter(nb)
+        cmd.named_parameter('--target', target)
+        if context:
+            cmd.named_parameter('--context', context)
+        cmd.verbosity(verbosity)
+        logger.info(f'test: {nb}')
+        return cmd.run(shell=True).returncode
 
-        logger.info(f'test: {path_nb_}')
-        logger.debug('run' + ' '.join(cmd))
-
-        return subprocess.call(' '.join(cmd), shell=True)
-
-    return sum(map(run, notebooks))
+    return max(map(run, notebooks))
