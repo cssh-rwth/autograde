@@ -122,3 +122,47 @@ Two new files will appear in the result directory:
 
 - `summary.csv`: aggregated results
 - `summary.html`: human readable summary report
+
+## Snippets
+
+**Work with result archives programmatically**
+
+Fix score for a test case in all result archives:
+
+```python
+from pathlib import Path
+
+from autograde.backend.local.util import find_archives, traverse_archives
+
+
+def fix_test(path: Path, faulty_test_id: str, new_score: float):
+    for archive in traverse_archives(find_archives(path), mode='a'):
+        results = archive.results.copy()
+        for faulty_test in filter(lambda t: t.id == faulty_test_id, results.unit_test_results):
+            faulty_test.score_max = new_score
+            archive.inject_patch(results)
+
+
+fix_test(Path('...'), '...', 13.37)
+```
+
+**Special Test Cases**
+
+Ensure a student id occurs at most once:
+
+```python
+from collections import Counter
+
+from autograde import NotebookTest
+
+nbt = NotebookTest('demo notebook test')
+
+
+@nbt.register(target='__TEAM_MEMBERS__', label='check for duplicate student id')
+def test_special_variables(team_members):
+    id_counts = Counter(member.student_id for member in team_members)
+    duplicates = {student_id for student_id, count in id_counts.items() if count > 1}
+    assert not duplicates, f'multiple members share same id ({duplicates})'
+```
+
+
