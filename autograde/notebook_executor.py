@@ -4,11 +4,12 @@ import traceback
 import warnings
 from contextlib import contextmanager, ExitStack
 from copy import deepcopy
+from functools import wraps
 from pathlib import Path
-from typing import Dict, Optional, TextIO
+from typing import Any, Dict, Optional, TextIO, Type, Union
 
 from IPython.core.interactiveshell import InteractiveShell
-from nbformat import read
+from nbformat import read, reads, NotebookNode
 
 from autograde.static import INJECT_BEFORE, INJECT_AFTER
 from autograde.util import logger, capture_output, shadow_exec, StopWatch, import_filter
@@ -38,18 +39,78 @@ class ArtifactLoader:
         return self._root.joinpath(path).read_bytes()
 
 
+class Shell(InteractiveShell):
+    """Autograde's default shell for code parsing (not execution)"""
+
+    @wraps(InteractiveShell.__init__)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Special commands are patched after initialization since IPython relies on them
+        self.run_line_magic = self._run_line_magic
+        self.run_cell_magic = self._run_cell_magic
+        self.system_raw = self._system_raw
+        self.system_piped = self._system_piped
+        self.system = self._system_piped
+
+    def enable_gui(self, gui=None):
+        pass
+
+    _run_line_magic = InteractiveShell.run_line_magic
+    _run_cell_magic = InteractiveShell.run_cell_magic
+    _system_raw = InteractiveShell.system_raw
+    _system_piped = InteractiveShell.system_piped
+
+
+class PedanticShell(Shell):
+    """A shell that strictly prohibits usage of IPython special commands (starting with `%` or `!`)"""
+
+    def _run_line_magic(self, magic_name, line, _stack_depth=1):
+        raise PermissionError(
+            f"Using IPython magic command is not allowed! run_line_magic({magic_name=}, {line=}, {_stack_depth=})"
+        )
+
+    def _run_cell_magic(self, magic_name, line, cell):
+        raise PermissionError(
+            f"Using IPython magic command is not allowed! run_cell_magic({magic_name=}, {line=}, {cell=})"
+        )
+
+    def _system_raw(self, cmd):
+        raise PermissionError(f"fUsing IPython system commands is not allowed! system_raw({cmd=})")
+
+    def _system_piped(self, cmd):
+        raise PermissionError(f"fUsing IPython system commands is not allowed! system_piped({cmd=})")
+
+
+class ForgivingShell(Shell):
+    """A shell that ignores IPython special commands (starting with `%` or `!`)"""
+
+    def _run_line_magic(self, magic_name, line, _stack_depth=1):
+        print(f"Ignore IPython magic command: run_line_magic({magic_name=}, {line=}, {_stack_depth=})", file=sys.stderr)
+
+    def _run_cell_magic(self, magic_name, line, cell):
+        print(f"Ignore IPython magic command: run_cell_magic({magic_name=}, {line=}, {cell=})", file=sys.stderr)
+
+    def _system_raw(self, cmd):
+        print(f"Ignore IPython system command: system_raw({cmd=})", file=sys.stderr)
+
+    def _system_piped(self, cmd):
+        print(f"Ignore IPython system command: system_piped({cmd=})", file=sys.stderr)
+
+
 @contextmanager
-def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
-                  ignore_errors: bool = False, variables: Optional[Dict] = None):
+def exec_notebook(notebook: Union[NotebookNode, str, TextIO], file: TextIO = sys.stdout, cell_timeout: float = 0.,
+                  ignore_errors: bool = False, shell_cls: Type[Shell] = Shell,
+                  variables: Optional[Dict[str, Any]] = None):
     """
     Extract source code from jupyter notebook and execute it.
 
-    :param notebook: file like with notebook data
+    :param notebook: the notebook to be executed
     :param file: where to send stdout
     :param ignore_errors: whether or not errors will be forwarded or ignored
     :param cell_timeout: timeout for cell execution 0=∞
+    :param shell_cls: which shell to use
     :param variables: variables to be inserted into initial state
-    :return: the state mutated by executed code
+    :return: the state resulting from notebook execution
     """
     state = dict()
     variables = variables or {}
@@ -60,8 +121,13 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
         # When executed within a container, some minor warnings occur that we filter here
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            notebook = read(notebook, 4)
-            shell = InteractiveShell.instance()
+            if isinstance(notebook, NotebookNode):
+                pass
+            elif isinstance(notebook, str):
+                notebook = reads(notebook, 4)
+            else:
+                notebook = read(notebook, 4)
+            shell = shell_cls()
 
         # Extract comment cells
         md_cells = [c.source for c in filter(lambda c: c.cell_type == 'markdown', notebook.cells)]

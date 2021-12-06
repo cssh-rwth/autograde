@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 import sys
 
-from autograde import NotebookTest
+from autograde import NotebookTest, ForgivingShell
 from autograde.helpers import assert_raises
 
-nbt = NotebookTest('demo notebook test', cell_timeout=4., test_timeout=.1)
+nbt = NotebookTest(
+    'demo notebook test',  # title of the notebook test
+    cell_timeout=4.,  # max duration per cell execution
+    test_timeout=.1,  # max duration per test case execution
+    shell_cls=ForgivingShell  # the shell class determines how to handle IPython special commands (`%...`, `!...`)
+)
 
 # an import filter can be any regular expression, e.g. r'autograde|networkx|typ.*'
 nbt.set_import_filter(r'autograde', blacklist=True)

@@ -4,9 +4,14 @@ import os
 import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Iterable
 from unittest import TestCase
 
-from autograde.notebook_executor import as_py_comment, shadow_exec, ArtifactLoader, exec_notebook
+import nbformat.v4 as nbf
+from nbformat import NotebookNode
+
+from autograde.notebook_executor import as_py_comment, shadow_exec, ArtifactLoader, Shell, PedanticShell, \
+    ForgivingShell, exec_notebook
 from autograde.util import project_root, cd
 
 PROJECT_ROOT = project_root()
@@ -38,6 +43,68 @@ class TestArtifactLoader(TestCase):
             self.assertEqual(b'FOO', loader['foo'])
             with self.assertRaises(FileNotFoundError):
                 _ = loader['bar']
+
+
+class TestShell(TestCase):
+    @staticmethod
+    def nb_from_code_snippets(snippets: Iterable[str]) -> NotebookNode:
+        nb = nbf.new_notebook()
+        nb.cells.extend(map(nbf.new_code_cell, snippets))
+        return nb
+
+    def setUp(self) -> None:
+        self.nb_line_magic = self.nb_from_code_snippets(["%time 1 ** 32\n"])
+        self.nb_cell_magic = self.nb_from_code_snippets(["%%sh\n\nwhoami\n"])
+        self.nb_system = self.nb_from_code_snippets(["!whoami\n"])
+
+    def test_exec_line_magic(self):
+        with open(os.devnull, 'w') as devnull, exec_notebook(self.nb_line_magic, file=devnull, shell_cls=Shell):
+            pass
+
+    def test_exec_cell_magic(self):
+        with open(os.devnull, 'w') as devnull, exec_notebook(self.nb_cell_magic, file=devnull, shell_cls=Shell):
+            pass
+
+    def test_system(self):
+        with open(os.devnull, 'w') as devnull, exec_notebook(self.nb_system, file=devnull, shell_cls=Shell):
+            pass
+
+
+class TestPedanticShell(TestShell):
+    def test_exec_line_magic(self):
+        with self.assertRaises(PermissionError), open(os.devnull, 'w') as devnull:
+            with exec_notebook(self.nb_line_magic, file=devnull, shell_cls=PedanticShell):
+                pass
+
+    def test_exec_cell_magic(self):
+        with self.assertRaises(PermissionError), open(os.devnull, 'w') as devnull:
+            with exec_notebook(self.nb_cell_magic, file=devnull, shell_cls=PedanticShell):
+                pass
+
+    def test_system(self):
+        with self.assertRaises(PermissionError), open(os.devnull, 'w') as devnull:
+            with exec_notebook(self.nb_system, file=devnull, shell_cls=PedanticShell):
+                pass
+
+
+class TestForgivingShell(TestShell):
+    def test_exec_line_magic(self):
+        with io.StringIO() as buffer:
+            with exec_notebook(self.nb_line_magic, file=buffer, shell_cls=ForgivingShell):
+                pass
+            self.assertIn("Ignore IPython magic command", buffer.getvalue())
+
+    def test_exec_cell_magic(self):
+        with io.StringIO() as buffer:
+            with exec_notebook(self.nb_cell_magic, file=buffer, shell_cls=ForgivingShell):
+                pass
+            self.assertIn("Ignore IPython magic command", buffer.getvalue())
+
+    def test_system(self):
+        with io.StringIO() as buffer:
+            with exec_notebook(self.nb_system, file=buffer, shell_cls=ForgivingShell):
+                pass
+            self.assertIn("Ignore IPython system command", buffer.getvalue())
 
 
 class TestFunctions(TestCase):

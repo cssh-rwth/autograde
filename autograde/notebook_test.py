@@ -15,9 +15,9 @@ from contextlib import ExitStack
 from hashlib import sha256
 from math import isclose
 from pathlib import Path
-from typing import Callable, Dict, Optional, Union, Iterable, Generator, Tuple
+from typing import Callable, Dict, Optional, Union, Iterable, Generator, Tuple, Type
 
-from autograde.notebook_executor import exec_notebook
+from autograde.notebook_executor import Shell, PedanticShell, exec_notebook
 from autograde.test_result import TeamMember, UnitTestResult, NotebookTestResult
 from autograde.util import capture_output, cd, cd_zip, import_filter, logger, loglevel, run_with_timeout, WatchDog
 
@@ -86,12 +86,22 @@ TestDecorator = Callable[[TestFunction], UnitTest]
 
 
 class NotebookTest:
-    def __init__(self, title: str, cell_timeout: float = 0., test_timeout: float = 0.):
+    def __init__(self, title: str, cell_timeout: float = 0., test_timeout: float = 0.,
+                 shell_cls: Type[Shell] = PedanticShell):
+        """
+        :param title: title of the notebook test
+        :param cell_timeout: max duration per cell execution, zero is interpreted as not timeout
+        :param test_timeout: max duration per test case execution, zero is interpreted as not timeout
+        :param shell_cls: shell to use, defaults to `PedanticShell` which raises an error on any IPython magic/system
+            command. Alternatives are `Shell` (wraps `IPython.core.interactiveshell.InteractiveShell`) and
+            `ForgivingShell` which ignores IPython special commands.
+        """
         self._title = title
         self._unit_tests = OrderedDict()
         self._cell_timeout = cell_timeout
         self._test_timeout = test_timeout
         self._variables = OrderedDict()
+        self._shell_cls = shell_cls
 
     def __len__(self):
         return len(self._unit_tests)
