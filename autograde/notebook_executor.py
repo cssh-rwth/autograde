@@ -57,23 +57,21 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
     try:
         logger.debug('parse notebook')
 
-        # when executed within a container, some minor warnings occur that we filter here
+        # When executed within a container, some minor warnings occur that we filter here
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             notebook = read(notebook, 4)
             shell = InteractiveShell.instance()
 
-        # extract comment cells
+        # Extract comment cells
         md_cells = [c.source for c in filter(lambda c: c.cell_type == 'markdown', notebook.cells)]
 
-        # prepare code cells for execution
+        # Prepare code cells for execution
         def transform_code_cells():
             yield 'SETUP', INJECT_BEFORE, 0
-
             for i, cell in enumerate(filter(lambda c: c.cell_type == 'code', notebook.cells), start=1):
                 yield f'{i}', shell.input_transformer_manager.transform_cell(cell.source).strip(), cell_timeout
                 yield f'{i} CLEAN', 'auto_save_figure()', cell_timeout
-
             yield 'TEARDOWN', INJECT_AFTER, 0
 
         code_cells = list(transform_code_cells())
@@ -82,18 +80,20 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
         logger.error(f'unable to parse notebook: {error}')
         raise ValueError(error)
 
-    # prepare state
+    # Prepare state
     state.update(deepcopy(variables))
     state['get_ipython'] = lambda: shell
 
-    # prepare import filter
+    # Prepare import filter
     if_regex, if_blacklist = variables.get('IMPORT_FILTER', (None, None))
 
-    # the log is supposed to be a valid, standalone python script
+    # The log is supposed to be a valid, standalone python script
     print('#!/usr/bin/env python3', file=file)
 
-    # actual code execution
-    with ExitStack() as shadow_stack:
+    # Actual code execution
+    # The shadow context determines the lifetime of code copies in the file system which are used for code inspection,
+    # i.e. `inspect.getsource`
+    with ExitStack() as shadow_context:
         for i, (label, code_cell, timeout) in enumerate(code_cells, start=1):
             state.update({'__LABEL__': deepcopy(label), '__PLOTS__': []})
 
@@ -101,15 +101,15 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                 logger.debug(f'[{i}/{len(code_cells)}] execute cell ("{label}")')
                 stopwatch = StopWatch()
 
-                # state transmuting code execution
+                # Execute cell
                 try:
-                    with capture_output(stdout, stderr), ExitStack() as execution_stack:
+                    with capture_output(stdout, stderr), ExitStack() as execution_context:
                         if if_regex is not None and i > 1:
-                            execution_stack.enter_context(import_filter(if_regex, blacklist=if_blacklist))
-                        execution_stack.enter_context(stopwatch)
-                        shadow_stack.enter_context(shadow_exec(code_cell, state, timeout=timeout))
+                            execution_context.enter_context(import_filter(if_regex, blacklist=if_blacklist))
+                        execution_context.enter_context(stopwatch)
+                        shadow_context.enter_context(shadow_exec(code_cell, state, timeout=timeout))
 
-                # extend log with a meaningful error message
+                # Extend log with a meaningful error message
                 except Exception as error:
                     traceback.print_exception(type(error), error, error.__traceback__, file=stderr)
 
@@ -117,7 +117,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
                         print('abort due to previous error', file=stderr)
                         raise error
 
-                # log code cell and outputs
+                # Log code cell and outputs
                 finally:
                     with capture_output(file):
                         _label = f' CODE CELL {label} '
@@ -135,7 +135,7 @@ def exec_notebook(notebook, file: TextIO = sys.stdout, cell_timeout: float = 0.,
 
                         print()
 
-        # add special items to state
+        # Add special items to state
         state['__COMMENTS__'] = md_cells
         state['__ARTIFACTS__'] = ArtifactLoader()
 
