@@ -1,13 +1,12 @@
-import os
 from unittest import skip, skipUnless
 
 from autograde.backend import Backend
 from autograde.backend.container import ContainerBackend, Docker
-from autograde.util import parse_bool
+from tests.backend.container.config import SKIP_CONTAINER, BUILD_IMAGE_FROM_SOURCE
 from tests.backend.test_backend import TestBackend
 
 
-@skipUnless('docker' in Backend.available, 'Docker is not available on this system')
+@skipUnless('docker' in Backend.available and not SKIP_CONTAINER, 'Skip testing with Docker backend')
 class TestDockerBackend(TestBackend):
     backend: ContainerBackend = None
     backend_cls = Docker
@@ -15,7 +14,7 @@ class TestDockerBackend(TestBackend):
     @classmethod
     def setUpClass(cls):
         super(TestDockerBackend, cls).setUpClass()
-        cls.backend.build(from_source=parse_bool(os.getenv('AG_TEST_BUILD_IMAGE_FROM_SOURCE', False)))
+        cls.backend.build(from_source=BUILD_IMAGE_FROM_SOURCE)
 
     @classmethod
     def tearDownClass(cls) -> None:

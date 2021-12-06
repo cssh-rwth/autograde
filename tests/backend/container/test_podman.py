@@ -1,13 +1,12 @@
-import os
 from unittest import skip, skipUnless
 
 from autograde.backend import Backend
 from autograde.backend.container import ContainerBackend, Podman
-from autograde.util import parse_bool
+from tests.backend.container.config import SKIP_CONTAINER, BUILD_IMAGE_FROM_SOURCE
 from tests.backend.test_backend import TestBackend
 
 
-@skipUnless('podman' in Backend.available, 'Podman is not available on this system')
+@skipUnless('podman' in Backend.available and not SKIP_CONTAINER, 'Skip testing with Podman backend')
 class TestPodmanBackend(TestBackend):
     backend: ContainerBackend = None
     backend_cls = Podman
@@ -15,7 +14,7 @@ class TestPodmanBackend(TestBackend):
     @classmethod
     def setUpClass(cls):
         super(TestPodmanBackend, cls).setUpClass()
-        cls.backend.build(from_source=parse_bool(os.getenv('AG_TEST_BUILD_IMAGE_FROM_SOURCE', False)))
+        cls.backend.build(from_source=BUILD_IMAGE_FROM_SOURCE)
 
     @classmethod
     def tearDownClass(cls) -> None:
