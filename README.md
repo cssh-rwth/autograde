@@ -63,7 +63,7 @@ What happened? Let's first have a look at the arguments of *autograde*:
   or subdirectories. This is useful when the notebook expects some external files to be present such as data sets.
 
 The output is a compressed archive that is named something like
-`results_[Lastname1,Lastname2,...]_XXXXXXXX.zip` and which has the following contents:
+`results-Member1Member2Member3-XXXXXXXXXX.zip` and which has the following contents:
 
 - `artifacts/`: directory with all files that where created or modified by the tested notebook as well as rendered
   matplotlib plots.
