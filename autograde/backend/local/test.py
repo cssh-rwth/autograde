@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
-from autograde.backend.container.common import AutogradeCommand
+from autograde.backend.base import AutogradeCommand
 from autograde.util import logger
 
 

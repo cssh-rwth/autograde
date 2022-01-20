@@ -1,43 +1,14 @@
 import shutil
-import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
-from typing import Any, Optional
+from typing import Optional
 
-from autograde.backend.base import Backend
-from autograde.util import cd, logger, project_root, render
-
-
-class Command(list):
-    def __init__(self, *command: str):
-        super().__init__(command)
-
-    def __repr__(self):
-        return ' '.join(self)
-
-    def __add__(self, other: 'Command') -> 'Command':
-        return Command(*list.__add__(self, other))
-
-    def __iadd__(self, other: 'Command') -> 'Command':
-        self.extend(other)
-        return self
-
-    def parameter(self, value: Any):
-        self.append(str(value))
-
-    def named_parameter(self, name: str, value: Any):
-        self.append(name)
-        self.append(str(value))
-
-    def run(self, **kwargs) -> CompletedProcess:
-        logger.debug(f'> {self}')
-        cmd = ' '.join(self) if (shell := kwargs.get('shell')) and shell else self
-        return subprocess.run(cmd, **kwargs)
+from autograde.backend.base import Backend, ShellCommand, AutogradeCommand
+from autograde.util import cd, project_root, render
 
 
-class ContainerCommand(Command):
+class ContainerCommand(ShellCommand):
     mounts = Path('/autograde/mounts')
     mount_flags = {'ro', 'z', 'Z'}
     mount_flags_default = {'Z'}
@@ -63,13 +34,6 @@ class PodmanCommand(ContainerCommand):
 class DockerCommand(ContainerCommand):
     def __init__(self, *command: str):
         super().__init__('docker', *command)
-
-
-class AutogradeCommand(Command):
-    def verbosity(self, verbosity: int):
-        if verbosity > 0:
-            vs = 'v' * verbosity
-            self.parameter(f'-{vs}')
 
 
 class ContainerBackend(ABC, Backend):

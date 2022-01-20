@@ -1,10 +1,47 @@
+import subprocess
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional
+from shlex import quote as shell_escape
+from subprocess import CompletedProcess
+from typing import Dict, Optional, Any
 
 from pkg_resources import iter_entry_points
 
-from autograde.util import loglevel
+from autograde.util import loglevel, logger
+
+
+class ShellCommand(list):
+    def __init__(self, *command: str):
+        super().__init__(command)
+
+    def __repr__(self):
+        return ' '.join(self)
+
+    def __add__(self, other: 'ShellCommand') -> 'ShellCommand':
+        return ShellCommand(*list.__add__(self, other))
+
+    def __iadd__(self, other: 'ShellCommand') -> 'ShellCommand':
+        self.extend(other)
+        return self
+
+    def parameter(self, value: Any):
+        self.append(str(value))
+
+    def named_parameter(self, name: str, value: Any):
+        self.append(name)
+        self.append(str(value))
+
+    def run(self, **kwargs) -> CompletedProcess:
+        logger.debug(f'> {self}')
+        cmd = ' '.join(map(shell_escape, self)) if kwargs.get('shell', False) else self
+        return subprocess.run(cmd, **kwargs)
+
+
+class AutogradeCommand(ShellCommand):
+    def verbosity(self, verbosity: int):
+        if verbosity > 0:
+            vs = 'v' * verbosity
+            self.parameter(f'-{vs}')
 
 
 class Backend(metaclass=ABCMeta):
