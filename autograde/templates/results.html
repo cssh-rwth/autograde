@@ -25,7 +25,7 @@
         </thead>
         <tbody>
         {% for r in results %}
-            {% if state.settings is undefined or state.settings.select(r) %}
+            {% if state is undefined or state.settings is undefined or state.settings.select(r) %}
                 <tr>
                     <td class="{{ status_class(r) }}" style="font-weight: bold; color: var(--c-foreground)">
                         <span class="{{ status_class(r) }}">{{ loop.index }}</span>
